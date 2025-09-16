@@ -17,3 +17,6 @@ dist/
 
 # netlify
 .netlify/
+
+*.zip
+*.tsbuildinfo
