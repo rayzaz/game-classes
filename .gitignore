@@ -1,0 +1,19 @@
+# зависимости и сборки
+node_modules/
+dist/
+.esbuild/
+*.log
+
+# env
+.env
+.env.*
+!.env.example
+
+# редакторы/ОС
+.DS_Store
+.idea/
+.vscode/
+*.swp
+
+# netlify
+.netlify/

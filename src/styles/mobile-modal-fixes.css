@@ -1,0 +1,70 @@
+/* ----- ГЛОБАЛЬНЫЕ ФИКСЫ ДЛЯ МОДАЛКИ НА МОБИЛЕ ----- */
+
+@media (max-width: 768px) {
+  /* Корневой контейнер модалки (ставим и по role, и по классам — сработает хоть что-то) */
+  [role="dialog"],
+  .modal,
+  .DialogContent,
+  .portal-modal {
+    position: fixed !important;
+    left: 50% !important;
+    top: 50% !important;
+    transform: translate(-50%, -50%) !important;
+
+    width: 92vw !important;     /* влезаем по ширине */
+    max-width: 92vw !important;
+    max-height: 90vh !important; /* и по высоте */
+    height: auto !important;
+
+    margin: 0 !important;
+    border-radius: 16px !important;
+    box-sizing: border-box !important;
+    overflow: hidden !important; /* прокрутку дадим внутри тела */
+  }
+
+  /* Внутренний скролл для контента. Попадаем по типичным классам/структурам. */
+  [role="dialog"] .body,
+  .modal .body,
+  .DialogContent > div,
+  .portal-modal .body,
+  [role="dialog"] .content,
+  .modal .content,
+  .portal-modal .content {
+    max-height: calc(90vh - 120px) !important; /* минус заголовок и кнопки */
+    overflow: auto !important;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  /* Картинка ассистента не должна распирать окно */
+  [role="dialog"] img,
+  .modal img,
+  .portal-modal img {
+    max-width: 40vw !important; /* картинка занимает не больше 40% ширины экрана */
+    height: auto !important;
+  }
+
+  /* Кнопки — во flex и переносятся */
+  .actions,
+  .buttons,
+  [role="dialog"] .actions {
+    display: flex !important;
+    flex-wrap: wrap !important;
+    gap: 8px !important;
+  }
+  .actions > *,
+  .buttons > * {
+    flex: 1 1 auto !important; /* кнопки растягиваются, чтобы влезали */
+  }
+
+  /* На очень маленьких телефонах — ещё плотнее отступы */
+  [role="dialog"] header,
+  .portal-modal header {
+    padding: 12px !important;
+  }
+  [role="dialog"] .content,
+  .portal-modal .content,
+  [role="dialog"] .body,
+  .portal-modal .body {
+    padding: 12px !important;
+  }
+}
