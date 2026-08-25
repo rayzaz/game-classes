@@ -1,0 +1,584 @@
+.admin-event-members {
+  margin-top: 18px;
+  padding-top: 18px;
+
+  border-top:
+    1px solid
+    rgba(255, 255, 255, 0.07);
+}
+
+
+.admin-event-members-head {
+  display: flex;
+
+  align-items: center;
+
+  justify-content:
+    space-between;
+
+  gap: 14px;
+
+  margin-bottom: 14px;
+}
+
+
+.admin-event-members-head h3 {
+  margin:
+    5px
+    0
+    0;
+}
+
+
+.admin-event-members-count {
+  display: grid;
+
+  width: 38px;
+
+  height: 38px;
+
+  place-items: center;
+
+  border:
+    1px solid
+    rgba(215, 187, 86, 0.28);
+
+  border-radius: 50%;
+
+  background:
+    rgba(215, 187, 86, 0.07);
+
+  color:
+    #f4e7b0;
+
+  font-size: 13px;
+
+  font-weight: 900;
+}
+
+
+/* =====================================================
+   ДОБАВЛЕНИЕ УЧАСТНИКА
+   ===================================================== */
+
+.admin-event-member-add {
+  display: grid;
+
+  grid-template-columns:
+    minmax(0, 1fr)
+    auto;
+
+  gap: 10px;
+
+  margin-bottom: 14px;
+}
+
+
+.admin-event-member-add select {
+  width: 100%;
+
+  min-width: 0;
+
+  min-height: 44px;
+
+  padding:
+    10px
+    13px;
+
+  border:
+    1px solid
+    rgba(255, 255, 255, 0.1);
+
+  border-radius: 11px;
+
+  background:
+    rgba(8, 10, 15, 0.9);
+
+  color:
+    #f4f4f6;
+
+  font: inherit;
+
+  outline: none;
+}
+
+
+.admin-event-member-add select:focus {
+  border-color:
+    rgba(214, 183, 83, 0.55);
+}
+
+
+/* =====================================================
+   СПИСОК
+   ===================================================== */
+
+.admin-event-member-list {
+  display: grid;
+
+  gap: 12px;
+}
+
+
+.admin-event-member-card {
+  min-width: 0;
+
+  padding: 14px;
+
+  border:
+    1px solid
+    rgba(255, 255, 255, 0.075);
+
+  border-radius: 15px;
+
+  background:
+    linear-gradient(
+      180deg,
+      rgba(255, 255, 255, 0.035),
+      rgba(255, 255, 255, 0.018)
+    );
+}
+
+
+/* =====================================================
+   ИМЯ И АВАТАР
+   ===================================================== */
+
+.admin-event-member-main {
+  display: flex;
+
+  align-items: center;
+
+  min-width: 0;
+
+  gap: 13px;
+}
+
+
+.admin-event-member-avatar {
+  display: grid;
+
+  width: 58px;
+
+  height: 58px;
+
+  flex:
+    0
+    0
+    58px;
+
+  overflow: hidden;
+
+  place-items: center;
+
+  border:
+    1px solid
+    rgba(215, 187, 86, 0.25);
+
+  border-radius: 50%;
+
+  background:
+    rgba(215, 187, 86, 0.08);
+
+  font-size: 14px;
+
+  font-weight: 900;
+}
+
+
+.admin-event-member-avatar img {
+  width: 100%;
+
+  height: 100%;
+
+  object-fit: cover;
+}
+
+
+.admin-event-member-copy {
+  min-width: 0;
+
+  flex: 1;
+}
+
+
+.admin-event-member-name-row {
+  display: flex;
+
+  align-items: center;
+
+  flex-wrap: wrap;
+
+  gap: 8px;
+}
+
+
+.admin-event-member-name-row h4 {
+  margin: 0;
+
+  font-size: 17px;
+
+  line-height: 1.25;
+}
+
+
+.admin-event-member-source {
+  padding:
+    4px
+    7px;
+
+  border:
+    1px solid
+    rgba(255, 255, 255, 0.075);
+
+  border-radius: 999px;
+
+  opacity: 0.62;
+
+  font-size: 9px;
+
+  font-weight: 800;
+
+  letter-spacing:
+    0.04em;
+
+  text-transform:
+    uppercase;
+}
+
+
+.admin-event-member-tags {
+  display: flex;
+
+  flex-wrap: wrap;
+
+  gap: 6px;
+
+  margin-top: 8px;
+}
+
+
+.admin-event-member-tags span {
+  padding:
+    5px
+    8px;
+
+  border:
+    1px solid
+    rgba(255, 255, 255, 0.06);
+
+  border-radius:
+    999px;
+
+  background:
+    rgba(255, 255, 255, 0.035);
+
+  font-size:
+    10px;
+}
+
+
+/* =====================================================
+   РАНГ + ОТРЯД
+   ===================================================== */
+
+.admin-event-member-info {
+  display: grid;
+
+  grid-template-columns:
+    minmax(0, 1fr)
+    minmax(0, 1fr);
+
+  gap: 10px;
+
+  margin-top: 13px;
+}
+
+
+.admin-event-member-info-card {
+  min-width: 0;
+
+  padding: 11px;
+
+  border:
+    1px solid
+    rgba(255, 255, 255, 0.055);
+
+  border-radius: 11px;
+
+  background:
+    rgba(0, 0, 0, 0.14);
+}
+
+
+.admin-event-member-info-label {
+  display: block;
+
+  margin-bottom: 8px;
+
+  opacity: 0.48;
+
+  font-size: 9px;
+
+  font-weight: 900;
+
+  letter-spacing:
+    0.07em;
+
+  text-transform:
+    uppercase;
+}
+
+
+.admin-event-member-rank {
+  display: flex;
+
+  align-items: center;
+
+  min-width: 0;
+
+  gap: 9px;
+}
+
+
+.admin-event-member-rank img {
+  display: block;
+
+  width: auto;
+
+  max-width: 105px;
+
+  height: 25px;
+
+  flex: 0 0 auto;
+
+  object-fit: contain;
+}
+
+
+.admin-event-member-rank strong {
+  min-width: 0;
+
+  font-size: 11px;
+
+  line-height: 1.4;
+
+  overflow-wrap:
+    anywhere;
+}
+
+
+/* =====================================================
+   ОТРЯД — ИСПРАВЛЕНИЕ НАЛЕЗАНИЯ
+   ===================================================== */
+
+.admin-event-member-squad {
+  display: flex;
+
+  align-items: center;
+
+  min-width: 0;
+
+  gap: 10px;
+}
+
+
+.admin-event-member-squad-icon {
+  display: grid;
+
+  width: 36px;
+
+  height: 36px;
+
+  flex:
+    0
+    0
+    36px;
+
+  place-items: center;
+
+  overflow: hidden;
+
+  border:
+    1px solid
+    rgba(215, 187, 86, 0.15);
+
+  border-radius: 50%;
+
+  background:
+    rgba(215, 187, 86, 0.04);
+}
+
+
+.admin-event-member-squad-icon img {
+  display: block;
+
+  width: 30px;
+
+  height: 30px;
+
+  object-fit: contain;
+}
+
+
+.admin-event-member-squad strong {
+  display: block;
+
+  min-width: 0;
+
+  flex: 1;
+
+  font-size: 11px;
+
+  line-height: 1.4;
+
+  white-space: normal;
+
+  overflow-wrap:
+    break-word;
+
+  word-break:
+    normal;
+}
+
+
+/* =====================================================
+   СНАРЯЖЕНИЕ
+   ===================================================== */
+
+.admin-event-member-loadout {
+  margin-top: 11px;
+
+  padding: 11px;
+
+  border:
+    1px solid
+    rgba(255, 255, 255, 0.055);
+
+  border-radius: 11px;
+
+  background:
+    rgba(0, 0, 0, 0.12);
+}
+
+
+.admin-event-member-loadout-head {
+  display: flex;
+
+  align-items: center;
+
+  justify-content:
+    space-between;
+
+  gap: 10px;
+
+  margin-bottom: 8px;
+}
+
+
+.admin-event-member-loadout-head > span {
+  opacity: 0.5;
+
+  font-size: 9px;
+
+  font-weight: 900;
+
+  letter-spacing:
+    0.07em;
+}
+
+
+.admin-event-member-loadout-head strong {
+  display: grid;
+
+  min-width: 25px;
+
+  height: 25px;
+
+  place-items: center;
+
+  border-radius: 50%;
+
+  background:
+    rgba(255, 255, 255, 0.05);
+
+  font-size: 10px;
+}
+
+
+.admin-event-member-loadout-list {
+  display: grid;
+
+  gap: 6px;
+}
+
+
+.admin-event-member-loadout-item {
+  display: flex;
+
+  align-items: center;
+
+  gap: 7px;
+
+  padding:
+    7px
+    8px;
+
+  border-radius: 8px;
+
+  background:
+    rgba(255, 255, 255, 0.025);
+
+  font-size: 10px;
+
+  line-height: 1.4;
+}
+
+
+.admin-event-member-loadout-empty {
+  opacity: 0.5;
+
+  font-size: 10px;
+
+  font-style: italic;
+
+  line-height: 1.5;
+}
+
+
+/* =====================================================
+   ДЕЙСТВИЯ
+   ===================================================== */
+
+.admin-event-member-actions {
+  display: flex;
+
+  justify-content:
+    flex-end;
+
+  margin-top: 11px;
+}
+
+
+/* =====================================================
+   АДАПТИВ
+   ===================================================== */
+
+@media (
+  max-width: 900px
+) {
+  .admin-event-member-info {
+    grid-template-columns:
+      1fr;
+  }
+}
+
+
+@media (
+  max-width: 760px
+) {
+  .admin-event-member-add {
+    grid-template-columns:
+      1fr;
+  }
+}

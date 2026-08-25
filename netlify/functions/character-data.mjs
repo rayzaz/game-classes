@@ -1,39 +1,41 @@
 import {
   json,
   readSession,
-} from './_auth.mjs';
+} from './_shared/_auth.mjs';
 
-function loadCharacterUrls() {
+
+/* ============================================================
+   ЦЕНТРАЛЬНЫЙ СЕРВИС ПЕРСОНАЖЕЙ
+   ============================================================ */
+
+function loadCharacterServiceUrl() {
   const raw =
-    process.env
-      .CHARACTER_DATA_URLS_JSON;
+    String(
+      process.env.CHARACTER_SERVICE_URL ||
+      ''
+    ).trim();
 
   if (!raw) {
     throw new Error(
-      'Не задана CHARACTER_DATA_URLS_JSON'
+      'Не задан CHARACTER_SERVICE_URL'
     );
   }
 
-  const parsed =
-    JSON.parse(raw);
-
-  if (
-    !parsed ||
-    typeof parsed !==
-    'object' ||
-    Array.isArray(parsed)
-  ) {
-    throw new Error(
-      'CHARACTER_DATA_URLS_JSON должен быть JSON-объектом'
-    );
-  }
-
-  return parsed;
+  return raw;
 }
+
+
+/* ============================================================
+   NETLIFY FUNCTION
+   ============================================================ */
 
 export default async (
   request
 ) => {
+
+  /* ==========================================================
+     ТОЛЬКО GET
+     ========================================================== */
 
   if (
     request.method !==
@@ -52,11 +54,14 @@ export default async (
 
   try {
 
+    /* ========================================================
+       СЕССИЯ
+       ======================================================== */
+
     const session =
       readSession(
         request
       );
-
 
     if (!session) {
       return json(
@@ -70,43 +75,69 @@ export default async (
     }
 
 
-    const urls =
-      loadCharacterUrls();
+    /* ========================================================
+       ПЕРСОНАЖ ИЗ СЕССИИ
+       ======================================================== */
 
+    const characterId =
+      String(
+        session.cid ||
+        ''
+      )
+        .trim()
+        .toLowerCase();
 
-    const source =
-      urls[
-        session.cid
-      ];
-
-
-    if (!source) {
+    if (!characterId) {
       return json(
         {
           ok: false,
           error:
-            'Кабинет этого персонажа ещё не подключён',
+            'К этому аккаунту не привязан персонаж',
         },
         404
       );
     }
 
 
-    const url =
+    /* ========================================================
+       URL ЦЕНТРАЛЬНОГО СЕРВИСА
+       ======================================================== */
+
+    const serviceUrl =
       new URL(
-        String(source)
+        loadCharacterServiceUrl()
+      );
+
+    serviceUrl
+      .searchParams
+      .set(
+        'characterId',
+        characterId
+      );
+
+    /*
+      Добавляем случайный параметр,
+      чтобы не получить старый JSON
+      из кэша.
+    */
+
+    serviceUrl
+      .searchParams
+      .set(
+        '_',
+        String(
+          Date.now()
+        )
       );
 
 
-    url.searchParams.set(
-      '_',
-      String(Date.now())
-    );
-
+    /* ========================================================
+       ЗАГРУЖАЕМ ПЕРСОНАЖА
+       ======================================================== */
 
     const response =
       await fetch(
-        url,
+        serviceUrl,
         {
           method:
             'GET',
@@ -125,15 +156,25 @@ export default async (
       );
 
 
-    const text =
-      await response.text();
+    /* ========================================================
+       HTTP ОШИБКА
+       ======================================================== */
 
+    if (
+      !response.ok
+    ) {
+      const text =
+        await response
+          .text();
 
-    if (!response.ok) {
       console.error(
-        'character source error',
+        'character service HTTP error:',
+        characterId,
         response.status,
-        text.slice(0, 300)
+        text.slice(
+          0,
+          500
+        )
       );
 
       return json(
@@ -147,12 +188,26 @@ export default async (
     }
 
 
+    /* ========================================================
+       ЧИТАЕМ JSON
+       ======================================================== */
+
     let data;
 
     try {
       data =
-        JSON.parse(text);
-    } catch {
+        await response
+          .json();
+
+    } catch (
+      error
+    ) {
+      console.error(
+        'character service JSON error:',
+        characterId,
+        error
+      );
+
       return json(
         {
           ok: false,
@@ -164,12 +219,65 @@ export default async (
     }
 
 
+    /* ========================================================
+       ОШИБКА ИЗ APPS SCRIPT
+       ======================================================== */
+
+    if (
+      !data ||
+      data.ok !==
+      true
+    ) {
+      const sourceError =
+        String(
+          data?.error ||
+          'Не удалось загрузить персонажа'
+        );
+
+      console.error(
+        'character service error:',
+        characterId,
+        sourceError
+      );
+
+      const normalizedError =
+        sourceError
+          .toLowerCase();
+
+      const isNotFound =
+        normalizedError
+          .includes(
+            'не найден'
+          ) ||
+        normalizedError
+          .includes(
+            'отключён'
+          );
+
+      return json(
+        {
+          ok: false,
+          error:
+            sourceError,
+        },
+        isNotFound
+          ? 404
+          : 502
+      );
+    }
+
+
+    /* ========================================================
+       ГОТОВО
+       ======================================================== */
+
     return json(
       data
     );
 
-  } catch (error) {
-
+  } catch (
+    error
+  ) {
     console.error(
       'character-data function error:',
       error

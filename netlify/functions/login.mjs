@@ -3,9 +3,19 @@ import {
   json,
   loadUsers,
   normalizeLogin,
+  normalizeRole,
   sessionCookie,
   verifyPassword,
-} from './_auth.mjs';
+} from './_shared/_auth.mjs';
+
+import {
+  getEventManagerPermissions,
+} from './_shared/_event-permissions.mjs';
+
+import {
+  tryWriteAdminLog,
+} from './_shared/_admin-log.mjs';
+
 
 const wait =
   (ms) =>
@@ -17,6 +27,7 @@ const wait =
         )
     );
 
+
 export default async (
   request
 ) => {
@@ -25,9 +36,11 @@ export default async (
     request.method !==
     'POST'
   ) {
+
     return json(
       {
         ok: false,
+
         error:
           'Метод не поддерживается',
       },
@@ -35,8 +48,10 @@ export default async (
     );
   }
 
+
   const started =
     Date.now();
+
 
   try {
 
@@ -47,10 +62,12 @@ export default async (
           () => ({})
         );
 
+
     const login =
       normalizeLogin(
         body?.login
       );
+
 
     const password =
       String(
@@ -58,13 +75,16 @@ export default async (
         ''
       );
 
+
     if (
       !login ||
       !password
     ) {
+
       return json(
         {
           ok: false,
+
           error:
             'Введите логин и пароль',
         },
@@ -72,6 +92,10 @@ export default async (
       );
     }
 
+
+    /* =========================
+       ИЩЕМ ПОЛЬЗОВАТЕЛЯ
+       ========================= */
 
     const users =
       loadUsers();
@@ -96,20 +120,23 @@ export default async (
 
 
     /*
-      Небольшая одинаковая задержка
-      усложняет перебор и не позволяет
-      легко отличить "логина нет"
-      от "пароль неверный".
+      Одинаковая небольшая
+      задержка для неверного
+      логина и неверного пароля.
     */
+
     const elapsed =
       Date.now() -
       started;
 
+
     if (
       elapsed < 350
     ) {
+
       await wait(
-        350 - elapsed
+        350 -
+        elapsed
       );
     }
 
@@ -118,9 +145,11 @@ export default async (
       !user ||
       !valid
     ) {
+
       return json(
         {
           ok: false,
+
           error:
             'Неверный логин или пароль',
         },
@@ -129,7 +158,57 @@ export default async (
     }
 
 
+    /* =========================
+       РОЛЬ
+       ========================= */
+
+    const role =
+      normalizeRole(
+        user?.role
+      );
+
+
+    const characterId =
+      String(
+        user?.characterId ||
+        ''
+      )
+        .trim();
+
+
+    /*
+      Персонаж обязателен
+      только обычному игроку.
+
+      У администратора
+      characterId может быть пустым.
+    */
+
+    if (
+      role ===
+        'player' &&
+      !characterId
+    ) {
+
+      throw new Error(
+        'У игрока не указан characterId'
+      );
+    }
+
+
+    /* =========================
+       ДАННЫЕ ДЛЯ БРАУЗЕРА
+       ========================= */
+
+    const permissions =
+      await getEventManagerPermissions({
+        login: normalizeLogin(user.login),
+        role,
+      });
+
+
     const publicUser = {
+
       login:
         normalizeLogin(
           user.login
@@ -141,52 +220,94 @@ export default async (
           user.login
         ),
 
-      characterId:
-        String(
-          user.characterId ||
-          ''
-        ),
+      role,
+
+      characterId,
+
+      permissions,
 
       cabinetReady:
-        Boolean(
-          user.cabinetReady
-        ),
+        role ===
+        'admin'
+          ? true
+          : Boolean(
+              user.cabinetReady
+            ),
     };
 
 
-    if (
-      !publicUser.characterId
-    ) {
-      throw new Error(
-        'У пользователя не указан characterId'
-      );
-    }
+    /* =========================
+       НЕГОТОВЫЙ КАБИНЕТ ИГРОКА
+       ========================= */
 
-
-    /*
-      Если персонаж уже зарегистрирован,
-      но кабинет ещё не готов, пароль
-      считается верным, однако сессию
-      к данным мы пока не выдаём.
-    */
     if (
+      role ===
+        'player' &&
       !publicUser.cabinetReady
     ) {
+
       return json({
         ok: true,
+
         user:
           publicUser,
       });
     }
 
 
-    const token =
-      createSession(user);
+    /* =========================
+       СОЗДАЁМ СЕССИЮ
+       ========================= */
 
+    const token =
+      createSession(
+        user
+      );
+
+
+    /* =========================
+       ЛОГ ВХОДА АДМИНИСТРАТОРА
+       ========================= */
+
+    if (
+      role ===
+      'admin'
+    ) {
+
+      await tryWriteAdminLog({
+
+        adminLogin:
+          publicUser.login,
+
+        adminName:
+          publicUser.displayName,
+
+        action:
+          'ADMIN_LOGIN',
+
+        targetType:
+          'admin',
+
+        targetId:
+          publicUser.login,
+
+        targetName:
+          publicUser.displayName,
+
+        details:
+          'Вход в административный центр',
+      });
+    }
+
+
+    /* =========================
+       УСПЕШНЫЙ ВХОД
+       ========================= */
 
     return json(
       {
         ok: true,
+
         user:
           publicUser,
       },
@@ -200,16 +321,20 @@ export default async (
       }
     );
 
-  } catch (error) {
+  } catch (
+    error
+  ) {
 
     console.error(
       'login function error:',
       error
     );
 
+
     return json(
       {
         ok: false,
+
         error:
           'Сервер входа не настроен',
       },

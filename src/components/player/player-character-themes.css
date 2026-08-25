@@ -1,0 +1,4438 @@
+/* ============================================================
+   РЕН — ПОЛНОЕ ОТКЛЮЧЕНИЕ ФОНА НЕРО
+   ============================================================ */
+
+/*
+  Даже если App всё ещё оборачивает кабинет
+  в старый .nero-mode, при открытом Рене
+  мы полностью гасим чёрный звёздный фон.
+*/
+
+html:has(.player-theme-ren),
+body:has(.player-theme-ren) {
+  background:
+    #dff3ff !important;
+
+  background-image:
+    none !important;
+}
+
+
+.book.nero-mode:has(.player-theme-ren) {
+  min-height:
+    100vh;
+
+  color:
+    #17354f !important;
+
+  background:
+    linear-gradient(
+      145deg,
+      #eaf8ff 0%,
+      #d8effd 34%,
+      #fafdff 64%,
+      #d8effd 100%
+    ) !important;
+
+  background-image:
+    none !important;
+}
+
+
+.book.nero-mode:has(.player-theme-ren)::before,
+.book.nero-mode:has(.player-theme-ren)::after {
+  content:
+    none !important;
+
+  display:
+    none !important;
+
+  background:
+    none !important;
+
+  background-image:
+    none !important;
+}
+
+
+/* ============================================================
+   РЕН ПАУВИНД
+   ВЕТЕР · ПТИЧЬИ МОТИВЫ
+   ГОЛУБОЙ + БЕЛЫЙ + ЗОЛОТОЙ
+   ============================================================ */
+
+.player-theme-ren {
+  position:
+    relative;
+
+  isolation:
+    isolate;
+
+  min-height:
+    100vh;
+
+  overflow:
+    hidden;
+
+  color:
+    #17354f !important;
+
+  background:
+    radial-gradient(
+      circle at 15% 12%,
+      rgba(255, 255, 255, 0.95),
+      transparent 30%
+    ),
+
+    radial-gradient(
+      circle at 82% 16%,
+      rgba(255, 224, 128, 0.32),
+      transparent 22%
+    ),
+
+    radial-gradient(
+      circle at 74% 76%,
+      rgba(107, 192, 255, 0.35),
+      transparent 32%
+    ),
+
+    linear-gradient(
+      145deg,
+      #eaf8ff 0%,
+      #d6efff 30%,
+      #f9fdff 62%,
+      #d9f2ff 100%
+    );
+}
+
+
+/* ============================================================
+   ВЕТЕР НА ФОНЕ
+   ============================================================ */
+
+.player-theme-ren::before {
+  content:
+    "";
+
+  position:
+    fixed;
+
+  z-index:
+    -2;
+
+  inset:
+    0;
+
+  pointer-events:
+    none;
+
+  opacity:
+    0.85;
+
+  background:
+    radial-gradient(
+      ellipse at 20% 25%,
+      transparent 0 33%,
+      rgba(255, 255, 255, 0.42) 34% 35%,
+      transparent 36% 100%
+    ),
+
+    radial-gradient(
+      ellipse at 78% 32%,
+      transparent 0 26%,
+      rgba(95, 180, 238, 0.19) 27% 28%,
+      transparent 29% 100%
+    ),
+
+    radial-gradient(
+      ellipse at 45% 84%,
+      transparent 0 31%,
+      rgba(255, 210, 77, 0.15) 32% 33%,
+      transparent 34% 100%
+    );
+
+  transform:
+    scale(1.1);
+}
+
+
+/* ============================================================
+   ПЕРЬЯ НА ФОНЕ
+   ============================================================ */
+
+.player-theme-ren::after {
+  content:
+    "🪶       🪶          🪶";
+
+  position:
+    fixed;
+
+  z-index:
+    -1;
+
+  top:
+    5%;
+
+  right:
+    -4%;
+
+  width:
+    62%;
+
+  pointer-events:
+    none;
+
+  opacity:
+    0.32;
+
+  font-size:
+    clamp(
+      25px,
+      3.2vw,
+      52px
+    );
+
+  letter-spacing:
+    25px;
+
+  line-height:
+    2;
+
+  text-align:
+    right;
+
+  transform:
+    rotate(-17deg);
+
+  filter:
+    drop-shadow(
+      -120px 180px 0
+      rgba(255, 211, 81, 0.18)
+    )
+
+    drop-shadow(
+      -300px 350px 0
+      rgba(79, 175, 235, 0.16)
+    )
+
+    drop-shadow(
+      -500px 520px 0
+      rgba(255, 255, 255, 0.33)
+    );
+}
+
+
+/* ============================================================
+   ВЕРХНЯЯ ПАНЕЛЬ
+   ============================================================ */
+
+.player-theme-ren
+.nero-toolbar {
+  position:
+    relative;
+
+  z-index:
+    2;
+
+  border:
+    1px solid
+    rgba(84, 165, 222, 0.25);
+
+  background:
+    rgba(248, 253, 255, 0.82);
+
+  box-shadow:
+    0 16px 40px
+    rgba(53, 126, 179, 0.10);
+
+  backdrop-filter:
+    blur(18px);
+}
+
+
+/* ============================================================
+   КНОПКИ
+   ============================================================ */
+
+.player-theme-ren
+.nero-button {
+  border:
+    1px solid
+    rgba(65, 145, 205, 0.30);
+
+  color:
+    #17486c;
+
+  background:
+    linear-gradient(
+      135deg,
+      rgba(255, 255, 255, 0.96),
+      rgba(218, 242, 255, 0.94)
+    );
+
+  box-shadow:
+    0 8px 22px
+    rgba(47, 126, 183, 0.10);
+}
+
+
+.player-theme-ren
+.nero-button:hover {
+  border-color:
+    rgba(218, 168, 51, 0.60);
+
+  color:
+    #173c5a;
+
+  background:
+    linear-gradient(
+      135deg,
+      #ffffff,
+      #e4f5ff
+    );
+
+  box-shadow:
+    0 0 0 1px
+      rgba(255, 220, 114, 0.22),
+
+    0 12px 30px
+      rgba(58, 153, 216, 0.17);
+}
+
+
+/* ============================================================
+   СИНХРОНИЗАЦИЯ
+   ============================================================ */
+
+.player-theme-ren
+.nero-sync-pill {
+  border:
+    1px solid
+    rgba(65, 154, 212, 0.24);
+
+  color:
+    #397594;
+
+  background:
+    rgba(255, 255, 255, 0.72);
+}
+
+
+.player-theme-ren
+.nero-sync-dot {
+  background:
+    #f3c44d;
+
+  box-shadow:
+    0 0 13px
+    rgba(243, 196, 77, 0.75);
+}
+
+
+/* ============================================================
+   ГЛАВНАЯ КАРТА РЕНА
+   ============================================================ */
+
+.player-theme-ren
+.nero-hero {
+  position:
+    relative;
+
+  overflow:
+    hidden;
+
+  border:
+    1px solid
+    rgba(80, 162, 220, 0.30);
+
+  background:
+    linear-gradient(
+      135deg,
+      rgba(255, 255, 255, 0.96),
+      rgba(219, 243, 255, 0.88)
+    );
+
+  box-shadow:
+    0 25px 60px
+    rgba(54, 126, 176, 0.16);
+}
+
+
+/* золотая дуга */
+
+.player-theme-ren
+.nero-hero::before {
+  content:
+    "";
+
+  position:
+    absolute;
+
+  width:
+    320px;
+
+  height:
+    320px;
+
+  top:
+    -190px;
+
+  right:
+    -100px;
+
+  border:
+    2px solid
+    rgba(236, 187, 70, 0.35);
+
+  border-radius:
+    50%;
+
+  box-shadow:
+    0 0 0 18px
+    rgba(255, 218, 108, 0.045);
+
+  pointer-events:
+    none;
+}
+
+
+/* поток ветра */
+
+.player-theme-ren
+.nero-hero::after {
+  content:
+    "";
+
+  position:
+    absolute;
+
+  left:
+    20%;
+
+  right:
+    -10%;
+
+  bottom:
+    -35px;
+
+  height:
+    100px;
+
+  pointer-events:
+    none;
+
+  opacity:
+    0.65;
+
+  border-top:
+    2px solid
+    rgba(99, 188, 243, 0.30);
+
+  border-radius:
+    50%;
+
+  transform:
+    rotate(-4deg);
+}
+
+
+/* ============================================================
+   ПОРТРЕТ
+   ============================================================ */
+
+.player-theme-ren
+.nero-portrait-shell {
+  border:
+    2px solid
+    rgba(235, 184, 59, 0.72);
+
+  background:
+    linear-gradient(
+      145deg,
+      #ffffff,
+      #cdeeff
+    );
+
+  box-shadow:
+    0 0 0 6px
+      rgba(255, 255, 255, 0.65),
+
+    0 0 0 8px
+      rgba(83, 169, 226, 0.18),
+
+    0 20px 40px
+      rgba(39, 116, 169, 0.18);
+}
+
+
+.player-theme-ren
+.nero-portrait-glow {
+  background:
+    radial-gradient(
+      circle,
+      rgba(255, 222, 110, 0.30),
+      rgba(89, 184, 245, 0.13),
+      transparent 70%
+    );
+}
+
+
+/* ============================================================
+   ИМЯ
+   ============================================================ */
+
+.player-theme-ren
+.nero-identity h1 {
+  color:
+    #174b70;
+
+  text-shadow:
+    0 2px 12px
+    rgba(81, 173, 234, 0.12);
+}
+
+
+.player-theme-ren
+.nero-kicker {
+  color:
+    #c89428;
+}
+
+
+.player-theme-ren
+.nero-player {
+  color:
+    rgba(28, 75, 105, 0.72);
+}
+
+
+/* ============================================================
+   ТЕГИ
+   ============================================================ */
+
+.player-theme-ren
+.nero-tags span {
+  border:
+    1px solid
+    rgba(61, 150, 210, 0.24);
+
+  color:
+    #225d82;
+
+  background:
+    rgba(255, 255, 255, 0.72);
+
+  box-shadow:
+    inset 0 0 18px
+    rgba(94, 191, 249, 0.05);
+}
+
+
+.player-theme-ren
+.nero-tags span:nth-child(2) {
+  border-color:
+    rgba(231, 182, 62, 0.32);
+
+  color:
+    #9a731e;
+
+  background:
+    rgba(255, 244, 204, 0.55);
+}
+
+
+/* ============================================================
+   ПРОФИЛЬ
+   ============================================================ */
+
+.player-theme-ren
+.nero-profile-cell {
+  border-color:
+    rgba(75, 157, 212, 0.18);
+
+  background:
+    rgba(255, 255, 255, 0.57);
+}
+
+
+.player-theme-ren
+.nero-profile-cell span {
+  color:
+    #7196ac;
+}
+
+
+.player-theme-ren
+.nero-profile-cell strong {
+  color:
+    #204c68;
+}
+
+
+/* ============================================================
+   УРОВЕНЬ
+   ============================================================ */
+
+.player-theme-ren
+.nero-level-card {
+  border:
+    1px solid
+    rgba(227, 176, 51, 0.42);
+
+  color:
+    #194866;
+
+  background:
+    linear-gradient(
+      160deg,
+      rgba(255, 250, 227, 0.96),
+      rgba(223, 244, 255, 0.90)
+    );
+
+  box-shadow:
+    0 18px 34px
+    rgba(193, 147, 33, 0.12);
+}
+
+
+.player-theme-ren
+.nero-level-card strong {
+  color:
+    #d7a62e;
+}
+
+
+/* ============================================================
+   ОСНОВНЫЕ ПАНЕЛИ
+   ============================================================ */
+
+.player-theme-ren
+.nero-panel {
+  border:
+    1px solid
+    rgba(73, 158, 216, 0.22);
+
+  background:
+    rgba(250, 254, 255, 0.82);
+
+  box-shadow:
+    0 20px 50px
+    rgba(57, 128, 178, 0.10);
+
+  backdrop-filter:
+    blur(15px);
+}
+
+
+.player-theme-ren
+.nero-section-head h2 {
+  color:
+    #1a4c6c;
+}
+
+
+.player-theme-ren
+.nero-section-meta {
+  color:
+    #a57b21;
+}
+
+
+/* ============================================================
+   ПОКАЗАТЕЛИ
+   ============================================================ */
+
+.player-theme-ren
+.nero-metric-card {
+  border:
+    1px solid
+    rgba(71, 156, 215, 0.20);
+
+  color:
+    #1a4762;
+
+  background:
+    rgba(255, 255, 255, 0.76);
+
+  box-shadow:
+    0 12px 28px
+    rgba(46, 120, 172, 0.08);
+}
+
+
+.player-theme-ren
+.nero-metric-hp {
+  background:
+    linear-gradient(
+      135deg,
+      rgba(255, 247, 247, 0.94),
+      rgba(255, 229, 229, 0.73)
+    );
+}
+
+
+.player-theme-ren
+.nero-metric-mana {
+  background:
+    linear-gradient(
+      135deg,
+      rgba(239, 250, 255, 0.96),
+      rgba(195, 231, 255, 0.73)
+    );
+}
+
+
+.player-theme-ren
+.nero-metric-exp {
+  background:
+    linear-gradient(
+      135deg,
+      rgba(255, 253, 241, 0.95),
+      rgba(255, 235, 171, 0.55)
+    );
+}
+
+
+/* ============================================================
+   ПРОГРЕСС-БАРЫ
+   ============================================================ */
+
+.player-theme-ren
+.nero-progress-track {
+  background:
+    rgba(74, 142, 186, 0.12);
+}
+
+
+.player-theme-ren
+.nero-progress-mana {
+  background:
+    linear-gradient(
+      90deg,
+      #55b8f0,
+      #99dcff
+    );
+
+  box-shadow:
+    0 0 16px
+    rgba(79, 181, 240, 0.38);
+}
+
+
+.player-theme-ren
+.nero-progress-exp {
+  background:
+    linear-gradient(
+      90deg,
+      #e3ad35,
+      #ffe59a
+    );
+
+  box-shadow:
+    0 0 14px
+    rgba(227, 173, 53, 0.28);
+}
+
+
+/* ============================================================
+   РАДАРЫ
+   ============================================================ */
+
+.player-theme-ren
+.nero-radar-wrap {
+  color:
+    #398fc4;
+
+  border-color:
+    rgba(61, 151, 207, 0.17);
+
+  background:
+    radial-gradient(
+      circle,
+      rgba(255, 255, 255, 0.82),
+      rgba(217, 242, 255, 0.50)
+    );
+}
+
+
+.player-theme-ren
+.nero-radar-core {
+  fill:
+    #fff6d4;
+
+  stroke:
+    #d8a52f;
+}
+
+
+.player-theme-ren
+.nero-radar-core-symbol {
+  fill:
+    #ad7f1f;
+}
+
+
+.player-theme-ren
+.nero-radar-note {
+  color:
+    #638ba4;
+}
+
+
+/* ============================================================
+   БОЕВЫЕ ХАРАКТЕРИСТИКИ
+   ============================================================ */
+
+.player-theme-ren
+.nero-battle-card {
+  border:
+    1px solid
+    rgba(70, 156, 213, 0.18);
+
+  color:
+    #204e6c;
+
+  background:
+    rgba(255, 255, 255, 0.72);
+}
+
+
+.player-theme-ren
+.nero-battle-card:hover {
+  border-color:
+    rgba(223, 173, 47, 0.40);
+
+  background:
+    rgba(255, 252, 238, 0.86);
+}
+
+
+/* ============================================================
+   НАВЫКИ И ЗАКЛИНАНИЯ
+   ============================================================ */
+
+.player-theme-ren
+.nero-skill-card {
+  position:
+    relative;
+
+  overflow:
+    hidden;
+
+  border:
+    1px solid
+    rgba(69, 157, 215, 0.20);
+
+  color:
+    #204c68;
+
+  background:
+    linear-gradient(
+      145deg,
+      rgba(255, 255, 255, 0.84),
+      rgba(224, 244, 255, 0.67)
+    );
+}
+
+
+.player-theme-ren
+.nero-skill-card::after {
+  content:
+    "🪶";
+
+  position:
+    absolute;
+
+  right:
+    13px;
+
+  bottom:
+    7px;
+
+  opacity:
+    0.14;
+
+  font-size:
+    24px;
+
+  transform:
+    rotate(-18deg);
+
+  pointer-events:
+    none;
+}
+
+
+.player-theme-ren
+.nero-skill-card h3 {
+  color:
+    #1b587d;
+}
+
+
+.player-theme-ren
+.nero-skill-top {
+  color:
+    #9e782a;
+}
+
+
+.player-theme-ren
+.nero-status-good {
+  color:
+    #2f99bd;
+}
+
+
+/* ============================================================
+   СЛЕДУЮЩИЙ НАВЫК / ИВЕНТ
+   ============================================================ */
+
+.player-theme-ren
+.nero-next-card {
+  border:
+    1px solid
+    rgba(227, 177, 56, 0.30);
+
+  background:
+    linear-gradient(
+      135deg,
+      rgba(255, 253, 242, 0.92),
+      rgba(220, 243, 255, 0.74)
+    );
+}
+
+
+/* ============================================================
+   ИНВЕНТАРЬ
+   ============================================================ */
+
+.player-theme-ren
+.nero-inventory-card {
+  border:
+    1px solid
+    rgba(71, 158, 215, 0.20);
+
+  color:
+    #214d68;
+
+  background:
+    rgba(255, 255, 255, 0.76);
+}
+
+
+.player-theme-ren
+.nero-inventory-title {
+  color:
+    #b18426;
+}
+
+
+.player-theme-ren
+.nero-item {
+  border:
+    1px solid
+    rgba(74, 160, 215, 0.16);
+
+  color:
+    #285a76;
+
+  background:
+    rgba(218, 242, 255, 0.54);
+}
+
+
+/* ============================================================
+   ДЕНЬГИ
+   ============================================================ */
+
+.player-theme-ren
+.nero-money-card {
+  border:
+    1px solid
+    rgba(221, 169, 44, 0.26);
+
+  color:
+    #24516a;
+
+  background:
+    linear-gradient(
+      145deg,
+      rgba(255, 254, 246, 0.93),
+      rgba(255, 239, 188, 0.58)
+    );
+}
+
+
+.player-theme-ren
+.nero-money-card strong {
+  color:
+    #b88620;
+}
+
+
+/* ============================================================
+   ИСТОРИЯ
+   ============================================================ */
+
+.player-theme-ren
+.nero-history {
+  color:
+    #315b72;
+
+  border-color:
+    rgba(75, 156, 210, 0.16);
+
+  background:
+    rgba(255, 255, 255, 0.58);
+}
+
+
+/* ============================================================
+   ПУСТЫЕ БЛОКИ
+   ============================================================ */
+
+.player-theme-ren
+.nero-empty {
+  color:
+    #7899aa;
+
+  border-color:
+    rgba(68, 151, 207, 0.16);
+
+  background:
+    rgba(255, 255, 255, 0.47);
+}
+
+
+/* ============================================================
+   ФУТЕР
+   ============================================================ */
+
+.player-theme-ren
+.nero-footer {
+  color:
+    #7594a6;
+}
+
+
+/* ============================================================
+   ЗАГРУЗОЧНЫЙ ЭКРАН РЕНА
+   ============================================================ */
+
+.player-theme-ren.nero-state-screen {
+  position:
+    relative;
+
+  isolation:
+    isolate;
+
+  min-height:
+    100vh;
+
+  overflow:
+    hidden;
+
+  color:
+    #174b70 !important;
+
+  background:
+    radial-gradient(
+      circle at 50% 36%,
+      rgba(255, 255, 255, 0.98) 0%,
+      rgba(236, 249, 255, 0.95) 30%,
+      rgba(204, 234, 251, 0.92) 66%,
+      rgba(169, 216, 244, 0.95) 100%
+    ) !important;
+}
+
+
+.player-theme-ren.nero-state-screen::before {
+  content:
+    "🪶";
+
+  position:
+    absolute;
+
+  z-index:
+    -1;
+
+  top:
+    12%;
+
+  left:
+    13%;
+
+  font-size:
+    54px;
+
+  opacity:
+    0.52;
+
+  transform:
+    rotate(-24deg);
+
+  text-shadow:
+    250px 52px 0
+      rgba(255, 255, 255, 0.72),
+
+    520px 145px 0
+      rgba(244, 190, 61, 0.32),
+
+    95px 360px 0
+      rgba(255, 255, 255, 0.58),
+
+    600px 420px 0
+      rgba(87, 180, 234, 0.22);
+
+  pointer-events:
+    none;
+}
+
+
+.player-theme-ren.nero-state-screen::after {
+  content:
+    "";
+
+  position:
+    absolute;
+
+  z-index:
+    -1;
+
+  left:
+    50%;
+
+  top:
+    52%;
+
+  width:
+    min(720px, 82vw);
+
+  height:
+    180px;
+
+  border-top:
+    3px solid
+    rgba(255, 255, 255, 0.68);
+
+  border-radius:
+    50%;
+
+  transform:
+    translate(-50%, -50%)
+    rotate(-7deg);
+
+  box-shadow:
+    0 -40px 0 -37px
+      rgba(68, 165, 224, 0.34),
+
+    0 40px 0 -37px
+      rgba(226, 174, 46, 0.27);
+
+  pointer-events:
+    none;
+}
+
+
+/*
+  У Рена вместо звезды загрузки —
+  перо.
+*/
+
+.player-theme-ren
+.nero-loading-symbol {
+  color:
+    transparent !important;
+
+  font-size:
+    0 !important;
+
+  text-shadow:
+    none !important;
+}
+
+
+.player-theme-ren
+.nero-loading-symbol::before {
+  content:
+    "🪶";
+
+  display:
+    block;
+
+  color:
+    #e3ae35;
+
+  font-size:
+    56px;
+
+  filter:
+    drop-shadow(
+      0 0 14px
+      rgba(77, 177, 236, 0.36)
+    );
+}
+
+
+.player-theme-ren.nero-state-screen h1,
+.player-theme-ren.nero-state-screen h2 {
+  color:
+    #174d71 !important;
+}
+
+
+.player-theme-ren.nero-state-screen p {
+  color:
+    #5f879e !important;
+}
+
+
+/* ============================================================
+   УБИРАЕМ ТЁМНЫЕ ТЕКСТОВЫЕ ЭФФЕКТЫ НЕРО
+   ============================================================ */
+
+.player-theme-ren
+.nero-panel *,
+.player-theme-ren
+.nero-hero *,
+.player-theme-ren
+.nero-toolbar * {
+  text-shadow:
+    none;
+}
+
+
+/* ============================================================
+   МОБИЛЬНАЯ ВЕРСИЯ
+   ============================================================ */
+
+@media (
+  max-width: 760px
+) {
+
+  .player-theme-ren::after {
+    opacity:
+      0.20;
+
+    font-size:
+      24px;
+
+    letter-spacing:
+      12px;
+  }
+
+
+  .player-theme-ren
+  .nero-hero {
+    background:
+      rgba(248, 253, 255, 0.94);
+  }
+
+
+  .player-theme-ren.nero-state-screen::before {
+    left:
+      4%;
+
+    opacity:
+      0.34;
+  }
+
+}
+/* ============================================================
+   ЛЮМИН ПАУВИНД
+   ВИШНЯ · ОГОНЬ · РАСТЕНИЯ
+   КРЕМОВЫЙ + ВИШНЁВЫЙ + ЗОЛОТОЙ + ЗЕЛЁНЫЙ
+   ============================================================ */
+
+
+/* ============================================================
+   УБИРАЕМ ВНЕШНИЙ ЧЁРНЫЙ ФОН НЕРО
+   ============================================================ */
+
+html:has(.player-theme-lumin),
+body:has(.player-theme-lumin) {
+  background:
+    #fff3df !important;
+
+  background-image:
+    none !important;
+}
+
+
+.book.nero-mode:has(.player-theme-lumin) {
+  min-height:
+    100vh;
+
+  color:
+    #4d2523 !important;
+
+  background:
+    linear-gradient(
+      145deg,
+      #fff8ea 0%,
+      #ffe9dc 35%,
+      #fff5e8 65%,
+      #f8ded6 100%
+    ) !important;
+
+  background-image:
+    none !important;
+}
+
+
+.book.nero-mode:has(.player-theme-lumin)::before,
+.book.nero-mode:has(.player-theme-lumin)::after {
+  content:
+    none !important;
+
+  display:
+    none !important;
+}
+
+
+/* ============================================================
+   ОСНОВНОЙ ФОН
+   ============================================================ */
+
+.player-theme-lumin {
+  position:
+    relative;
+
+  isolation:
+    isolate;
+
+  min-height:
+    100vh;
+
+  overflow:
+    hidden;
+
+  color:
+    #492927 !important;
+
+  background:
+    radial-gradient(
+      circle at 12% 12%,
+      rgba(
+        255,
+        255,
+        255,
+        0.92
+      ),
+      transparent 27%
+    ),
+
+    radial-gradient(
+      circle at 84% 18%,
+      rgba(
+        214,
+        61,
+        54,
+        0.13
+      ),
+      transparent 25%
+    ),
+
+    radial-gradient(
+      circle at 16% 82%,
+      rgba(
+        53,
+        116,
+        68,
+        0.12
+      ),
+      transparent 30%
+    ),
+
+    radial-gradient(
+      circle at 82% 82%,
+      rgba(
+        255,
+        157,
+        45,
+        0.12
+      ),
+      transparent 27%
+    ),
+
+    linear-gradient(
+      145deg,
+      #fff8e9 0%,
+      #ffe8dd 38%,
+      #fff5e8 66%,
+      #f8dcd6 100%
+    );
+}
+
+
+/* ============================================================
+   ВЕТКИ / ЛЕПЕСТКИ НА ФОНЕ
+   ============================================================ */
+
+.player-theme-lumin::before {
+  content:
+    "";
+
+  position:
+    fixed;
+
+  z-index:
+    -2;
+
+  inset:
+    0;
+
+  pointer-events:
+    none;
+
+  opacity:
+    0.72;
+
+  background:
+    radial-gradient(
+      ellipse at 14% 18%,
+      transparent 0 34%,
+      rgba(
+        148,
+        34,
+        43,
+        0.08
+      ) 35% 36%,
+      transparent 37%
+    ),
+
+    radial-gradient(
+      ellipse at 84% 30%,
+      transparent 0 29%,
+      rgba(
+        56,
+        112,
+        60,
+        0.09
+      ) 30% 31%,
+      transparent 32%
+    ),
+
+    radial-gradient(
+      ellipse at 50% 90%,
+      transparent 0 35%,
+      rgba(
+        238,
+        128,
+        36,
+        0.08
+      ) 36% 37%,
+      transparent 38%
+    );
+}
+
+
+/* ============================================================
+   ВИШНИ
+   ============================================================ */
+
+.player-theme-lumin::after {
+  content:
+    "🍒      🌸        🍒";
+
+  position:
+    fixed;
+
+  z-index:
+    -1;
+
+  top:
+    4%;
+
+  right:
+    -3%;
+
+  width:
+    62%;
+
+  pointer-events:
+    none;
+
+  font-size:
+    clamp(
+      25px,
+      3vw,
+      50px
+    );
+
+  letter-spacing:
+    24px;
+
+  line-height:
+    2.3;
+
+  text-align:
+    right;
+
+  opacity:
+    0.22;
+
+  transform:
+    rotate(
+      -13deg
+    );
+
+  filter:
+    drop-shadow(
+      -160px 210px 0
+      rgba(
+        158,
+        35,
+        45,
+        0.22
+      )
+    )
+
+    drop-shadow(
+      -330px 365px 0
+      rgba(
+        77,
+        131,
+        65,
+        0.15
+      )
+    )
+
+    drop-shadow(
+      -520px 520px 0
+      rgba(
+        242,
+        141,
+        39,
+        0.18
+      )
+    );
+}
+
+
+/* ============================================================
+   ВЕРХНЯЯ ПАНЕЛЬ
+   ============================================================ */
+
+.player-theme-lumin
+.nero-toolbar {
+  position:
+    relative;
+
+  z-index:
+    2;
+
+  border:
+    1px solid
+    rgba(
+      155,
+      42,
+      48,
+      0.22
+    );
+
+  background:
+    rgba(
+      255,
+      250,
+      239,
+      0.84
+    );
+
+  box-shadow:
+    0 16px 38px
+    rgba(
+      116,
+      38,
+      37,
+      0.10
+    );
+
+  backdrop-filter:
+    blur(
+      18px
+    );
+}
+
+
+/* ============================================================
+   КНОПКИ
+   ============================================================ */
+
+.player-theme-lumin
+.nero-button {
+  border:
+    1px solid
+    rgba(
+      161,
+      44,
+      51,
+      0.28
+    );
+
+  color:
+    #7d2b32;
+
+  background:
+    linear-gradient(
+      135deg,
+      rgba(
+        255,
+        252,
+        242,
+        0.97
+      ),
+      rgba(
+        255,
+        229,
+        216,
+        0.92
+      )
+    );
+
+  box-shadow:
+    0 8px 22px
+    rgba(
+      128,
+      43,
+      43,
+      0.09
+    );
+}
+
+
+.player-theme-lumin
+.nero-button:hover {
+  color:
+    #651f26;
+
+  border-color:
+    rgba(
+      218,
+      120,
+      39,
+      0.58
+    );
+
+  background:
+    linear-gradient(
+      135deg,
+      #fffdf8,
+      #ffe9c9
+    );
+
+  box-shadow:
+    0 0 0 1px
+      rgba(
+        255,
+        180,
+        65,
+        0.16
+      ),
+
+    0 12px 28px
+      rgba(
+        170,
+        56,
+        48,
+        0.13
+      );
+}
+
+
+/* ============================================================
+   СИНХРОНИЗАЦИЯ
+   ============================================================ */
+
+.player-theme-lumin
+.nero-sync-pill {
+  border:
+    1px solid
+    rgba(
+      82,
+      121,
+      66,
+      0.22
+    );
+
+  color:
+    #55734b;
+
+  background:
+    rgba(
+      255,
+      250,
+      235,
+      0.74
+    );
+}
+
+
+.player-theme-lumin
+.nero-sync-dot {
+  background:
+    #e85e3f;
+
+  box-shadow:
+    0 0 13px
+    rgba(
+      229,
+      91,
+      60,
+      0.64
+    );
+}
+
+
+/* ============================================================
+   ГЛАВНАЯ КАРТА ПЕРСОНАЖА
+   ============================================================ */
+
+.player-theme-lumin
+.nero-hero {
+  position:
+    relative;
+
+  overflow:
+    hidden;
+
+  border:
+    1px solid
+    rgba(
+      157,
+      39,
+      46,
+      0.28
+    );
+
+  background:
+    linear-gradient(
+      135deg,
+      rgba(
+        255,
+        253,
+        245,
+        0.97
+      ),
+      rgba(
+        255,
+        229,
+        213,
+        0.88
+      )
+    );
+
+  box-shadow:
+    0 25px 58px
+    rgba(
+      115,
+      38,
+      41,
+      0.14
+    );
+}
+
+
+/* Вишнёвая ветка */
+
+.player-theme-lumin
+.nero-hero::before {
+  content:
+    "🍒";
+
+  position:
+    absolute;
+
+  top:
+    18px;
+
+  right:
+    28px;
+
+  font-size:
+    52px;
+
+  opacity:
+    0.20;
+
+  transform:
+    rotate(
+      12deg
+    );
+
+  filter:
+    drop-shadow(
+      -62px 35px 0
+      rgba(
+        81,
+        130,
+        64,
+        0.18
+      )
+    );
+
+  pointer-events:
+    none;
+}
+
+
+/* Огненная линия */
+
+.player-theme-lumin
+.nero-hero::after {
+  content:
+    "";
+
+  position:
+    absolute;
+
+  left:
+    16%;
+
+  right:
+    -5%;
+
+  bottom:
+    -46px;
+
+  height:
+    120px;
+
+  border-top:
+    2px solid
+    rgba(
+      235,
+      105,
+      46,
+      0.26
+    );
+
+  border-radius:
+    50%;
+
+  transform:
+    rotate(
+      -3deg
+    );
+
+  box-shadow:
+    0 -9px 25px
+    rgba(
+      255,
+      165,
+      54,
+      0.10
+    );
+
+  pointer-events:
+    none;
+}
+
+
+/* ============================================================
+   ПОРТРЕТ
+   ============================================================ */
+
+.player-theme-lumin
+.nero-portrait-shell {
+  border:
+    2px solid
+    rgba(
+      160,
+      39,
+      45,
+      0.72
+    );
+
+  background:
+    linear-gradient(
+      145deg,
+      #fff8e6,
+      #ffd3c2
+    );
+
+  box-shadow:
+    0 0 0 5px
+      rgba(
+        255,
+        248,
+        225,
+        0.75
+      ),
+
+    0 0 0 8px
+      rgba(
+        224,
+        131,
+        39,
+        0.18
+      ),
+
+    0 20px 38px
+      rgba(
+        125,
+        35,
+        37,
+        0.18
+      );
+}
+
+
+.player-theme-lumin
+.nero-portrait-glow {
+  background:
+    radial-gradient(
+      circle,
+      rgba(
+        255,
+        166,
+        56,
+        0.28
+      ),
+      rgba(
+        190,
+        47,
+        49,
+        0.12
+      ),
+      transparent 70%
+    );
+}
+
+
+/* ============================================================
+   ИМЯ
+   ============================================================ */
+
+.player-theme-lumin
+.nero-identity h1 {
+  color:
+    #8f2730;
+
+  text-shadow:
+    0 2px 12px
+    rgba(
+      183,
+      55,
+      54,
+      0.12
+    );
+}
+
+
+.player-theme-lumin
+.nero-kicker {
+  color:
+    #d17e27;
+}
+
+
+.player-theme-lumin
+.nero-player {
+  color:
+    rgba(
+      92,
+      50,
+      43,
+      0.72
+    );
+}
+
+
+/* ============================================================
+   ТЕГИ
+   ============================================================ */
+
+.player-theme-lumin
+.nero-tags span {
+  border:
+    1px solid
+    rgba(
+      157,
+      44,
+      50,
+      0.19
+    );
+
+  color:
+    #813137;
+
+  background:
+    rgba(
+      255,
+      248,
+      235,
+      0.75
+    );
+}
+
+
+.player-theme-lumin
+.nero-tags span:nth-child(2) {
+  border-color:
+    rgba(
+      69,
+      122,
+      65,
+      0.25
+    );
+
+  color:
+    #517346;
+
+  background:
+    rgba(
+      235,
+      245,
+      220,
+      0.62
+    );
+}
+
+
+.player-theme-lumin
+.nero-tags span:last-child {
+  border-color:
+    rgba(
+      228,
+      111,
+      37,
+      0.26
+    );
+
+  color:
+    #bd5d27;
+
+  background:
+    rgba(
+      255,
+      236,
+      206,
+      0.67
+    );
+}
+
+
+/* ============================================================
+   ПРОФИЛЬ
+   ============================================================ */
+
+.player-theme-lumin
+.nero-profile-cell {
+  border-color:
+    rgba(
+      152,
+      65,
+      61,
+      0.15
+    );
+
+  background:
+    rgba(
+      255,
+      250,
+      239,
+      0.62
+    );
+}
+
+
+.player-theme-lumin
+.nero-profile-cell span {
+  color:
+    #a17d70;
+}
+
+
+.player-theme-lumin
+.nero-profile-cell strong {
+  color:
+    #69413c;
+}
+
+
+/* ============================================================
+   УРОВЕНЬ
+   ============================================================ */
+
+.player-theme-lumin
+.nero-level-card {
+  border:
+    1px solid
+    rgba(
+      216,
+      124,
+      34,
+      0.38
+    );
+
+  color:
+    #6e3530;
+
+  background:
+    linear-gradient(
+      155deg,
+      rgba(
+        255,
+        246,
+        218,
+        0.96
+      ),
+      rgba(
+        255,
+        220,
+        201,
+        0.92
+      )
+    );
+
+  box-shadow:
+    0 18px 34px
+    rgba(
+      171,
+      73,
+      34,
+      0.12
+    );
+}
+
+
+.player-theme-lumin
+.nero-level-card strong {
+  color:
+    #c13e35;
+}
+
+
+/* ============================================================
+   ПАНЕЛИ
+   ============================================================ */
+
+.player-theme-lumin
+.nero-panel {
+  border:
+    1px solid
+    rgba(
+      151,
+      48,
+      49,
+      0.18
+    );
+
+  background:
+    rgba(
+      255,
+      250,
+      239,
+      0.82
+    );
+
+  box-shadow:
+    0 20px 48px
+    rgba(
+      118,
+      43,
+      42,
+      0.09
+    );
+
+  backdrop-filter:
+    blur(
+      15px
+    );
+}
+
+
+.player-theme-lumin
+.nero-section-head h2 {
+  color:
+    #852d32;
+}
+
+
+.player-theme-lumin
+.nero-section-meta {
+  color:
+    #638054;
+}
+
+
+/* ============================================================
+   ОСНОВНЫЕ ПОКАЗАТЕЛИ
+   ============================================================ */
+
+.player-theme-lumin
+.nero-metric-card {
+  border:
+    1px solid
+    rgba(
+      153,
+      53,
+      52,
+      0.18
+    );
+
+  color:
+    #643d38;
+
+  background:
+    rgba(
+      255,
+      250,
+      239,
+      0.76
+    );
+
+  box-shadow:
+    0 12px 26px
+    rgba(
+      127,
+      45,
+      43,
+      0.07
+    );
+}
+
+
+.player-theme-lumin
+.nero-metric-hp {
+  background:
+    linear-gradient(
+      135deg,
+      #fff5f1,
+      #ffd8d1
+    );
+}
+
+
+.player-theme-lumin
+.nero-metric-mana {
+  background:
+    linear-gradient(
+      135deg,
+      #f3fbff,
+      #d8eff8
+    );
+}
+
+
+.player-theme-lumin
+.nero-metric-exp {
+  background:
+    linear-gradient(
+      135deg,
+      #fff7dc,
+      #ffe1af
+    );
+}
+
+
+/* ============================================================
+   ПРОГРЕСС-БАРЫ
+   ============================================================ */
+
+.player-theme-lumin
+.nero-progress-track {
+  background:
+    rgba(
+      128,
+      71,
+      59,
+      0.10
+    );
+}
+
+
+.player-theme-lumin
+.nero-progress-exp {
+  background:
+    linear-gradient(
+      90deg,
+      #bf363a,
+      #ec8a37
+    );
+
+  box-shadow:
+    0 0 14px
+    rgba(
+      222,
+      87,
+      44,
+      0.25
+    );
+}
+
+
+/* ============================================================
+   ПЧК И БОЕВОЙ РАДАР
+   ============================================================ */
+
+.player-theme-lumin
+.nero-radar-wrap {
+  color:
+    #c94c45;
+
+  border-color:
+    rgba(
+      161,
+      62,
+      57,
+      0.15
+    );
+
+  background:
+    radial-gradient(
+      circle,
+      rgba(
+        255,
+        252,
+        241,
+        0.86
+      ),
+      rgba(
+        255,
+        228,
+        207,
+        0.52
+      )
+    );
+}
+
+
+.player-theme-lumin
+.nero-radar-core {
+  fill:
+    #eff4d9;
+
+  stroke:
+    #668257;
+}
+
+
+.player-theme-lumin
+.nero-radar-core-symbol {
+  fill:
+    #4f6f47;
+}
+
+
+.player-theme-lumin
+.nero-radar-note {
+  color:
+    #95786c;
+}
+
+
+/* ============================================================
+   БОЕВЫЕ СТАТЫ
+   ============================================================ */
+
+.player-theme-lumin
+.nero-battle-card {
+  border:
+    1px solid
+    rgba(
+      154,
+      52,
+      51,
+      0.16
+    );
+
+  color:
+    #6e3d38;
+
+  background:
+    rgba(
+      255,
+      250,
+      239,
+      0.74
+    );
+}
+
+
+.player-theme-lumin
+.nero-battle-card:hover {
+  border-color:
+    rgba(
+      223,
+      107,
+      39,
+      0.36
+    );
+
+  background:
+    rgba(
+      255,
+      239,
+      215,
+      0.86
+    );
+}
+
+
+/* ============================================================
+   НАВЫКИ И ЗАКЛИНАНИЯ
+   ============================================================ */
+
+.player-theme-lumin
+.nero-skill-card {
+  position:
+    relative;
+
+  overflow:
+    hidden;
+
+  border:
+    1px solid
+    rgba(
+      157,
+      48,
+      49,
+      0.18
+    );
+
+  color:
+    #684039;
+
+  background:
+    linear-gradient(
+      145deg,
+      rgba(
+        255,
+        252,
+        244,
+        0.85
+      ),
+      rgba(
+        255,
+        228,
+        214,
+        0.66
+      )
+    );
+}
+
+
+.player-theme-lumin
+.nero-skill-card::after {
+  content:
+    "🍒";
+
+  position:
+    absolute;
+
+  right:
+    11px;
+
+  bottom:
+    7px;
+
+  font-size:
+    22px;
+
+  opacity:
+    0.10;
+
+  pointer-events:
+    none;
+}
+
+
+.player-theme-lumin
+.nero-skill-card h3 {
+  color:
+    #922e34;
+}
+
+
+.player-theme-lumin
+.nero-skill-top {
+  color:
+    #bd702f;
+}
+
+
+.player-theme-lumin
+.nero-status-good {
+  color:
+    #5e8050;
+}
+
+
+/* Заклинания огня чуть ярче */
+
+.player-theme-lumin
+.nero-spell-card-modern {
+  border-color:
+    rgba(
+      219,
+      91,
+      42,
+      0.21
+    );
+
+  background:
+    linear-gradient(
+      145deg,
+      rgba(
+        255,
+        251,
+        239,
+        0.88
+      ),
+      rgba(
+        255,
+        218,
+        188,
+        0.68
+      )
+    );
+}
+
+
+/* ============================================================
+   СЛЕДУЮЩИЙ НАВЫК / ИВЕНТ
+   ============================================================ */
+
+.player-theme-lumin
+.nero-next-card {
+  border:
+    1px solid
+    rgba(
+      81,
+      126,
+      67,
+      0.22
+    );
+
+  background:
+    linear-gradient(
+      135deg,
+      rgba(
+        247,
+        249,
+        225,
+        0.90
+      ),
+      rgba(
+        255,
+        226,
+        207,
+        0.74
+      )
+    );
+}
+
+
+/* ============================================================
+   ИНВЕНТАРЬ
+   ============================================================ */
+
+.player-theme-lumin
+.nero-inventory-card {
+  border:
+    1px solid
+    rgba(
+      150,
+      54,
+      51,
+      0.17
+    );
+
+  color:
+    #65413b;
+
+  background:
+    rgba(
+      255,
+      250,
+      239,
+      0.76
+    );
+}
+
+
+.player-theme-lumin
+.nero-inventory-title {
+  color:
+    #a53438;
+}
+
+
+.player-theme-lumin
+.nero-item {
+  border:
+    1px solid
+    rgba(
+      139,
+      73,
+      60,
+      0.14
+    );
+
+  color:
+    #694840;
+
+  background:
+    rgba(
+      255,
+      235,
+      218,
+      0.58
+    );
+}
+
+
+/* ============================================================
+   ДЕНЬГИ
+   ============================================================ */
+
+.player-theme-lumin
+.nero-money-card {
+  border:
+    1px solid
+    rgba(
+      215,
+      132,
+      37,
+      0.24
+    );
+
+  color:
+    #654138;
+
+  background:
+    linear-gradient(
+      145deg,
+      rgba(
+        255,
+        252,
+        236,
+        0.94
+      ),
+      rgba(
+        255,
+        225,
+        167,
+        0.58
+      )
+    );
+}
+
+
+.player-theme-lumin
+.nero-money-card strong {
+  color:
+    #bd7130;
+}
+
+
+/* ============================================================
+   ИСТОРИЯ
+   ============================================================ */
+
+.player-theme-lumin
+.nero-history {
+  color:
+    #65443f;
+
+  border-color:
+    rgba(
+      151,
+      61,
+      57,
+      0.14
+    );
+
+  background:
+    rgba(
+      255,
+      250,
+      239,
+      0.61
+    );
+}
+
+
+/* ============================================================
+   ПУСТЫЕ БЛОКИ
+   ============================================================ */
+
+.player-theme-lumin
+.nero-empty {
+  color:
+    #9a7d71;
+
+  border-color:
+    rgba(
+      143,
+      69,
+      59,
+      0.13
+    );
+
+  background:
+    rgba(
+      255,
+      247,
+      235,
+      0.50
+    );
+}
+
+
+/* ============================================================
+   ФУТЕР
+   ============================================================ */
+
+.player-theme-lumin
+.nero-footer {
+  color:
+    #a27f70;
+}
+
+
+/* ============================================================
+   ЗАГРУЗОЧНЫЙ ЭКРАН ЛЮМИН
+   ============================================================ */
+
+.player-theme-lumin.nero-state-screen {
+  position:
+    relative;
+
+  isolation:
+    isolate;
+
+  min-height:
+    100vh;
+
+  overflow:
+    hidden;
+
+  color:
+    #842c32 !important;
+
+  background:
+    radial-gradient(
+      circle at 50% 40%,
+      rgba(
+        255,
+        253,
+        244,
+        0.99
+      ) 0%,
+      rgba(
+        255,
+        239,
+        219,
+        0.96
+      ) 31%,
+      rgba(
+        251,
+        211,
+        195,
+        0.92
+      ) 67%,
+      rgba(
+        226,
+        157,
+        142,
+        0.93
+      ) 100%
+    ) !important;
+}
+
+
+/* лепестки и листья */
+
+.player-theme-lumin.nero-state-screen::before {
+  content:
+    "🌸";
+
+  position:
+    absolute;
+
+  z-index:
+    -1;
+
+  top:
+    12%;
+
+  left:
+    13%;
+
+  font-size:
+    45px;
+
+  opacity:
+    0.34;
+
+  transform:
+    rotate(
+      -22deg
+    );
+
+  text-shadow:
+    260px 55px 0
+      rgba(
+        178,
+        48,
+        53,
+        0.26
+      ),
+
+    525px 150px 0
+      rgba(
+        242,
+        126,
+        49,
+        0.24
+      ),
+
+    110px 360px 0
+      rgba(
+        83,
+        129,
+        72,
+        0.22
+      ),
+
+    640px 415px 0
+      rgba(
+        255,
+        244,
+        218,
+        0.62
+      );
+
+  pointer-events:
+    none;
+}
+
+
+/* огненная вишнёвая дуга */
+
+.player-theme-lumin.nero-state-screen::after {
+  content:
+    "";
+
+  position:
+    absolute;
+
+  z-index:
+    -1;
+
+  left:
+    50%;
+
+  top:
+    51%;
+
+  width:
+    min(
+      690px,
+      82vw
+    );
+
+  height:
+    190px;
+
+  border-top:
+    3px solid
+    rgba(
+      171,
+      43,
+      48,
+      0.30
+    );
+
+  border-radius:
+    50%;
+
+  transform:
+    translate(
+      -50%,
+      -50%
+    )
+    rotate(
+      -6deg
+    );
+
+  box-shadow:
+    0 -42px 0 -39px
+      rgba(
+        240,
+        119,
+        42,
+        0.28
+      ),
+
+    0 42px 0 -39px
+      rgba(
+        73,
+        122,
+        63,
+        0.18
+      );
+
+  pointer-events:
+    none;
+}
+
+
+/* Заменяем стандартную звезду на вишенки */
+
+.player-theme-lumin
+.nero-loading-symbol {
+  color:
+    transparent !important;
+
+  font-size:
+    0 !important;
+
+  text-shadow:
+    none !important;
+}
+
+
+.player-theme-lumin
+.nero-loading-symbol::before {
+  content:
+    "🍒";
+
+  display:
+    block;
+
+  color:
+    #9c2930;
+
+  font-size:
+    62px;
+
+  animation:
+    lumin-cherry-loading
+    1.8s
+    ease-in-out
+    infinite;
+
+  filter:
+    drop-shadow(
+      0 0 15px
+      rgba(
+        221,
+        74,
+        50,
+        0.30
+      )
+    )
+
+    drop-shadow(
+      0 8px 18px
+      rgba(
+        109,
+        54,
+        41,
+        0.14
+      )
+    );
+}
+
+
+@keyframes lumin-cherry-loading {
+
+  0%,
+  100% {
+    transform:
+      translateY(
+        0
+      )
+      rotate(
+        -4deg
+      );
+
+    filter:
+      drop-shadow(
+        0 0 10px
+        rgba(
+          217,
+          67,
+          48,
+          0.22
+        )
+      );
+  }
+
+
+  50% {
+    transform:
+      translateY(
+        -8px
+      )
+      rotate(
+        4deg
+      );
+
+    filter:
+      drop-shadow(
+        0 0 23px
+        rgba(
+          238,
+          107,
+          43,
+          0.48
+        )
+      );
+  }
+}
+
+
+.player-theme-lumin.nero-state-screen h1,
+.player-theme-lumin.nero-state-screen h2 {
+  color:
+    #8c2d32 !important;
+}
+
+
+.player-theme-lumin.nero-state-screen p {
+  color:
+    #8e665b !important;
+}
+
+
+/* ============================================================
+   УБИРАЕМ СТАРЫЕ ТЁМНЫЕ ЭФФЕКТЫ
+   ============================================================ */
+
+.player-theme-lumin
+.nero-panel *,
+.player-theme-lumin
+.nero-hero *,
+.player-theme-lumin
+.nero-toolbar * {
+  text-shadow:
+    none;
+}
+
+
+/* ============================================================
+   МОБИЛЬНАЯ ВЕРСИЯ
+   ============================================================ */
+
+@media (
+  max-width: 760px
+) {
+
+  .player-theme-lumin::after {
+    opacity:
+      0.15;
+
+    font-size:
+      23px;
+
+    letter-spacing:
+      12px;
+  }
+
+
+  .player-theme-lumin
+  .nero-hero {
+    background:
+      rgba(
+        255,
+        249,
+        237,
+        0.95
+      );
+  }
+
+
+  .player-theme-lumin.nero-state-screen::before {
+    left:
+      4%;
+
+    opacity:
+      0.25;
+  }
+
+}
+/* ============================================================
+   УНИВЕРСАЛЬНАЯ ТЕМА ПЕРСОНАЖЕЙ
+
+   Используется для всех персонажей,
+   у которых нет собственной темы.
+
+   ГРАФИТ · ФИОЛЕТОВЫЙ · ЗОЛОТО
+   ============================================================ */
+
+
+/* ============================================================
+   УБИРАЕМ СТАРЫЙ ФОН НЕРО
+   ============================================================ */
+
+html:has(.player-theme-default),
+body:has(.player-theme-default) {
+  background:
+    #0b0911 !important;
+
+  background-image:
+    none !important;
+}
+
+
+.book.nero-mode:has(.player-theme-default) {
+  min-height:
+    100vh;
+
+  color:
+    #f4f0ff !important;
+
+  background:
+    radial-gradient(
+      circle at 12% 8%,
+      rgba(123, 78, 190, 0.17),
+      transparent 32%
+    ),
+
+    radial-gradient(
+      circle at 88% 16%,
+      rgba(218, 174, 77, 0.10),
+      transparent 26%
+    ),
+
+    radial-gradient(
+      circle at 72% 82%,
+      rgba(82, 54, 140, 0.14),
+      transparent 34%
+    ),
+
+    linear-gradient(
+      145deg,
+      #0b0911 0%,
+      #12101a 32%,
+      #171321 68%,
+      #0d0b13 100%
+    ) !important;
+
+  background-image:
+    none !important;
+}
+
+
+.book.nero-mode:has(.player-theme-default)::before,
+.book.nero-mode:has(.player-theme-default)::after {
+  content:
+    none !important;
+
+  display:
+    none !important;
+
+  background:
+    none !important;
+}
+
+
+/* ============================================================
+   ОСНОВА
+   ============================================================ */
+
+.player-theme-default {
+  position:
+    relative;
+
+  isolation:
+    isolate;
+
+  min-height:
+    100vh;
+
+  overflow:
+    hidden;
+
+  color:
+    #f4f0ff !important;
+
+  background:
+    radial-gradient(
+      circle at 10% 10%,
+      rgba(128, 82, 198, 0.16),
+      transparent 28%
+    ),
+
+    radial-gradient(
+      circle at 90% 15%,
+      rgba(230, 185, 83, 0.09),
+      transparent 25%
+    ),
+
+    radial-gradient(
+      circle at 50% 92%,
+      rgba(98, 66, 166, 0.13),
+      transparent 32%
+    ),
+
+    linear-gradient(
+      145deg,
+      #0c0a12 0%,
+      #13101c 38%,
+      #181321 65%,
+      #0c0a11 100%
+    ) !important;
+}
+
+
+/* ============================================================
+   ФОНОВЫЕ МАГИЧЕСКИЕ БЛИКИ
+   ============================================================ */
+
+.player-theme-default::before {
+  content:
+    "";
+
+  position:
+    fixed;
+
+  z-index:
+    -2;
+
+  inset:
+    0;
+
+  pointer-events:
+    none;
+
+  opacity:
+    0.72;
+
+  background:
+    radial-gradient(
+      ellipse at 18% 22%,
+      transparent 0 34%,
+      rgba(155, 108, 224, 0.08) 35% 36%,
+      transparent 37%
+    ),
+
+    radial-gradient(
+      ellipse at 82% 35%,
+      transparent 0 29%,
+      rgba(230, 184, 79, 0.06) 30% 31%,
+      transparent 32%
+    ),
+
+    radial-gradient(
+      ellipse at 48% 88%,
+      transparent 0 36%,
+      rgba(100, 67, 170, 0.08) 37% 38%,
+      transparent 39%
+    );
+}
+
+
+.player-theme-default::after {
+  content:
+    "✦      ✧        ✦       ✧";
+
+  position:
+    fixed;
+
+  z-index:
+    -1;
+
+  top:
+    4%;
+
+  right:
+    -5%;
+
+  width:
+    72%;
+
+  pointer-events:
+    none;
+
+  color:
+    #d8ad55;
+
+  opacity:
+    0.12;
+
+  font-size:
+    clamp(
+      22px,
+      2.8vw,
+      48px
+    );
+
+  letter-spacing:
+    27px;
+
+  line-height:
+    2.6;
+
+  text-align:
+    right;
+
+  transform:
+    rotate(-14deg);
+}
+
+
+/* ============================================================
+   ВЕРХНЯЯ ПАНЕЛЬ
+   ============================================================ */
+
+.player-theme-default
+.nero-toolbar {
+  position:
+    relative;
+
+  z-index:
+    2;
+
+  border:
+    1px solid
+    rgba(156, 112, 221, 0.22) !important;
+
+  background:
+    rgba(18, 15, 27, 0.88) !important;
+
+  box-shadow:
+    0 16px 42px
+    rgba(0, 0, 0, 0.28);
+
+  backdrop-filter:
+    blur(18px);
+}
+
+
+/* ============================================================
+   КНОПКИ
+   ============================================================ */
+
+.player-theme-default
+.nero-button {
+  border:
+    1px solid
+    rgba(166, 125, 225, 0.34) !important;
+
+  color:
+    #f3edff !important;
+
+  background:
+    linear-gradient(
+      135deg,
+      rgba(56, 41, 79, 0.96),
+      rgba(34, 27, 49, 0.96)
+    ) !important;
+
+  box-shadow:
+    0 8px 22px
+    rgba(0, 0, 0, 0.22);
+}
+
+
+.player-theme-default
+.nero-button:hover {
+  border-color:
+    rgba(226, 183, 88, 0.68) !important;
+
+  color:
+    #fff5d2 !important;
+
+  background:
+    linear-gradient(
+      135deg,
+      rgba(80, 56, 108, 0.98),
+      rgba(49, 36, 69, 0.98)
+    ) !important;
+
+  box-shadow:
+    0 0 0 1px
+      rgba(223, 179, 78, 0.12),
+
+    0 12px 28px
+      rgba(0, 0, 0, 0.30);
+}
+
+
+/* ============================================================
+   СИНХРОНИЗАЦИЯ
+   ============================================================ */
+
+.player-theme-default
+.nero-sync-pill {
+  border:
+    1px solid
+    rgba(214, 173, 80, 0.22) !important;
+
+  color:
+    #d9c99f !important;
+
+  background:
+    rgba(29, 24, 38, 0.84) !important;
+}
+
+
+.player-theme-default
+.nero-sync-dot {
+  background:
+    #d8aa4e !important;
+
+  box-shadow:
+    0 0 13px
+    rgba(216, 170, 78, 0.65);
+}
+
+
+/* ============================================================
+   ГЛАВНАЯ КАРТА
+   ============================================================ */
+
+.player-theme-default
+.nero-hero {
+  position:
+    relative;
+
+  overflow:
+    hidden;
+
+  border:
+    1px solid
+    rgba(153, 108, 219, 0.25) !important;
+
+  background:
+    linear-gradient(
+      135deg,
+      rgba(25, 20, 36, 0.98),
+      rgba(17, 15, 25, 0.96)
+    ) !important;
+
+  box-shadow:
+    0 25px 62px
+    rgba(0, 0, 0, 0.30);
+}
+
+
+.player-theme-default
+.nero-hero::before {
+  content:
+    "";
+
+  position:
+    absolute;
+
+  width:
+    330px;
+
+  height:
+    330px;
+
+  top:
+    -205px;
+
+  right:
+    -110px;
+
+  border:
+    2px solid
+    rgba(217, 173, 75, 0.20);
+
+  border-radius:
+    50%;
+
+  box-shadow:
+    0 0 0 18px
+    rgba(153, 108, 219, 0.025);
+
+  pointer-events:
+    none;
+}
+
+
+/* ============================================================
+   ПОРТРЕТ
+   ============================================================ */
+
+.player-theme-default
+.nero-portrait-shell {
+  border:
+    2px solid
+    rgba(213, 169, 72, 0.58) !important;
+
+  color:
+    #d7c4fa !important;
+
+  background:
+    linear-gradient(
+      145deg,
+      #08070c,
+      #1b1626
+    ) !important;
+
+  box-shadow:
+    0 0 0 5px
+      rgba(28, 23, 39, 0.92),
+
+    0 0 0 7px
+      rgba(141, 98, 204, 0.16),
+
+    0 20px 42px
+      rgba(0, 0, 0, 0.34);
+}
+
+
+.player-theme-default
+.nero-portrait-glow {
+  background:
+    radial-gradient(
+      circle,
+      rgba(208, 165, 71, 0.18),
+      rgba(135, 88, 202, 0.12),
+      transparent 70%
+    ) !important;
+}
+
+
+/* ============================================================
+   ИМЯ И ИГРОК
+   ============================================================ */
+
+.player-theme-default
+.nero-identity h1 {
+  color:
+    #f8f5ff !important;
+
+  text-shadow:
+    0 2px 18px
+    rgba(142, 96, 211, 0.18);
+}
+
+
+.player-theme-default
+.nero-kicker {
+  color:
+    #d7a94e !important;
+}
+
+
+.player-theme-default
+.nero-player {
+  color:
+    #bdb4cc !important;
+}
+
+
+/* ============================================================
+   ТЕГИ
+   ============================================================ */
+
+.player-theme-default
+.nero-tags span {
+  border:
+    1px solid
+    rgba(155, 111, 218, 0.24) !important;
+
+  color:
+    #ded4ed !important;
+
+  background:
+    rgba(46, 35, 63, 0.72) !important;
+}
+
+
+.player-theme-default
+.nero-tags span:nth-child(2) {
+  border-color:
+    rgba(217, 174, 77, 0.28) !important;
+
+  color:
+    #e5c87e !important;
+
+  background:
+    rgba(62, 49, 29, 0.48) !important;
+}
+
+
+.player-theme-default
+.nero-tags span:last-child {
+  color:
+    #d7c7ef !important;
+}
+
+
+/* ============================================================
+   ПРОФИЛЬ
+   ============================================================ */
+
+.player-theme-default
+.nero-profile-cell {
+  border-color:
+    rgba(145, 103, 203, 0.18) !important;
+
+  background:
+    rgba(30, 25, 41, 0.82) !important;
+}
+
+
+.player-theme-default
+.nero-profile-cell span {
+  color:
+    #9389a3 !important;
+}
+
+
+.player-theme-default
+.nero-profile-cell strong {
+  color:
+    #f0e9f9 !important;
+}
+
+
+/* ============================================================
+   УРОВЕНЬ
+   ============================================================ */
+
+.player-theme-default
+.nero-level-card {
+  border:
+    1px solid
+    rgba(215, 173, 79, 0.34) !important;
+
+  color:
+    #ddd4e8 !important;
+
+  background:
+    linear-gradient(
+      155deg,
+      rgba(47, 37, 63, 0.98),
+      rgba(26, 22, 35, 0.98)
+    ) !important;
+
+  box-shadow:
+    0 18px 36px
+    rgba(0, 0, 0, 0.26);
+}
+
+
+.player-theme-default
+.nero-level-card span,
+.player-theme-default
+.nero-level-card small {
+  color:
+    #aca1ba !important;
+}
+
+
+.player-theme-default
+.nero-level-card strong {
+  color:
+    #e0b458 !important;
+}
+
+
+/* ============================================================
+   ПАНЕЛИ
+   ============================================================ */
+
+.player-theme-default
+.nero-panel {
+  border:
+    1px solid
+    rgba(148, 105, 209, 0.19) !important;
+
+  color:
+    #e9e2f2 !important;
+
+  background:
+    rgba(20, 17, 29, 0.91) !important;
+
+  box-shadow:
+    0 20px 50px
+    rgba(0, 0, 0, 0.22);
+
+  backdrop-filter:
+    blur(15px);
+}
+
+
+.player-theme-default
+.nero-section-head h1,
+.player-theme-default
+.nero-section-head h2 {
+  color:
+    #f5f1fb !important;
+}
+
+
+.player-theme-default
+.nero-section-meta {
+  color:
+    #d6b76e !important;
+}
+
+
+/* ============================================================
+   ОСНОВНЫЕ ПОКАЗАТЕЛИ
+   ============================================================ */
+
+.player-theme-default
+.nero-metric-card {
+  border:
+    1px solid
+    rgba(146, 105, 204, 0.19) !important;
+
+  color:
+    #eee8f6 !important;
+
+  background:
+    rgba(25, 21, 35, 0.94) !important;
+
+  box-shadow:
+    0 12px 28px
+    rgba(0, 0, 0, 0.18);
+}
+
+
+.player-theme-default
+.nero-metric-top span {
+  color:
+    #bbb1c8 !important;
+}
+
+
+.player-theme-default
+.nero-metric-top strong {
+  color:
+    #faf8ff !important;
+}
+
+
+.player-theme-default
+.nero-metric-card small {
+  color:
+    #998fa8 !important;
+}
+
+
+.player-theme-default
+.nero-metric-hp {
+  background:
+    linear-gradient(
+      135deg,
+      rgba(58, 25, 34, 0.95),
+      rgba(33, 20, 29, 0.96)
+    ) !important;
+}
+
+
+.player-theme-default
+.nero-metric-mana {
+  background:
+    linear-gradient(
+      135deg,
+      rgba(27, 39, 63, 0.96),
+      rgba(24, 22, 38, 0.96)
+    ) !important;
+}
+
+
+.player-theme-default
+.nero-metric-exp {
+  background:
+    linear-gradient(
+      135deg,
+      rgba(56, 44, 25, 0.94),
+      rgba(30, 25, 34, 0.96)
+    ) !important;
+}
+
+
+/* ============================================================
+   ПРОГРЕСС
+   ============================================================ */
+
+.player-theme-default
+.nero-progress-track {
+  background:
+    rgba(255, 255, 255, 0.07) !important;
+}
+
+
+.player-theme-default
+.nero-progress-hp {
+  background:
+    linear-gradient(
+      90deg,
+      #b94b61,
+      #ef7587
+    ) !important;
+
+  box-shadow:
+    0 0 16px
+    rgba(226, 94, 117, 0.26);
+}
+
+
+.player-theme-default
+.nero-progress-mana {
+  background:
+    linear-gradient(
+      90deg,
+      #6376d5,
+      #8ca3ff
+    ) !important;
+
+  box-shadow:
+    0 0 16px
+    rgba(105, 127, 218, 0.25);
+}
+
+
+.player-theme-default
+.nero-progress-exp {
+  background:
+    linear-gradient(
+      90deg,
+      #b88635,
+      #e2bd69
+    ) !important;
+
+  box-shadow:
+    0 0 14px
+    rgba(215, 171, 78, 0.24);
+}
+
+
+/* ============================================================
+   РАДАРЫ
+   ============================================================ */
+
+.player-theme-default
+.nero-radar-wrap {
+  color:
+    #a77bdd !important;
+
+  border-color:
+    rgba(154, 111, 214, 0.18) !important;
+
+  background:
+    radial-gradient(
+      circle,
+      rgba(37, 28, 50, 0.95),
+      rgba(17, 15, 25, 0.95)
+    ) !important;
+}
+
+
+.player-theme-default
+.nero-radar-core {
+  fill:
+    #2d243c !important;
+
+  stroke:
+    #d4aa53 !important;
+}
+
+
+.player-theme-default
+.nero-radar-core-symbol {
+  fill:
+    #e1bd70 !important;
+}
+
+
+.player-theme-default
+.nero-radar-note {
+  color:
+    #978ba6 !important;
+}
+
+
+/* ============================================================
+   БОЕВЫЕ КАРТОЧКИ
+   ============================================================ */
+
+.player-theme-default
+.nero-battle-card {
+  border:
+    1px solid
+    rgba(145, 105, 202, 0.18) !important;
+
+  color:
+    #eee7f7 !important;
+
+  background:
+    rgba(31, 25, 42, 0.90) !important;
+}
+
+
+.player-theme-default
+.nero-battle-label {
+  color:
+    #bdb0cd !important;
+}
+
+
+.player-theme-default
+.nero-battle-card strong {
+  color:
+    #f7f2ff !important;
+}
+
+
+.player-theme-default
+.nero-battle-card:hover {
+  border-color:
+    rgba(215, 173, 78, 0.37) !important;
+
+  background:
+    rgba(46, 35, 58, 0.96) !important;
+}
+
+
+/* ============================================================
+   НАВЫКИ / ЗАКЛИНАНИЯ
+   ============================================================ */
+
+.player-theme-default
+.nero-skill-card {
+  border:
+    1px solid
+    rgba(146, 103, 207, 0.20) !important;
+
+  color:
+    #d8d0e2 !important;
+
+  background:
+    linear-gradient(
+      145deg,
+      rgba(33, 26, 45, 0.96),
+      rgba(20, 17, 29, 0.96)
+    ) !important;
+}
+
+
+.player-theme-default
+.nero-skill-card h3 {
+  color:
+    #f4effb !important;
+}
+
+
+.player-theme-default
+.nero-skill-card p {
+  color:
+    #b9afc5 !important;
+}
+
+
+.player-theme-default
+.nero-skill-top {
+  color:
+    #d2ab5d !important;
+}
+
+
+.player-theme-default
+.nero-status-good {
+  color:
+    #82cfa5 !important;
+}
+
+
+.player-theme-default
+.nero-spell-card-modern {
+  border-color:
+    rgba(162, 112, 225, 0.25) !important;
+}
+
+
+/* ============================================================
+   СЛЕДУЮЩИЙ НАВЫК / ИВЕНТ
+   ============================================================ */
+
+.player-theme-default
+.nero-next-card {
+  border:
+    1px solid
+    rgba(214, 173, 79, 0.24) !important;
+
+  color:
+    #ddd5e7 !important;
+
+  background:
+    linear-gradient(
+      135deg,
+      rgba(42, 33, 54, 0.96),
+      rgba(26, 22, 34, 0.96)
+    ) !important;
+}
+
+
+.player-theme-default
+.nero-next-card h3 {
+  color:
+    #f4effb !important;
+}
+
+
+.player-theme-default
+.nero-next-card p {
+  color:
+    #afa5bb !important;
+}
+
+
+/* ============================================================
+   ИНВЕНТАРЬ
+   ============================================================ */
+
+.player-theme-default
+.nero-inventory-card {
+  border:
+    1px solid
+    rgba(145, 102, 204, 0.18) !important;
+
+  color:
+    #ded7e8 !important;
+
+  background:
+    rgba(29, 24, 39, 0.94) !important;
+}
+
+
+.player-theme-default
+.nero-inventory-title {
+  color:
+    #ddb75f !important;
+}
+
+
+.player-theme-default
+.nero-item {
+  border:
+    1px solid
+    rgba(151, 110, 208, 0.15) !important;
+
+  color:
+    #d8d0e2 !important;
+
+  background:
+    rgba(48, 38, 63, 0.72) !important;
+}
+
+
+/* ============================================================
+   ФИНАНСЫ
+   ============================================================ */
+
+.player-theme-default
+.nero-money-card {
+  border:
+    1px solid
+    rgba(213, 170, 73, 0.24) !important;
+
+  color:
+    #d8d0df !important;
+
+  background:
+    linear-gradient(
+      145deg,
+      rgba(48, 38, 27, 0.94),
+      rgba(28, 23, 33, 0.96)
+    ) !important;
+}
+
+
+.player-theme-default
+.nero-money-card span,
+.player-theme-default
+.nero-money-card small {
+  color:
+    #b1a798 !important;
+}
+
+
+.player-theme-default
+.nero-money-card strong {
+  color:
+    #e2bb65 !important;
+}
+
+
+/* ============================================================
+   ИСТОРИЯ
+   ============================================================ */
+
+.player-theme-default
+.nero-history {
+  color:
+    #c7bfce !important;
+
+  border-color:
+    rgba(145, 105, 201, 0.16) !important;
+
+  background:
+    rgba(29, 24, 39, 0.75) !important;
+}
+
+
+/* ============================================================
+   ПУСТЫЕ БЛОКИ
+   ============================================================ */
+
+.player-theme-default
+.nero-empty {
+  color:
+    #9e94aa !important;
+
+  border-color:
+    rgba(142, 103, 195, 0.15) !important;
+
+  background:
+    rgba(27, 23, 36, 0.72) !important;
+}
+
+
+/* ============================================================
+   ИВЕНТЫ
+   ============================================================ */
+
+.player-theme-default
+.player-events-page-title {
+  color:
+    #f6f2fc !important;
+}
+
+
+.player-theme-default
+.player-events-identity {
+  color:
+    #eee7f7 !important;
+
+  background:
+    linear-gradient(
+      135deg,
+      rgba(34, 27, 45, 0.97),
+      rgba(20, 17, 28, 0.97)
+    ) !important;
+}
+
+
+.player-theme-default
+.player-events-avatar-shell {
+  border-color:
+    rgba(215, 173, 76, 0.48) !important;
+
+  background:
+    #09080d !important;
+}
+
+
+.player-theme-default
+.player-events-identity-copy h2 {
+  color:
+    #f6f2fc !important;
+}
+
+
+.player-theme-default
+.player-events-identity-tags span {
+  color:
+    #d8cfdf !important;
+
+  border-color:
+    rgba(150, 108, 208, 0.20) !important;
+
+  background:
+    rgba(48, 37, 63, 0.72) !important;
+}
+
+
+.player-theme-default
+.player-events-small-label {
+  color:
+    #93889f !important;
+}
+
+
+.player-theme-default
+.player-events-identity-block strong {
+  color:
+    #eee7f6 !important;
+}
+
+
+.player-theme-default
+.player-event-card {
+  border:
+    1px solid
+    rgba(148, 105, 207, 0.20) !important;
+
+  color:
+    #e6deef !important;
+
+  background:
+    linear-gradient(
+      145deg,
+      rgba(32, 26, 43, 0.97),
+      rgba(18, 16, 25, 0.97)
+    ) !important;
+
+  box-shadow:
+    0 16px 38px
+    rgba(0, 0, 0, 0.20);
+}
+
+
+.player-theme-default
+.player-event-card h3 {
+  color:
+    #f5f0fb !important;
+}
+
+
+.player-theme-default
+.player-event-description {
+  color:
+    #bcb2c7 !important;
+}
+
+
+.player-theme-default
+.player-event-info-grid > div {
+  border-color:
+    rgba(144, 103, 199, 0.15) !important;
+
+  background:
+    rgba(42, 33, 54, 0.68) !important;
+}
+
+
+.player-theme-default
+.player-event-info-grid span {
+  color:
+    #90869b !important;
+}
+
+
+.player-theme-default
+.player-event-info-grid strong {
+  color:
+    #eee7f6 !important;
+}
+
+
+.player-theme-default
+.player-event-rank,
+.player-theme-default
+.player-event-rank span {
+  color:
+    #e6ddf0 !important;
+}
+
+
+.player-theme-default
+.player-event-level {
+  color:
+    #dfbc6b !important;
+}
+
+
+.player-theme-default
+.player-event-reward-title {
+  color:
+    #d8b05b !important;
+}
+
+
+.player-theme-default
+.player-event-rewards span {
+  border-color:
+    rgba(216, 173, 78, 0.18) !important;
+
+  color:
+    #e0d5be !important;
+
+  background:
+    rgba(55, 43, 31, 0.70) !important;
+}
+
+
+.player-theme-default
+.player-event-joined {
+  color:
+    #8dd2a9 !important;
+
+  background:
+    rgba(40, 104, 68, 0.18) !important;
+}
+
+
+.player-theme-default
+.player-event-disabled {
+  color:
+    #a49baa !important;
+}
+
+
+/* ============================================================
+   ПРЕДУПРЕЖДЕНИЯ ИВЕНТОВ
+   ============================================================ */
+
+.player-theme-default
+.player-event-warning {
+  color:
+    #ddd5e6 !important;
+}
+
+
+.player-theme-default
+.player-event-warning-ok {
+  border-color:
+    rgba(82, 181, 123, 0.28) !important;
+
+  color:
+    #9ed9b5 !important;
+
+  background:
+    rgba(39, 102, 66, 0.17) !important;
+}
+
+
+.player-theme-default
+.player-event-warning-danger {
+  border-color:
+    rgba(213, 116, 80, 0.30) !important;
+
+  color:
+    #e8ad96 !important;
+
+  background:
+    rgba(114, 50, 38, 0.18) !important;
+}
+
+
+.player-theme-default
+.player-event-warning-low {
+  border-color:
+    rgba(216, 173, 79, 0.28) !important;
+
+  color:
+    #dfc47e !important;
+
+  background:
+    rgba(103, 78, 31, 0.18) !important;
+}
+
+
+.player-theme-default
+.player-event-warning-locked {
+  border-color:
+    rgba(182, 84, 101, 0.28) !important;
+
+  color:
+    #df9dab !important;
+
+  background:
+    rgba(104, 40, 53, 0.18) !important;
+}
+
+
+/* ============================================================
+   ФУТЕР
+   ============================================================ */
+
+.player-theme-default
+.nero-footer {
+  color:
+    #82798d !important;
+}
+
+
+/* ============================================================
+   ЭКРАН ЗАГРУЗКИ
+   ============================================================ */
+
+.player-theme-default.nero-state-screen {
+  color:
+    #f3edfa !important;
+
+  background:
+    radial-gradient(
+      circle at 50% 38%,
+      #2c223c 0%,
+      #181320 34%,
+      #100d16 70%,
+      #09080d 100%
+    ) !important;
+}
+
+
+.player-theme-default
+.nero-loading-symbol {
+  color:
+    #d9ae55 !important;
+
+  text-shadow:
+    0 0 22px
+    rgba(179, 126, 226, 0.40) !important;
+}
+
+
+.player-theme-default.nero-state-screen h1,
+.player-theme-default.nero-state-screen h2 {
+  color:
+    #f4effb !important;
+}
+
+
+.player-theme-default.nero-state-screen p {
+  color:
+    #a79caf !important;
+}
+
+
+/* ============================================================
+   УБИРАЕМ СТАРЫЕ TEXT-SHADOW НЕРО
+   ============================================================ */
+
+.player-theme-default
+.nero-panel *,
+.player-theme-default
+.nero-hero *,
+.player-theme-default
+.nero-toolbar * {
+  text-shadow:
+    none;
+}
+
+
+/* ============================================================
+   МОБИЛЬНАЯ ВЕРСИЯ
+   ============================================================ */
+
+@media (
+  max-width: 760px
+) {
+
+  .player-theme-default::after {
+    opacity:
+      0.07;
+
+    font-size:
+      22px;
+
+    letter-spacing:
+      12px;
+  }
+
+
+  .player-theme-default
+  .nero-hero {
+    background:
+      rgba(20, 17, 28, 0.97) !important;
+  }
+
+}

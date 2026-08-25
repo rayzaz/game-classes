@@ -1,7 +1,7 @@
 import {
   clearSessionCookie,
   json,
-} from './_auth.mjs';
+} from './_shared/_auth.mjs';
 
 export default async (
   request

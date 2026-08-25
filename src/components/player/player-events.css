@@ -1,0 +1,334 @@
+.player-events-page-title {
+  margin: 0;
+}
+
+.player-events-identity {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+}
+
+.player-events-identity-main {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+  gap: 16px;
+}
+
+.player-events-avatar-shell {
+  width: 76px;
+  height: 76px;
+  flex: 0 0 76px;
+  overflow: hidden;
+  border: 1px solid rgba(255, 219, 99, 0.25);
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.player-events-avatar-shell img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.player-events-identity-copy h2 {
+  margin: 4px 0 10px;
+}
+
+.player-events-identity-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.player-events-identity-tags span {
+  padding: 6px 9px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.035);
+  font-size: 12px;
+}
+
+.player-events-identity-side {
+  display: grid;
+  min-width: 330px;
+  gap: 12px;
+}
+
+.player-events-identity-block {
+  padding: 10px 12px;
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.025);
+}
+
+.player-events-small-label {
+  display: block;
+  margin-bottom: 7px;
+  opacity: 0.55;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.player-events-rank-large,
+.player-events-squad {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.player-events-rank-large img {
+  display: block;
+  width: auto;
+  max-width: 112px;
+  height: 28px;
+  object-fit: contain;
+}
+
+.player-events-squad img {
+  display: block;
+  width: 34px;
+  height: 34px;
+  object-fit: contain;
+}
+
+.player-event-grid {
+  display: grid;
+  grid-template-columns: repeat(
+    2,
+    minmax(0, 1fr)
+  );
+  gap: 14px;
+}
+
+.player-event-card {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 14px;
+  padding: 18px;
+  border: 1px solid rgba(255, 255, 255, 0.075);
+  border-radius: 16px;
+  background:
+    linear-gradient(
+      180deg,
+      rgba(255, 255, 255, 0.035),
+      rgba(255, 255, 255, 0.018)
+    );
+}
+
+.player-event-card-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.player-event-card-head h3 {
+  margin: 8px 0 0;
+  font-size: 22px;
+}
+
+.player-event-status-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.player-event-status,
+.player-event-level {
+  display: inline-flex;
+  align-items: center;
+  min-height: 27px;
+  padding: 5px 8px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.035);
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.player-event-status-published {
+  border-color: rgba(255, 213, 78, 0.2);
+  color: #f6d95a;
+}
+
+.player-event-status-active {
+  border-color: rgba(255, 115, 115, 0.25);
+  color: #ffabab;
+}
+
+.player-event-description {
+  margin: 0;
+  opacity: 0.78;
+  line-height: 1.6;
+}
+
+.player-event-info-grid {
+  display: grid;
+  grid-template-columns: repeat(
+    2,
+    minmax(0, 1fr)
+  );
+  gap: 9px;
+}
+
+.player-event-info-grid > div {
+  min-width: 0;
+  padding: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.065);
+  border-radius: 11px;
+  background: rgba(255, 255, 255, 0.022);
+}
+
+.player-event-info-grid > div > span {
+  display: block;
+  margin-bottom: 6px;
+  opacity: 0.5;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.player-event-info-grid strong {
+  font-size: 12px;
+}
+
+.player-event-rank {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+  gap: 8px;
+}
+
+.player-event-rank img {
+  display: block;
+  width: auto;
+  max-width: 95px;
+  height: 25px;
+  object-fit: contain;
+}
+
+.player-event-rank span {
+  min-width: 0;
+  font-size: 11px;
+  line-height: 1.35;
+}
+
+.player-event-rank-unknown {
+  opacity: 0.7;
+}
+
+.player-event-warning {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 11px 12px;
+  border-radius: 11px;
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.player-event-warning-locked {
+  border: 1px solid rgba(255, 91, 91, 0.22);
+  background: rgba(255, 91, 91, 0.075);
+}
+
+.player-event-warning-danger {
+  border: 1px solid rgba(255, 150, 70, 0.24);
+  background: rgba(255, 150, 70, 0.07);
+}
+
+.player-event-warning-low {
+  border: 1px solid rgba(95, 170, 255, 0.22);
+  background: rgba(95, 170, 255, 0.065);
+}
+
+.player-event-warning-ok {
+  border: 1px solid rgba(103, 219, 137, 0.2);
+  background: rgba(103, 219, 137, 0.055);
+}
+
+.player-event-reward-title {
+  opacity: 0.55;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.player-event-rewards {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+}
+
+.player-event-rewards span {
+  padding: 6px 8px;
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.025);
+  font-size: 11px;
+}
+
+.player-event-card-actions {
+  margin-top: auto;
+  padding-top: 2px;
+}
+
+.player-event-signup-button {
+  width: 100%;
+}
+
+.player-event-joined {
+  padding: 11px 12px;
+  border: 1px solid rgba(103, 219, 137, 0.2);
+  border-radius: 11px;
+  background: rgba(103, 219, 137, 0.06);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.player-event-disabled {
+  padding: 11px 12px;
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  border-radius: 11px;
+  background: rgba(255, 255, 255, 0.025);
+  opacity: 0.68;
+  font-size: 12px;
+}
+
+@media (max-width: 900px) {
+  .player-events-identity {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .player-events-identity-side {
+    min-width: 0;
+  }
+
+  .player-event-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 620px) {
+  .player-events-identity-main {
+    align-items: flex-start;
+  }
+
+  .player-events-avatar-shell {
+    width: 62px;
+    height: 62px;
+    flex-basis: 62px;
+  }
+
+  .player-event-info-grid {
+    grid-template-columns: 1fr;
+  }
+}

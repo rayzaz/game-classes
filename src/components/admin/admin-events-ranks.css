@@ -1,0 +1,114 @@
+.admin-event-field select {
+  width: 100%;
+  min-height: 44px;
+  padding: 10px 12px;
+
+  border:
+    1px solid
+    rgba(255, 255, 255, 0.12);
+
+  border-radius: 10px;
+
+  background:
+    rgba(10, 11, 17, 0.78);
+
+  color: #f5f5f7;
+
+  font: inherit;
+
+  outline: none;
+}
+
+.admin-event-field select:focus {
+  border-color:
+    rgba(214, 183, 83, 0.7);
+
+  box-shadow:
+    0 0 0 3px
+    rgba(214, 183, 83, 0.1);
+}
+
+.admin-event-field select option {
+  background: #12141a;
+  color: #f5f5f7;
+}
+
+.admin-event-rank-preview,
+.admin-event-rank-card {
+  padding: 12px 14px;
+
+  border:
+    1px solid
+    rgba(255, 255, 255, 0.08);
+
+  border-radius: 12px;
+
+  background:
+    rgba(255, 255, 255, 0.025);
+}
+
+.admin-event-rank-preview > span,
+.admin-event-rank-caption {
+  display: block;
+
+  margin-bottom: 8px;
+
+  color:
+    rgba(255, 255, 255, 0.56);
+
+  font-size: 11px;
+
+  font-weight: 700;
+
+  letter-spacing: 0.08em;
+
+  text-transform: uppercase;
+}
+
+.admin-event-rank {
+  display: flex;
+
+  align-items: center;
+
+  flex-wrap: wrap;
+
+  gap: 12px;
+}
+
+.admin-event-rank img {
+  display: block;
+
+  width: auto;
+
+  max-width: 112px;
+
+  height: 30px;
+
+  object-fit: contain;
+
+  object-position: left center;
+}
+
+.admin-event-rank strong {
+  color: #f4f4f6;
+
+  font-size: 13px;
+
+  line-height: 1.4;
+}
+
+.admin-event-rank-card {
+  margin-top: 14px;
+  margin-bottom: 14px;
+}
+
+@media (max-width: 700px) {
+  .admin-event-rank {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .admin-event-rank img {
+    max-width: 100px;
+  }
+}

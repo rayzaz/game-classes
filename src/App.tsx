@@ -1,5 +1,3 @@
-// src/App.tsx
-
 import React, {
   useEffect,
   useMemo,
@@ -10,25 +8,32 @@ import CLASSES from './data/merged';
 
 import ClassCard from './components/ClassCard';
 
-import Portal, { type LoginUser } from './components/Portal';
+import Portal, {
+  type LoginUser,
+} from './components/Portal';
 
-import NeroCabinet from './components/NeroCabinet';
+import PlayerCabinet from './components/PlayerCabinet';
+
+import AdminCabinet from './components/admin/AdminCabinet';
+import EventerCabinet from './components/admin/EventerCabinet';
 
 import './styles.css';
+import './account.css';
 
 
 /* =========================
-   РОЛИ
+   РОЛИ КЛАССОВ
    ========================= */
 
 function splitRoles(
   input?: string,
   extraTags?: string[]
 ): string[] {
-
   const raw =
-    (input ?? '')
-      .toString();
+    (
+      input ??
+      ''
+    ).toString();
 
 
   const s =
@@ -44,8 +49,8 @@ function splitRoles(
         /(?:\s+|-|,|\/|;|(?:\sи\s))/i
       )
       .map(
-        (t) =>
-          t.trim()
+        value =>
+          value.trim()
       )
       .filter(
         Boolean
@@ -53,10 +58,13 @@ function splitRoles(
 
 
   const tags =
-    (extraTags ?? [])
+    (
+      extraTags ??
+      []
+    )
       .map(
-        (t) =>
-          t.trim()
+        value =>
+          value.trim()
       )
       .filter(
         Boolean
@@ -74,52 +82,64 @@ function splitRoles(
 
 
   const nice =
-    (w: string) =>
-      w.length
-        ? w[0].toUpperCase() +
-          w
-            .slice(1)
-            .toLowerCase()
-        : w;
+    (
+      word:
+        string
+    ) =>
+      word.length
+        ? (
+            word[0].toUpperCase() +
+            word
+              .slice(1)
+              .toLowerCase()
+          )
+        : word;
 
 
-  const out: string[] =
-    [];
+  const out:
+    string[] =
+      [];
 
 
   for (
-    const w of merged
+    const word of
+    merged
   ) {
-
     const key =
-      w.toLowerCase();
+      word.toLowerCase();
 
 
     if (
-      !seen.has(key)
+      !seen.has(
+        key
+      )
     ) {
+      seen.add(
+        key
+      );
 
-      seen.add(key);
 
       out.push(
-        nice(w)
+        nice(
+          word
+        )
       );
     }
   }
 
 
   if (
-    out.length > 2 &&
+    out.length >
+      2 &&
     !out
       .map(
-        (x) =>
-          x.toLowerCase()
+        item =>
+          item.toLowerCase()
       )
       .includes(
         'гибрид'
       )
   ) {
-
     out.push(
       'Гибрид'
     );
@@ -135,20 +155,23 @@ function splitRoles(
    ========================= */
 
 function splitComplexity(
-  input: unknown
+  input:
+    unknown
 ): string[] {
-
   const mapCx =
     (
-      v: string
-    ): string | null => {
-
+      value:
+        string
+    ):
+      string |
+      null => {
       const x =
-        v.toLowerCase();
+        value.toLowerCase();
 
 
       if (
-        x === '1' ||
+        x ===
+          '1' ||
         x.startsWith(
           'низк'
         )
@@ -158,7 +181,8 @@ function splitComplexity(
 
 
       if (
-        x === '2' ||
+        x ===
+          '2' ||
         x.startsWith(
           'средн'
         )
@@ -168,7 +192,8 @@ function splitComplexity(
 
 
       if (
-        x === '3' ||
+        x ===
+          '3' ||
         x.startsWith(
           'высо'
         )
@@ -183,9 +208,10 @@ function splitComplexity(
 
   const toTokens =
     (
-      val: string
+      value:
+        string
     ) =>
-      val
+      value
         .replace(
           /[—–]/g,
           '-'
@@ -194,16 +220,17 @@ function splitComplexity(
           /(?:\s+|-|,|\/|;|(?:\sи\s))/i
         )
         .map(
-          (t) =>
-            t.trim()
+          token =>
+            token.trim()
         )
         .filter(
           Boolean
         );
 
 
-  let parts: string[] =
-    [];
+  let parts:
+    string[] =
+      [];
 
 
   if (
@@ -211,13 +238,13 @@ function splitComplexity(
       input
     )
   ) {
-
     parts =
       input.flatMap(
-        (v) =>
+        value =>
           toTokens(
             String(
-              v ?? ''
+              value ??
+              ''
             )
               .toLowerCase()
               .trim()
@@ -225,10 +252,10 @@ function splitComplexity(
       );
 
   } else {
-
     const raw =
       String(
-        input ?? ''
+        input ??
+        ''
       )
         .toLowerCase()
         .trim();
@@ -240,7 +267,9 @@ function splitComplexity(
 
 
     parts =
-      toTokens(raw);
+      toTokens(
+        raw
+      );
   }
 
 
@@ -251,7 +280,8 @@ function splitComplexity(
       )
       .filter(
         Boolean
-      ) as string[];
+      ) as
+      string[];
 
 
   return Array.from(
@@ -260,6 +290,28 @@ function splitComplexity(
     )
   );
 }
+
+
+/* =========================
+   СТРАНИЦА
+   ========================= */
+
+type AppPage =
+  | 'catalog'
+  | 'cabinet'
+  | 'admin'
+  | 'eventer';
+
+
+type SessionResponse = {
+  ok: boolean;
+
+  user:
+    LoginUser |
+    null;
+
+  error?: string;
+};
 
 
 /* =========================
@@ -274,7 +326,7 @@ export default function App() {
 
   const [
     theme,
-    setTheme
+    setTheme,
   ] =
     useState<
       'light' |
@@ -286,7 +338,7 @@ export default function App() {
 
   const [
     fx,
-    setFx
+    setFx,
   ] =
     useState<
       'light' |
@@ -299,68 +351,76 @@ export default function App() {
 
   const [
     fxKey,
-    setFxKey
+    setFxKey,
   ] =
-    useState(0);
-
-
-  useEffect(() => {
-
-    const saved =
-      localStorage.getItem(
-        'theme'
-      ) as
-        | 'light'
-        | 'dark'
-        | null;
-
-
-    const prefersDark =
-      window
-        .matchMedia?.(
-          '(prefers-color-scheme: dark)'
-        )
-        .matches;
-
-
-    const t =
-      saved ??
-      (
-        prefersDark
-          ? 'dark'
-          : 'light'
-      );
-
-
-    setTheme(t);
-
-
-    document
-      .documentElement
-      .setAttribute(
-        'data-theme',
-        t
-      );
-
-  }, []);
-
-
-  useEffect(() => {
-
-    document
-      .documentElement
-      .setAttribute(
-        'data-theme',
-        theme
-      );
-
-
-    localStorage.setItem(
-      'theme',
-      theme
+    useState(
+      0
     );
 
-  }, [theme]);
+
+  useEffect(
+    () => {
+      const saved =
+        localStorage.getItem(
+          'theme'
+        ) as
+          | 'light'
+          | 'dark'
+          | null;
+
+
+      const prefersDark =
+        window
+          .matchMedia?.(
+            '(prefers-color-scheme: dark)'
+          )
+          .matches;
+
+
+      const nextTheme =
+        saved ??
+        (
+          prefersDark
+            ? 'dark'
+            : 'light'
+        );
+
+
+      setTheme(
+        nextTheme
+      );
+
+
+      document
+        .documentElement
+        .setAttribute(
+          'data-theme',
+          nextTheme
+        );
+    },
+    []
+  );
+
+
+  useEffect(
+    () => {
+      document
+        .documentElement
+        .setAttribute(
+          'data-theme',
+          theme
+        );
+
+
+      localStorage.setItem(
+        'theme',
+        theme
+      );
+    },
+    [
+      theme,
+    ]
+  );
 
 
   const startTransition =
@@ -369,32 +429,34 @@ export default function App() {
         'light' |
         'dark'
     ) => {
-
       setFx(
         target
       );
 
 
       setFxKey(
-        (k) =>
-          k + 1
+        current =>
+          current +
+          1
       );
 
 
       window.setTimeout(
-        () =>
+        () => {
           setTheme(
             target
-          ),
+          );
+        },
         1000
       );
 
 
       window.setTimeout(
-        () =>
+        () => {
           setFx(
             null
-          ),
+          );
+        },
         2100
       );
     };
@@ -420,34 +482,251 @@ export default function App() {
 
   const [
     portalOpen,
-    setPortalOpen
+    setPortalOpen,
   ] =
-    useState(false);
+    useState(
+      false
+    );
 
 
   /* =========================
-     ТЕКУЩАЯ СТРАНИЦА
+     СТРАНИЦА
      ========================= */
 
   const [
     page,
-    setPage
+    setPage,
   ] =
-    useState<
-      'catalog' |
-      'cabinet'
-    >(
+    useState<AppPage>(
       'catalog'
     );
 
 
   const [
     activeUser,
-    setActiveUser
+    setActiveUser,
   ] =
-    useState<LoginUser | null>(
+    useState<
+      LoginUser |
+      null
+    >(
       null
     );
+
+
+  const [
+    sessionChecked,
+    setSessionChecked,
+  ] =
+    useState(
+      false
+    );
+
+
+  const [
+    adminCharacterId,
+    setAdminCharacterId,
+  ] =
+    useState<
+      string |
+      null
+    >(
+      null
+    );
+
+
+  /* =========================
+     ВОССТАНОВЛЕНИЕ СЕССИИ
+     ========================= */
+
+  useEffect(
+    () => {
+      let cancelled =
+        false;
+
+
+      const restore =
+        async () => {
+          try {
+            const response =
+              await fetch(
+                `/.netlify/functions/session?t=${Date.now()}`,
+                {
+                  method:
+                    'GET',
+
+                  cache:
+                    'no-store',
+                }
+              );
+
+
+            const result:
+              SessionResponse =
+                await response.json();
+
+
+            if (
+              cancelled
+            ) {
+              return;
+            }
+
+
+            if (
+              response.ok &&
+              result.ok &&
+              result.user
+            ) {
+              setActiveUser(
+                result.user
+              );
+
+            } else {
+              setActiveUser(
+                null
+              );
+            }
+
+          } catch (
+            error
+          ) {
+            console.error(
+              'session restore error:',
+              error
+            );
+
+          } finally {
+            if (
+              !cancelled
+            ) {
+              setSessionChecked(
+                true
+              );
+            }
+          }
+        };
+
+
+      void restore();
+
+
+      return () => {
+        cancelled =
+          true;
+      };
+    },
+    []
+  );
+
+
+  /* =========================
+     НАВИГАЦИЯ
+     ========================= */
+
+  const goToCatalog =
+    () => {
+      /*
+        Просто возвращаемся
+        в каталог.
+
+        Аккаунт остаётся
+        авторизован.
+      */
+
+      setAdminCharacterId(
+        null
+      );
+
+
+      setPage(
+        'catalog'
+      );
+    };
+
+
+  const openPrivateArea =
+    () => {
+      if (
+        !activeUser
+      ) {
+        setPortalOpen(
+          true
+        );
+
+        return;
+      }
+
+
+      setAdminCharacterId(
+        null
+      );
+
+
+      if (
+        activeUser.role ===
+        'admin'
+      ) {
+        setPage(
+          'admin'
+        );
+
+      } else if (
+        activeUser.permissions
+          ?.canManageEvents
+      ) {
+        setPage(
+          'eventer'
+        );
+
+      } else {
+        setPage(
+          'cabinet'
+        );
+      }
+    };
+
+
+  const logoutAccount =
+    async () => {
+      try {
+        await fetch(
+          '/.netlify/functions/logout',
+          {
+            method:
+              'POST',
+          }
+        );
+
+      } catch (
+        error
+      ) {
+        console.error(
+          'logout error:',
+          error
+        );
+
+      } finally {
+        setPortalOpen(
+          false
+        );
+
+
+        setAdminCharacterId(
+          null
+        );
+
+
+        setActiveUser(
+          null
+        );
+
+
+        setPage(
+          'catalog'
+        );
+      }
+    };
 
 
   /* =========================
@@ -455,81 +734,84 @@ export default function App() {
      ========================= */
 
   const ALL =
-    useMemo(() => {
-
-      const rolesSet =
-        new Set<string>();
-
-
-      for (
-        const c of
-        (
-          CLASSES as any[]
-        )
-      ) {
-
-        const tokens =
-          splitRoles(
-            c.role,
-            c.tags
-          );
-
-
-        if (
-          tokens.length > 2 &&
-          !tokens
-            .map(
-              (x) =>
-                x.toLowerCase()
-            )
-            .includes(
-              'гибрид'
-            )
-        ) {
-
-          tokens.push(
-            'Гибрид'
-          );
-        }
+    useMemo(
+      () => {
+        const rolesSet =
+          new Set<string>();
 
 
         for (
-          const t of tokens
+          const item of
+          (
+            CLASSES as
+            any[]
+          )
         ) {
+          const tokens =
+            splitRoles(
+              item.role,
+              item.tags
+            );
 
-          rolesSet.add(
-            t
-          );
+
+          if (
+            tokens.length >
+              2 &&
+            !tokens
+              .map(
+                value =>
+                  value.toLowerCase()
+              )
+              .includes(
+                'гибрид'
+              )
+          ) {
+            tokens.push(
+              'Гибрид'
+            );
+          }
+
+
+          for (
+            const token of
+            tokens
+          ) {
+            rolesSet.add(
+              token
+            );
+          }
         }
-      }
 
 
-      return Array
-        .from(
-          rolesSet
-        )
-        .sort(
-          (a, b) =>
-            a.localeCompare(
-              b,
-              'ru'
-            )
-        );
+        return Array
+          .from(
+            rolesSet
+          )
+          .sort(
+            (
+              a,
+              b
+            ) =>
+              a.localeCompare(
+                b,
+                'ru'
+              )
+          );
+      },
+      []
+    );
 
-    }, []);
 
-
-  const COMPLEXITIES =
-    [
-      'низкая',
-      'средняя',
-      'высокая',
-    ];
+  const COMPLEXITIES = [
+    'низкая',
+    'средняя',
+    'высокая',
+  ];
 
 
   const [
     selRoles,
-    setSelRoles
+    setSelRoles,
   ] =
     useState<
       Set<string>
@@ -540,7 +822,7 @@ export default function App() {
 
   const [
     selCx,
-    setSelCx
+    setSelCx,
   ] =
     useState<
       Set<string>
@@ -558,30 +840,37 @@ export default function App() {
           >
         >,
 
-      val: string
-    ) =>
-
+      value:
+        string
+    ) => {
       setter(
-        (prev) => {
-
-          const n =
+        previous => {
+          const next =
             new Set(
-              prev
+              previous
             );
 
 
           if (
-            n.has(val)
+            next.has(
+              value
+            )
           ) {
-            n.delete(val);
+            next.delete(
+              value
+            );
+
           } else {
-            n.add(val);
+            next.add(
+              value
+            );
           }
 
 
-          return n;
+          return next;
         }
       );
+    };
 
 
   /* =========================
@@ -592,259 +881,321 @@ export default function App() {
     list,
     total,
   } =
-    useMemo(() => {
-
-      const all =
-        CLASSES as any[];
-
-
-      const placeholder =
-        all.find(
-          (c) =>
-            c.placeholder
-        );
+    useMemo(
+      () => {
+        const all =
+          CLASSES as
+          any[];
 
 
-      const pass =
-        (c: any) => {
-
-          const roleTokens =
-            splitRoles(
-              c.role,
-              c.tags
-            );
-
-
-          const roleSet =
-            new Set(
-              roleTokens.map(
-                (t) =>
-                  t.toLowerCase()
-              )
-            );
-
-
-          if (
-            roleTokens.length >
-            2
-          ) {
-
-            roleSet.add(
-              'гибрид'
-            );
-          }
-
-
-          const okRoles =
-            selRoles.size ===
-              0 ||
-            Array.from(
-              selRoles
-            ).every(
-              (r) =>
-                roleSet.has(
-                  r.toLowerCase()
-                )
-            );
-
-
-          const cxTokens =
-            splitComplexity(
-              c.complexity
-            );
-
-
-          const cxSet =
-            new Set(
-              cxTokens
-            );
-
-
-          const okCx =
-            selCx.size ===
-              0 ||
-            Array.from(
-              selCx
-            ).every(
-              (k) =>
-                cxSet.has(
-                  k.toLowerCase()
-                )
-            );
-
-
-          return (
-            okRoles &&
-            okCx
+        const placeholder =
+          all.find(
+            item =>
+              item.placeholder
           );
-        };
 
 
-      const normal =
-        all.filter(
-          (c) =>
-            !c.placeholder
-        );
+        const pass =
+          (
+            item:
+              any
+          ) => {
+            const roleTokens =
+              splitRoles(
+                item.role,
+                item.tags
+              );
 
 
-      const filtered =
-        normal.filter(
-          pass
-        );
+            const roleSet =
+              new Set(
+                roleTokens.map(
+                  value =>
+                    value.toLowerCase()
+                )
+              );
 
 
-      const result =
-        placeholder
-          ? [
-              placeholder,
-              ...filtered,
-            ]
-          : filtered;
+            if (
+              roleTokens.length >
+              2
+            ) {
+              roleSet.add(
+                'гибрид'
+              );
+            }
 
 
-      const totalCount =
-        normal.length +
-        (
+            const okRoles =
+              selRoles.size ===
+                0 ||
+              Array.from(
+                selRoles
+              ).every(
+                role =>
+                  roleSet.has(
+                    role.toLowerCase()
+                  )
+              );
+
+
+            const cxTokens =
+              splitComplexity(
+                item.complexity
+              );
+
+
+            const cxSet =
+              new Set(
+                cxTokens
+              );
+
+
+            const okCx =
+              selCx.size ===
+                0 ||
+              Array.from(
+                selCx
+              ).every(
+                complexity =>
+                  cxSet.has(
+                    complexity.toLowerCase()
+                  )
+              );
+
+
+            return (
+              okRoles &&
+              okCx
+            );
+          };
+
+
+        const normal =
+          all.filter(
+            item =>
+              !item.placeholder
+          );
+
+
+        const filtered =
+          normal.filter(
+            pass
+          );
+
+
+        const result =
           placeholder
-            ? 1
-            : 0
-        );
+            ? [
+                placeholder,
+                ...filtered,
+              ]
+            : filtered;
 
 
-      return {
-        list:
-          result,
-
-        total:
-          totalCount,
-      };
-
-    }, [
-      selRoles,
-      selCx,
-    ]);
+        const totalCount =
+          normal.length +
+          (
+            placeholder
+              ? 1
+              : 0
+          );
 
 
-  /* =========================
-     ВЫХОД ИЗ КАБИНЕТА
-     ========================= */
+        return {
+          list:
+            result,
 
-  const leaveCabinet =
-    () => {
-
-      fetch(
-        '/.netlify/functions/logout',
-        {
-          method: 'POST',
-        }
-      ).catch(
-        () => {
-          // Даже если сеть недоступна,
-          // интерфейс всё равно возвращаем в каталог.
-        }
-      );
-
-
-      setActiveUser(
-        null
-      );
-
-
-      setPage(
-        'catalog'
-      );
-    };
+          total:
+            totalCount,
+        };
+      },
+      [
+        selRoles,
+        selCx,
+      ]
+    );
 
 
   /* =========================
-     ЛИЧНЫЙ КАБИНЕТ
-
-     ВАЖНО:
-     мы НИКОГДА не открываем Неро
-     просто потому, что кто-то вошёл.
-     Сначала смотрим characterId,
-     который вернул сервер.
+     АДМИН ОТКРЫЛ ПЕРСОНАЖА
      ========================= */
 
   if (
-    page === 'cabinet' &&
-    activeUser
+    page ===
+      'admin' &&
+    activeUser?.role ===
+      'admin' &&
+    adminCharacterId
   ) {
-
-    if (
-      activeUser.characterId ===
-      'nero'
-    ) {
-
-      return (
-
-        <div
-          className="book nero-mode"
-          style={{
-            minHeight:
-              '100vh',
-          }}
-        >
-
-          <NeroCabinet
-            onBack={
-              leaveCabinet
-            }
-          />
-
-        </div>
-      );
-    }
-
-
     return (
+      <div
+  className={
+    adminCharacterId ===
+    'nero'
+      ? 'book nero-mode'
+      : 'book'
+  }
+  style={{
+    minHeight:
+      '100vh',
+  }}
+>
+        <PlayerCabinet
+          adminView
 
-      <div className="book">
+          characterId={
+            adminCharacterId
+          }
 
-        <div
-          className="page"
-          style={{
-            paddingTop: 70,
-          }}
-        >
-
-          <button
-            className="btn"
-            onClick={
-              leaveCabinet
-            }
-          >
-            ← Назад в каталог
-          </button>
-
-
-          <div
-            className="card"
-            style={{
-              marginTop: 24,
-              maxWidth: 620,
-            }}
-          >
-
-            <h1>
-              Кабинет готовится
-            </h1>
-
-            <p>
-              Вход выполнен как
-              {' '}
-              <strong>
-                {activeUser.displayName}
-              </strong>,
-              но кабинет этого персонажа
-              ещё не подключён к сайту.
-            </p>
-
-          </div>
-
-        </div>
-
+          onBack={() =>
+            setAdminCharacterId(
+              null
+            )
+          }
+        />
       </div>
+    );
+  }
+
+
+  /* =========================
+     АДМИН-ЦЕНТР
+     ========================= */
+
+  if (
+    page ===
+      'admin' &&
+    activeUser?.role ===
+      'admin'
+  ) {
+    return (
+      <AdminCabinet
+        displayName={
+          activeUser.displayName
+        }
+
+        onBack={
+          goToCatalog
+        }
+
+        onOpenCharacter={
+          characterId => {
+            setAdminCharacterId(
+              characterId
+            );
+          }
+        }
+      />
+    );
+  }
+
+
+  /* =========================
+     ЦЕНТР ИВЕНТЕРА
+     ========================= */
+
+  if (
+    page ===
+      'eventer' &&
+    activeUser?.role ===
+      'player' &&
+    activeUser.permissions
+      ?.canManageEvents
+  ) {
+    return (
+      <EventerCabinet
+        displayName={
+          activeUser.displayName
+        }
+        characterId={
+          activeUser.characterId
+        }
+        onBack={
+          goToCatalog
+        }
+        onOpenOwnCharacter={() =>
+          setPage(
+            'cabinet'
+          )
+        }
+      />
+    );
+  }
+
+
+  /* =========================
+     ЛИЧНЫЙ КАБИНЕТ ИГРОКА
+     ========================= */
+
+  if (
+    page ===
+      'cabinet' &&
+    activeUser?.role ===
+      'player'
+  ) {
+    return (
+      <div
+  className={
+    activeUser.characterId ===
+    'nero'
+      ? 'book nero-mode'
+      : 'book'
+  }
+  style={{
+    minHeight:
+      '100vh',
+  }}
+>
+        <PlayerCabinet
+          characterId={
+            activeUser.characterId
+          }
+
+          onBack={
+            goToCatalog
+          }
+        />
+      </div>
+    );
+  }
+
+
+  /*
+    Защита от странного состояния:
+    если админ каким-то образом
+    оказался на page="cabinet",
+    отправляем его интерфейсом
+    в админ-центр.
+  */
+  if (
+    page ===
+      'cabinet' &&
+    activeUser?.role ===
+      'admin'
+  ) {
+    return (
+      <AdminCabinet
+        displayName={
+          activeUser.displayName
+        }
+
+        onBack={
+          goToCatalog
+        }
+
+        onOpenCharacter={
+          characterId => {
+            setAdminCharacterId(
+              characterId
+            );
+
+            setPage(
+              'admin'
+            );
+          }
+        }
+      />
     );
   }
 
@@ -853,33 +1204,53 @@ export default function App() {
      КАТАЛОГ
      ========================= */
 
-  return (
+  const accountInitial =
+    (
+      activeUser
+        ?.displayName ||
+      activeUser
+        ?.login ||
+      '?'
+    )
+      .trim()
+      .charAt(
+        0
+      )
+      .toUpperCase();
 
+
+  return (
     <div className="book">
 
-      {fx && (
+      {/* =========================
+          ЭФФЕКТ СМЕНЫ ТЕМЫ
+          ========================= */}
 
+      {fx ? (
         <div
           className={
             `theme-bloom ${fx}`
           }
-          key={fxKey}
+          key={
+            fxKey
+          }
           aria-hidden
         >
-
           <div className="veil" />
 
           <div className="grain" />
-
         </div>
-
-      )}
+      ) : null}
 
 
       <div className="page">
 
+        {/* =========================
+            ВЕРХНЯЯ ПАНЕЛЬ
+            ========================= */}
+
         <div
-          className="toolbar"
+          className="toolbar catalog-toolbar"
           style={{
             position:
               'relative',
@@ -889,47 +1260,118 @@ export default function App() {
           }}
         >
 
-          {/* КНОПКА ПОРТАЛ */}
+          <div className="catalog-toolbar-left">
 
-          <button
-            className="btn"
-            type="button"
-            onClick={
-              () =>
+            <button
+              className="btn"
+              type="button"
+              onClick={() =>
                 setPortalOpen(
                   true
                 )
-            }
-          >
-            🌀 Портал
-          </button>
-
-
-          {/* ТЕМА */}
-
-          {theme === 'dark' ? (
-
-            <button
-              className="btn theme-toggle"
-              onClick={
-                goLight
               }
             >
-              Свет ☀️
+              🌀 Портал
             </button>
 
-          ) : (
 
-            <button
-              className="btn theme-toggle"
-              onClick={
-                goDark
-              }
-            >
-              Тьма 🌙
-            </button>
+            {theme ===
+            'dark' ? (
+              <button
+                className="btn theme-toggle"
+                type="button"
+                onClick={
+                  goLight
+                }
+              >
+                Свет ☀️
+              </button>
 
-          )}
+            ) : (
+              <button
+                className="btn theme-toggle"
+                type="button"
+                onClick={
+                  goDark
+                }
+              >
+                Тьма 🌙
+              </button>
+            )}
+
+          </div>
+
+
+          {/* =========================
+              АККАУНТ
+              ========================= */}
+
+          {!sessionChecked ? (
+            <div className="catalog-account-loading">
+
+              <span className="catalog-account-dot" />
+
+              Проверяем аккаунт…
+
+            </div>
+
+          ) : activeUser ? (
+            <div className="catalog-account">
+
+              <div className="catalog-account-avatar">
+                {accountInitial}
+              </div>
+
+
+              <div className="catalog-account-copy">
+
+                <strong>
+                  {activeUser.displayName}
+                </strong>
+
+                <span>
+                  {activeUser.role ===
+                  'admin'
+                    ? 'Администратор · авторизован'
+                    : activeUser.permissions
+                        ?.canManageEvents
+                      ? 'Ивентер · авторизован'
+                      : 'Аккаунт активен'}
+                </span>
+
+              </div>
+
+
+              <button
+                type="button"
+                className="btn primary"
+                onClick={
+                  openPrivateArea
+                }
+              >
+                {activeUser.role ===
+                'admin'
+                  ? 'Админ-центр'
+                  : activeUser.permissions
+                      ?.canManageEvents
+                    ? 'Центр ивентера'
+                    : 'Личный кабинет'}
+              </button>
+
+
+              <button
+                type="button"
+                className="btn"
+                onClick={() =>
+                  void logoutAccount()
+                }
+              >
+                Выйти
+              </button>
+
+            </div>
+
+          ) : null}
 
         </div>
 
@@ -954,50 +1396,44 @@ export default function App() {
                 8,
             }}
           >
-
             {COMPLEXITIES.map(
-              (cx) => {
-
+              complexity => {
                 const key =
-                  cx.toLowerCase();
+                  complexity
+                    .toLowerCase();
 
 
-                const on =
+                const active =
                   selCx.has(
                     key
                   );
 
 
                 return (
-
                   <button
-                    key={cx}
-
+                    key={
+                      complexity
+                    }
                     className={
                       `chip ${
-                        on
+                        active
                           ? 'active'
                           : ''
                       }`
                     }
-
-                    onClick={
-                      () =>
-                        toggleSet(
-                          setSelCx,
-                          key
-                        )
+                    onClick={() =>
+                      toggleSet(
+                        setSelCx,
+                        key
+                      )
                     }
-
                     title="Фильтр по сложности"
                   >
-                    {cx}
+                    {complexity}
                   </button>
-
                 );
               }
             )}
-
           </div>
 
         </details>
@@ -1014,7 +1450,6 @@ export default function App() {
               10,
           }}
         >
-
           <summary>
             <strong>
               Роли
@@ -1029,54 +1464,52 @@ export default function App() {
                 8,
             }}
           >
-
             {ALL.map(
-              (r) => {
-
+              role => {
                 const key =
-                  r.toLowerCase();
+                  role
+                    .toLowerCase();
 
 
-                const on =
+                const active =
                   selRoles.has(
                     key
                   );
 
 
                 return (
-
                   <button
-                    key={r}
-
+                    key={
+                      role
+                    }
                     className={
                       `chip ${
-                        on
+                        active
                           ? 'active'
                           : ''
                       }`
                     }
-
-                    onClick={
-                      () =>
-                        toggleSet(
-                          setSelRoles,
-                          key
-                        )
+                    onClick={() =>
+                      toggleSet(
+                        setSelRoles,
+                        key
+                      )
                     }
-
                     title="Фильтр по ролям"
                   >
-                    {r}
+                    {role}
                   </button>
-
                 );
               }
             )}
-
           </div>
 
         </details>
 
+
+        {/* =========================
+            КАТАЛОГ
+            ========================= */}
 
         <h1
           style={{
@@ -1085,8 +1518,11 @@ export default function App() {
           }}
         >
           Каталог классов · найдено{' '}
-          {list.length}{' '}
-          из{' '}
+
+          {list.length}
+
+          {' '}из{' '}
+
           {total}
         </h1>
 
@@ -1094,16 +1530,17 @@ export default function App() {
         <div className="grid">
 
           {list.map(
-            (c: any) => (
-
+            (
+              item:
+                any
+            ) => (
               <ClassCard
                 key={
-                  c.id ??
-                  c.name
+                  item.id ??
+                  item.name
                 }
-                {...c}
+                {...item}
               />
-
             )
           )}
 
@@ -1121,18 +1558,14 @@ export default function App() {
           portalOpen
         }
 
-        onClose={
-          () =>
-            setPortalOpen(
-              false
-            )
+        onClose={() =>
+          setPortalOpen(
+            false
+          )
         }
 
         onLoginSuccess={
-          (
-            user
-          ) => {
-
+          user => {
             setPortalOpen(
               false
             );
@@ -1143,9 +1576,24 @@ export default function App() {
             );
 
 
-            setPage(
-              'cabinet'
+            setAdminCharacterId(
+              null
             );
+
+
+            if (
+              user.role ===
+              'admin'
+            ) {
+              setPage(
+                'admin'
+              );
+
+            } else {
+              setPage(
+                'cabinet'
+              );
+            }
           }
         }
       />

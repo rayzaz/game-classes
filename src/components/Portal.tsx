@@ -11,13 +11,26 @@ import RenQuestionnaire from './assistants/Ren/RenQuestionnaire';
 import LuminQuestionnaire from './assistants/Lumin/LuminQuestionnaire';
 
 import { CLASSES } from '../data/classes';
-
+import {
+  submitQuestionnaire,
+} from '../services/questionnaireSubmit';
 
 export type LoginUser = {
   login: string;
   displayName: string;
+
+  role:
+    | 'player'
+    | 'admin';
+
   characterId: string;
+
   cabinetReady: boolean;
+
+  permissions?: {
+    eventer: boolean;
+    canManageEvents: boolean;
+  };
 };
 
 type Props = {
@@ -437,7 +450,7 @@ export default function Portal({
     setLoginError('');
 
 
-    const totalMs = 20000;
+   const totalMs = 900;
 
     const t0 =
       Date.now();
@@ -480,7 +493,7 @@ export default function Portal({
               setPhase(
                 'dialog'
               ),
-            1000
+            250
           );
         }
       }, 120);
@@ -701,7 +714,89 @@ export default function Portal({
       }
     };
 
+  const questionnaireSubmittingRef =
+    React.useRef(
+      false
+    );
 
+
+  const handleQuestionnaireFinish =
+    async (
+      data: Record<
+        string,
+        unknown
+      >
+    ) => {
+
+      if (
+        questionnaireSubmittingRef.current
+      ) {
+        return;
+      }
+
+
+      questionnaireSubmittingRef.current =
+        true;
+
+
+      try {
+
+        await submitQuestionnaire({
+
+          assistantId:
+            ASST.id,
+
+          assistantName:
+            ASST.name,
+
+          data,
+        });
+
+
+        console.log(
+          'Анкета сохранена'
+        );
+
+
+        setQSpeaking(
+          false
+        );
+
+
+        setPhase(
+          'welcome'
+        );
+
+
+        window.setTimeout(
+          () =>
+            setPhase(
+              'dialog'
+            ),
+          1000
+        );
+
+      } catch (
+        error: any
+      ) {
+
+        console.error(
+          'Ошибка сохранения анкеты:',
+          error
+        );
+
+
+        alert(
+          error?.message ||
+          'Не удалось сохранить анкету. Попробуйте ещё раз.'
+        );
+
+      } finally {
+
+        questionnaireSubmittingRef.current =
+          false;
+      }
+    };
   if (!open) {
     return null;
   }
@@ -1247,37 +1342,7 @@ export default function Portal({
                 }
 
                 onFinish={
-                  (data) => {
-
-                    console.log(
-                      'Анкета заполнена:',
-                      data
-                    );
-
-                    /*
-                      VK УБРАН.
-
-                      Пока просто
-                      завершаем анкету
-                      без отправки.
-                    */
-
-                    setQSpeaking(
-                      false
-                    );
-
-                    setPhase(
-                      'welcome'
-                    );
-
-                    window.setTimeout(
-                      () =>
-                        setPhase(
-                          'dialog'
-                        ),
-                      1000
-                    );
-                  }
+                  handleQuestionnaireFinish
                 }
               />
 
@@ -1318,33 +1383,7 @@ export default function Portal({
                 }
 
                 onFinish={
-                  (data) => {
-
-                    console.log(
-                      'Анкета заполнена:',
-                      data
-                    );
-
-                    /*
-                      VK УБРАН.
-                    */
-
-                    setQSpeaking(
-                      false
-                    );
-
-                    setPhase(
-                      'welcome'
-                    );
-
-                    window.setTimeout(
-                      () =>
-                        setPhase(
-                          'dialog'
-                        ),
-                      1000
-                    );
-                  }
+                  handleQuestionnaireFinish
                 }
               />
 
@@ -1385,33 +1424,7 @@ export default function Portal({
                 }
 
                 onFinish={
-                  (data) => {
-
-                    console.log(
-                      'Анкета заполнена:',
-                      data
-                    );
-
-                    /*
-                      VK УБРАН.
-                    */
-
-                    setQSpeaking(
-                      false
-                    );
-
-                    setPhase(
-                      'welcome'
-                    );
-
-                    window.setTimeout(
-                      () =>
-                        setPhase(
-                          'dialog'
-                        ),
-                      1000
-                    );
-                  }
+                  handleQuestionnaireFinish
                 }
               />
 

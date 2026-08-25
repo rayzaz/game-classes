@@ -1313,3 +1313,686 @@ details p{margin:6px 0 4px}
     margin-bottom: 18px;
   }
 }
+
+
+/* ========================================================================== */
+/* ===================  MODERN UI · ОСНОВНОЙ САЙТ  ========================= */
+/* ========================================================================== */
+
+/*
+  Этот блок намеренно стоит В САМОМ КОНЦЕ.
+  Он переопределяет старое "пергаментное" оформление,
+  не затрагивая логику React и авторизацию.
+*/
+
+:root{
+  --bg:#f4f6fa;
+  --fg:#15171c;
+  --ink-soft:#5f6673;
+
+  --accent:#7257e8;
+  --accent-2:#9a86f7;
+
+  --card:rgba(255,255,255,.78);
+  --card-solid:#ffffff;
+  --card-border:rgba(20,24,34,.09);
+
+  --shadow:
+    0 1px 2px rgba(15,23,42,.04),
+    0 14px 38px rgba(15,23,42,.07);
+
+  --paper-grad:
+    radial-gradient(circle at 12% 4%, rgba(130,103,255,.13), transparent 27%),
+    radial-gradient(circle at 88% 9%, rgba(93,196,255,.10), transparent 25%),
+    linear-gradient(180deg,#f7f8fc 0%,#eef1f7 100%);
+
+  --radius-page:26px;
+  --radius-card:22px;
+
+  --font-head:
+    Inter,
+    ui-sans-serif,
+    -apple-system,
+    BlinkMacSystemFont,
+    "Segoe UI",
+    sans-serif;
+
+  --font-body:
+    Inter,
+    ui-sans-serif,
+    -apple-system,
+    BlinkMacSystemFont,
+    "Segoe UI",
+    sans-serif;
+}
+
+html[data-theme="dark"]{
+  --bg:#090b10;
+  --fg:#f5f7fb;
+  --ink-soft:#9ca3b3;
+
+  --accent:#a48cff;
+  --accent-2:#7868ff;
+
+  --card:rgba(17,20,28,.78);
+  --card-solid:#11141c;
+  --card-border:rgba(255,255,255,.085);
+
+  --shadow:
+    0 1px 2px rgba(0,0,0,.25),
+    0 20px 55px rgba(0,0,0,.32);
+
+  --paper-grad:
+    radial-gradient(circle at 13% 2%, rgba(122,93,255,.16), transparent 26%),
+    radial-gradient(circle at 88% 8%, rgba(49,154,255,.09), transparent 24%),
+    linear-gradient(180deg,#090b10 0%,#0d1017 100%);
+}
+
+html,
+body,
+#root{
+  min-height:100%;
+}
+
+body{
+  margin:0;
+  color:var(--fg);
+  background:var(--bg);
+  font-family:var(--font-body);
+  line-height:1.5;
+  -webkit-font-smoothing:antialiased;
+  text-rendering:optimizeLegibility;
+}
+
+.book{
+  min-height:100vh;
+  background:var(--paper-grad);
+  background-attachment:fixed;
+}
+
+.page{
+  width:min(1280px,calc(100% - 40px));
+  max-width:none;
+  margin:0 auto;
+  padding:28px 0 64px;
+  position:relative;
+}
+
+/* Убираем рамку-пергамент вокруг всей страницы */
+.page::before{
+  display:none !important;
+}
+
+h1,
+h2,
+h3{
+  font-family:var(--font-head);
+  letter-spacing:-.025em;
+}
+
+.page > h1{
+  font-size:clamp(26px,3vw,38px);
+  font-weight:760;
+  margin:30px 0 20px !important;
+}
+
+/* =========================
+   ВЕРХНЯЯ ПАНЕЛЬ
+   ========================= */
+
+.toolbar{
+  display:flex;
+  gap:10px;
+  flex-wrap:wrap;
+  align-items:center;
+  margin:0 0 24px;
+  padding:10px;
+  width:max-content;
+  max-width:100%;
+  border:1px solid var(--card-border);
+  border-radius:18px;
+  background:color-mix(in srgb,var(--card-solid) 74%,transparent);
+  box-shadow:0 10px 30px rgba(15,23,42,.045);
+  backdrop-filter:blur(18px);
+}
+
+.btn{
+  appearance:none;
+  border:1px solid var(--card-border);
+  border-radius:14px;
+  min-height:42px;
+  padding:9px 15px;
+  background:color-mix(in srgb,var(--card-solid) 84%,transparent);
+  color:var(--fg);
+  box-shadow:none;
+  font:600 14px/1 var(--font-body);
+  cursor:pointer;
+  transition:
+    transform .16s ease,
+    background .16s ease,
+    border-color .16s ease,
+    box-shadow .16s ease;
+}
+
+.btn:hover{
+  transform:translateY(-1px);
+  border-color:color-mix(in srgb,var(--accent) 30%,var(--card-border));
+  box-shadow:0 8px 20px rgba(15,23,42,.07);
+}
+
+.btn.primary{
+  color:#fff;
+  border-color:transparent;
+  background:
+    linear-gradient(
+      135deg,
+      var(--accent),
+      var(--accent-2)
+    );
+}
+
+.btn:disabled{
+  opacity:.55;
+  cursor:default;
+  transform:none !important;
+}
+
+/* =========================
+   ФИЛЬТРЫ
+   ========================= */
+
+details{
+  margin:10px 0 0;
+  padding:16px 18px;
+  border:1px solid var(--card-border);
+  border-radius:20px;
+  background:var(--card);
+  box-shadow:none;
+  backdrop-filter:blur(16px);
+}
+
+summary{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:10px;
+  cursor:pointer;
+  list-style:none;
+  font-weight:700;
+}
+
+summary::after{
+  content:"⌄";
+  float:none;
+  opacity:.5;
+  font-size:18px;
+  transition:transform .18s ease;
+}
+
+details[open] summary::after{
+  transform:rotate(180deg);
+}
+
+.chips{
+  display:flex;
+  flex-wrap:wrap;
+  gap:8px;
+  margin:12px 0 0;
+}
+
+.chip{
+  appearance:none;
+  padding:8px 12px;
+  border-radius:999px;
+  border:1px solid var(--card-border);
+  background:color-mix(in srgb,var(--card-solid) 82%,transparent);
+  color:var(--ink-soft);
+  font:600 13px/1 var(--font-body);
+  box-shadow:none;
+  cursor:pointer;
+  transition:
+    color .16s ease,
+    border-color .16s ease,
+    background .16s ease,
+    transform .16s ease;
+}
+
+.chip:hover{
+  transform:translateY(-1px);
+  color:var(--fg);
+  border-color:color-mix(in srgb,var(--accent) 32%,var(--card-border));
+}
+
+.chip.active,
+.chip.on{
+  color:#fff;
+  border-color:transparent;
+  background:
+    linear-gradient(
+      135deg,
+      var(--accent),
+      var(--accent-2)
+    );
+  box-shadow:
+    0 7px 18px
+    color-mix(in srgb,var(--accent) 22%,transparent);
+}
+
+/* =========================
+   КАТАЛОГ КЛАССОВ
+   ========================= */
+
+.grid{
+  display:grid;
+  grid-template-columns:
+    repeat(auto-fill,minmax(280px,1fr));
+  gap:18px;
+}
+
+.card{
+  position:relative;
+  overflow:hidden;
+  padding:16px;
+  border:1px solid var(--card-border);
+  border-radius:24px;
+  background:var(--card);
+  box-shadow:var(--shadow);
+  backdrop-filter:blur(16px);
+  transition:
+    transform .2s ease,
+    border-color .2s ease,
+    box-shadow .2s ease;
+}
+
+.card:hover{
+  transform:translateY(-4px);
+  border-color:
+    color-mix(in srgb,var(--accent) 23%,var(--card-border));
+  box-shadow:
+    0 1px 2px rgba(15,23,42,.04),
+    0 24px 50px rgba(15,23,42,.10);
+}
+
+/* Убираем "бумажный" визуал старых разделителей */
+.hr{
+  height:1px;
+  margin:12px 0;
+  background:var(--card-border);
+}
+
+/* Современные badges */
+.badges,
+.badges-row{
+  display:flex;
+  flex-wrap:wrap;
+  gap:7px;
+  align-items:center;
+}
+
+.badge,
+.badge--soft,
+.badge-label{
+  display:inline-flex;
+  align-items:center;
+  min-height:25px;
+  padding:4px 9px;
+  border-radius:999px;
+  border:1px solid var(--card-border);
+  background:
+    color-mix(in srgb,var(--card-solid) 72%,transparent);
+  color:var(--ink-soft);
+  font:650 11px/1 var(--font-body);
+}
+
+.badge-label{
+  border-style:solid;
+}
+
+/* Плейсхолдер-карточка тоже современная */
+.placeholder-card .image-wrap{
+  border-radius:18px;
+  box-shadow:none;
+}
+
+.placeholder-card .new-badge{
+  top:12px;
+  padding:6px 12px;
+  border-radius:999px;
+  font-size:12px;
+  font-weight:800;
+  transform:translateX(-50%);
+  animation:none;
+  background:linear-gradient(135deg,#805bff,#b277ff);
+  box-shadow:0 8px 24px rgba(117,80,255,.28);
+  text-shadow:none;
+}
+
+/* =========================
+   ПОРТАЛ
+   ========================= */
+
+.portal-backdrop{
+  position:fixed;
+  inset:0;
+  z-index:1000;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  padding:18px;
+  overflow:hidden;
+
+  background:rgba(6,8,13,.72);
+  backdrop-filter:blur(14px);
+
+  animation:portalFade .16s ease-out;
+}
+
+.portal-container,
+.portal-container.solid{
+  position:relative;
+  width:min(920px,100%);
+  max-height:calc(100dvh - 36px);
+  padding:0;
+  overflow:hidden;
+
+  border:1px solid rgba(255,255,255,.10);
+  border-radius:28px;
+
+  background:rgba(16,18,25,.94);
+  color:#f7f8fb;
+
+  box-shadow:
+    0 32px 90px rgba(0,0,0,.42);
+
+  backdrop-filter:blur(24px);
+
+  display:flex;
+  flex-direction:column;
+}
+
+:root[data-theme="light"] .portal-container.solid{
+  background:rgba(250,251,253,.95);
+  color:#17191f;
+  border-color:rgba(20,24,34,.08);
+}
+
+.portal-close{
+  position:absolute;
+  z-index:10;
+  top:14px;
+  right:14px;
+
+  width:38px;
+  height:38px;
+
+  display:grid;
+  place-items:center;
+
+  border:1px solid rgba(255,255,255,.10);
+  border-radius:13px;
+
+  background:rgba(255,255,255,.06);
+  color:inherit;
+
+  font:400 22px/1 sans-serif;
+  cursor:pointer;
+
+  transition:
+    background .16s ease,
+    transform .16s ease;
+}
+
+.portal-close:hover{
+  transform:scale(1.04);
+  background:rgba(255,255,255,.10);
+}
+
+:root[data-theme="light"] .portal-close{
+  border-color:rgba(20,24,34,.08);
+  background:rgba(20,24,34,.035);
+}
+
+/* loading теперь выглядит как короткий splash */
+.portal-panel{
+  flex:1 1 auto;
+  overflow-y:auto;
+  padding:42px 36px 32px;
+  text-align:center;
+}
+
+.portal-heading{
+  margin:0 0 10px;
+  font-size:22px;
+  font-weight:760;
+  letter-spacing:-.02em;
+  text-shadow:none;
+}
+
+.portal-loading-line{
+  max-width:540px;
+  margin:0 auto 20px;
+  color:currentColor;
+  opacity:.55;
+  font-size:13px;
+  text-shadow:none;
+}
+
+.portal-progress{
+  width:min(340px,80%);
+  height:5px;
+  margin:0 auto;
+  overflow:hidden;
+
+  border:0;
+  border-radius:999px;
+
+  background:rgba(255,255,255,.08);
+}
+
+:root[data-theme="light"] .portal-progress{
+  border:0;
+  background:rgba(20,24,34,.07);
+}
+
+.portal-progress-bar{
+  height:100%;
+  border-radius:999px;
+
+  background:
+    linear-gradient(
+      90deg,
+      #7257e8,
+      #9e85ff,
+      #6fb7ff
+    );
+
+  filter:none;
+  transition:width .08s linear;
+}
+
+.portal-progress-hint{
+  display:none;
+}
+
+.portal-welcome{
+  margin-bottom:8px;
+  font-size:24px;
+  font-weight:750;
+  letter-spacing:-.02em;
+  text-shadow:none;
+}
+
+.portal-subtle{
+  opacity:.5;
+  font-size:13px;
+}
+
+/* Assistant + bubble */
+.portal-dialog{
+  display:grid;
+  grid-template-columns:220px minmax(0,1fr);
+  gap:24px;
+  align-items:center;
+
+  flex:1 1 auto;
+  overflow-y:auto;
+  padding:40px 42px 32px;
+}
+
+.asst-figure{
+  width:210px;
+  height:260px;
+  border-radius:22px;
+  overflow:hidden;
+}
+
+.asst-bubble{
+  min-height:0;
+  padding:24px;
+
+  display:flex;
+  flex-direction:column;
+
+  border:1px solid rgba(255,255,255,.09);
+  border-radius:22px;
+
+  background:rgba(255,255,255,.045);
+  box-shadow:none;
+}
+
+:root[data-theme="light"] .asst-bubble{
+  background:rgba(20,24,34,.028);
+  border-color:rgba(20,24,34,.07);
+}
+
+.asst-meta{
+  margin-bottom:10px;
+  opacity:.5;
+  font-size:11px;
+  font-weight:700;
+  letter-spacing:.08em;
+  text-transform:uppercase;
+  text-shadow:none;
+}
+
+.asst-text{
+  min-height:0;
+  margin:0 0 24px;
+  line-height:1.65;
+  font-size:15px;
+}
+
+.asst-actions{
+  display:flex;
+  flex-wrap:wrap;
+  gap:9px;
+  margin-top:auto;
+}
+
+/* login inputs */
+.portal-container input{
+  min-height:46px !important;
+  padding:11px 14px !important;
+
+  border:
+    1px solid rgba(255,255,255,.11) !important;
+
+  border-radius:14px !important;
+
+  outline:none;
+
+  background:
+    rgba(255,255,255,.055) !important;
+
+  color:inherit !important;
+
+  font:500 15px/1 var(--font-body) !important;
+
+  transition:
+    border-color .16s ease,
+    box-shadow .16s ease,
+    background .16s ease;
+}
+
+.portal-container input:focus{
+  border-color:
+    color-mix(in srgb,var(--accent) 60%,transparent) !important;
+
+  box-shadow:
+    0 0 0 4px
+    color-mix(in srgb,var(--accent) 12%,transparent);
+}
+
+:root[data-theme="light"] .portal-container input{
+  border-color:rgba(20,24,34,.09) !important;
+  background:rgba(20,24,34,.035) !important;
+}
+
+/* =========================
+   MOBILE
+   ========================= */
+
+@media (max-width:768px){
+
+  .page{
+    width:min(100% - 24px,1280px);
+    padding-top:16px;
+  }
+
+  .toolbar{
+    width:auto;
+  }
+
+  .grid{
+    grid-template-columns:1fr;
+  }
+
+  .portal-container,
+  .portal-container.solid{
+    width:100%;
+    max-height:calc(100dvh - 20px);
+    border-radius:22px;
+  }
+
+  .portal-panel{
+    padding:56px 20px 28px;
+  }
+
+  .portal-dialog{
+    grid-template-columns:1fr;
+    grid-template-rows:auto auto;
+    gap:12px;
+    padding:48px 18px 20px;
+  }
+
+  .asst-figure{
+    width:150px !important;
+    height:180px !important;
+    margin:0 auto;
+  }
+
+  .asst-bubble{
+    max-height:none !important;
+    padding:18px;
+    overflow:visible !important;
+  }
+
+  .asst-actions > *{
+    flex:1 1 150px;
+  }
+}
+
+/* ========================================================================== */
+/* ВАЖНО: .book.nero-mode и .nero-* ниже продолжают использовать отдельную   */
+/* тему Неро. Этот modern-блок не отменяет индивидуальный дизайн кабинета.    */
+/* ========================================================================== */
+
+
+/* FIX: primary-кнопка в светлой теме.
+   Старое правило :root[data-theme="light"] .btn имеет большую специфичность
+   и делало фон primary-кнопки белым, оставляя белый текст невидимым. */
+:root[data-theme="light"] .btn.primary{
+  color:#fff;
+  border-color:transparent;
+  background:linear-gradient(135deg,var(--accent),var(--accent-2));
+}

@@ -1,0 +1,138 @@
+.admin-event-completion-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  overflow: auto;
+  padding: 32px;
+  background: rgba(5, 7, 12, 0.82);
+  backdrop-filter: blur(8px);
+}
+
+.admin-event-completion {
+  width: min(1120px, 100%);
+  display: grid;
+  gap: 20px;
+  padding: 24px;
+  border: 1px solid rgba(150, 122, 255, 0.28);
+  border-radius: 24px;
+  background: #11151d;
+  box-shadow: 0 24px 80px rgba(0, 0, 0, 0.45);
+}
+
+.admin-event-completion-head,
+.admin-event-completion-member-head,
+.admin-event-completion-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.admin-event-completion-head p {
+  max-width: 760px;
+  margin: 8px 0 0;
+  color: #929caf;
+}
+
+.admin-event-completion-fixed {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  padding: 14px;
+  border: 1px solid rgba(255, 210, 90, 0.24);
+  border-radius: 16px;
+  background: rgba(255, 210, 90, 0.06);
+}
+
+.admin-event-completion-fixed span,
+.admin-event-completion-total {
+  padding: 7px 10px;
+  border-radius: 999px;
+  background: rgba(255,255,255,0.05);
+}
+
+.admin-event-completion label {
+  display: grid;
+  gap: 7px;
+}
+
+.admin-event-completion label > span {
+  color: #b8c0d0;
+  font-size: 0.86rem;
+  font-weight: 700;
+}
+
+.admin-event-completion input,
+.admin-event-completion textarea {
+  width: 100%;
+  box-sizing: border-box;
+  border: 1px solid rgba(255,255,255,0.1);
+  border-radius: 12px;
+  padding: 11px 12px;
+  color: #f5f7fb;
+  background: rgba(5,8,13,0.75);
+}
+
+.admin-event-completion textarea {
+  resize: vertical;
+}
+
+.admin-event-completion-members {
+  display: grid;
+  gap: 16px;
+}
+
+.admin-event-completion-member {
+  display: grid;
+  gap: 14px;
+  padding: 18px;
+  border: 1px solid rgba(255,255,255,0.09);
+  border-radius: 18px;
+  background: rgba(255,255,255,0.025);
+}
+
+.admin-event-completion-member-head small {
+  display: block;
+  margin-top: 4px;
+  color: #778197;
+}
+
+.admin-event-completion-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.admin-event-completion-grid-notes {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.admin-event-completion-message,
+.admin-event-completion-state {
+  padding: 12px 14px;
+  border: 1px solid rgba(93, 190, 255, 0.24);
+  border-radius: 14px;
+  color: #9cd9ff;
+  background: rgba(93, 190, 255, 0.06);
+}
+
+@media (max-width: 760px) {
+  .admin-event-completion-backdrop {
+    padding: 12px;
+  }
+
+  .admin-event-completion-head,
+  .admin-event-completion-member-head,
+  .admin-event-completion-actions {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .admin-event-completion-grid,
+  .admin-event-completion-grid-notes {
+    grid-template-columns: 1fr;
+  }
+}

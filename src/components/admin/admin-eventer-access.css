@@ -1,0 +1,69 @@
+.admin-eventer-access {
+  display: grid;
+  gap: 18px;
+}
+
+.admin-eventer-search {
+  width: 100%;
+  max-width: 620px;
+}
+
+.admin-eventer-list {
+  display: grid;
+  gap: 10px;
+}
+
+.admin-eventer-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 16px;
+  border: 1px solid rgba(140, 126, 180, .22);
+  border-radius: 16px;
+  background: rgba(10, 14, 23, .46);
+}
+
+.admin-eventer-row.active {
+  border-color: rgba(77, 209, 151, .42);
+}
+
+.admin-eventer-copy,
+.admin-eventer-state {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.admin-eventer-copy {
+  align-items: flex-start;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.admin-eventer-copy span,
+.admin-eventer-copy small {
+  opacity: .72;
+}
+
+.admin-eventer-badge {
+  padding: 6px 10px;
+  border-radius: 999px;
+  background: rgba(130, 112, 190, .16);
+  border: 1px solid rgba(130, 112, 190, .32);
+  white-space: nowrap;
+}
+
+.admin-eventer-badge-admin {
+  color: #71e7ae;
+  border-color: rgba(77, 209, 151, .42);
+  background: rgba(77, 209, 151, .1);
+}
+
+@media (max-width: 760px) {
+  .admin-eventer-row,
+  .admin-eventer-state {
+    align-items: stretch;
+    flex-direction: column;
+  }
+}
