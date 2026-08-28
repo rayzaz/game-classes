@@ -7,6 +7,7 @@ import React, {
 import CLASSES from './data/merged';
 
 import ClassCard from './components/ClassCard';
+import WorldCalendarBadge from './components/WorldCalendarBadge';
 
 import Portal, {
   type LoginUser,
@@ -1300,6 +1301,13 @@ export default function App() {
             )}
 
           </div>
+
+
+          {/* =========================
+              ИГРОВОЙ КАЛЕНДАРЬ
+              ========================= */}
+
+          <WorldCalendarBadge />
 
 
           {/* =========================

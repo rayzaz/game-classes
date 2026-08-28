@@ -1,0 +1,123 @@
+.world-calendar-badge {
+  display: flex;
+
+  min-height: 42px;
+
+  align-items: center;
+
+  gap: 9px;
+
+  box-sizing: border-box;
+
+  padding:
+    7px
+    12px;
+
+  border:
+    1px solid
+    rgba(212, 185, 79, 0.28);
+
+  border-radius: 16px;
+
+  background:
+    rgba(212, 185, 79, 0.075);
+
+  box-shadow:
+    inset 0 0 0 1px
+    rgba(255, 255, 255, 0.025);
+
+  backdrop-filter:
+    blur(10px);
+}
+
+
+.world-calendar-icon {
+  display: grid;
+
+  width: 30px;
+
+  height: 30px;
+
+  flex:
+    0
+    0
+    30px;
+
+  place-items: center;
+
+  border-radius: 50%;
+
+  background:
+    rgba(127, 127, 127, 0.1);
+
+  font-size: 17px;
+
+  line-height: 1;
+}
+
+
+.world-calendar-copy {
+  display: flex;
+
+  min-width: 0;
+
+  flex-direction: column;
+
+  gap: 1px;
+}
+
+
+.world-calendar-copy small {
+  opacity: 0.55;
+
+  font-size: 8px;
+
+  font-weight: 800;
+
+  letter-spacing:
+    0.08em;
+
+  line-height: 1.2;
+
+  text-transform:
+    uppercase;
+}
+
+
+.world-calendar-copy strong {
+  font-size: 12px;
+
+  font-weight: 900;
+
+  line-height: 1.25;
+
+  white-space: nowrap;
+}
+
+
+.world-calendar-badge.is-loading,
+.world-calendar-badge.is-unavailable,
+.world-calendar-badge.is-uninitialized {
+  border-color:
+    rgba(127, 127, 127, 0.18);
+
+  background:
+    rgba(127, 127, 127, 0.045);
+}
+
+
+.world-calendar-badge.is-loading,
+.world-calendar-badge.is-unavailable {
+  opacity: 0.72;
+}
+
+
+@media (
+  max-width: 760px
+) {
+  .world-calendar-badge {
+    width: 100%;
+
+    justify-content: center;
+  }
+}

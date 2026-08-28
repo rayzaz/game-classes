@@ -13,6 +13,7 @@ import AdminEvents from './AdminEvents';
 import AdminEventerAccess from './AdminEventerAccess';
 
 import AdminAuditLog from './AdminAuditLog';
+import AdminCalendar from './AdminCalendar';
 
 import './admin.css';
 
@@ -34,6 +35,7 @@ type AdminSection =
   | 'questionnaires'
   | 'events'
   | 'eventers'
+  | 'calendar'
   | 'notifications'
   | 'audit';
 
@@ -561,6 +563,33 @@ export default function AdminCabinet({
 
 
           {/* =========================
+              КАЛЕНДАРЬ
+              ========================= */}
+
+          <button
+            type="button"
+
+            className={
+              `admin-nav-button ${
+                section ===
+                'calendar'
+                  ? 'active'
+                  : ''
+              }`
+            }
+
+            onClick={
+              () =>
+                setSection(
+                  'calendar'
+                )
+            }
+          >
+            ◷ Календарь
+          </button>
+
+
+          {/* =========================
               УВЕДОМЛЕНИЯ
               ПОКА ЗАБЛОКИРОВАНЫ
               ========================= */}
@@ -707,6 +736,22 @@ export default function AdminCabinet({
               ? (
 
                 <AdminEvents />
+
+              )
+              : null
+          }
+
+
+          {/* =========================
+              КАЛЕНДАРЬ
+              ========================= */}
+
+          {
+            section ===
+            'calendar'
+              ? (
+
+                <AdminCalendar />
 
               )
               : null
