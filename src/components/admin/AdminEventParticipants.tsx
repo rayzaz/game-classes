@@ -42,6 +42,12 @@ type LoadoutItem = {
   category?: string;
   cellA1?: string;
   lineIndex?: number;
+  displayName?: string;
+  availableQuantity?: number;
+  selectedQuantity?: number;
+  consumedQuantity?: number;
+  remainingQuantity?: number;
+  hasExplicitQuantity?: boolean;
   consumedAt?: string;
   consumedBy?: {
     login?: string;
@@ -118,6 +124,49 @@ type Props = {
   onCountChange?:
     (count: number) => void;
 };
+
+
+function loadoutItemDisplayName(
+  item: LoadoutItem | null,
+  fallback: string
+) {
+  const explicit =
+    String(
+      item?.displayName ||
+      ''
+    )
+      .trim();
+
+  if (explicit) {
+    return explicit;
+  }
+
+  return String(
+    item?.name ||
+    fallback ||
+    ''
+  )
+    .replace(
+      /\s*\(\d+\)\s*$/,
+      ''
+    )
+    .trim();
+}
+
+
+function loadoutItemQuantity(
+  item: LoadoutItem | null
+) {
+  return Math.max(
+    1,
+    Math.trunc(
+      Number(
+        item?.consumedQuantity ||
+        item?.selectedQuantity
+      ) || 1
+    )
+  );
+}
 
 
 function CharacterAvatar({
@@ -453,6 +502,17 @@ function ParticipantCard({
                 const item =
                   entry.item;
 
+                const displayName =
+                  loadoutItemDisplayName(
+                    item,
+                    entry.text
+                  );
+
+                const selectedQuantity =
+                  loadoutItemQuantity(
+                    item
+                  );
+
                 const consumed =
                   Boolean(
                     item
@@ -499,7 +559,13 @@ function ParticipantCard({
 
                     <div className="admin-event-member-loadout-copy">
                       <span>
-                        {entry.text}
+                        {displayName}
+                        {
+                          selectedQuantity >
+                          1
+                            ? ` × ${selectedQuantity}`
+                            : ''
+                        }
                       </span>
 
                       {
@@ -508,6 +574,29 @@ function ParticipantCard({
                           ? (
                             <small>
                               {item.category}
+                            </small>
+                          )
+                          : null
+                      }
+
+                      {
+                        item &&
+                        Number(
+                          item.availableQuantity
+                        ) > 1
+                          ? (
+                            <small>
+                              Взято: {selectedQuantity} из {item.availableQuantity}
+                              {
+                                consumed &&
+                                Number.isFinite(
+                                  Number(
+                                    item.remainingQuantity
+                                  )
+                                )
+                                  ? ` · осталось в Google: ${item.remainingQuantity}`
+                                  : ''
+                              }
                             </small>
                           )
                           : null
@@ -539,7 +628,10 @@ function ParticipantCard({
                               {
                                 itemBusy
                                   ? 'Списываем...'
-                                  : 'Израсходовать'
+                                  : selectedQuantity >
+                                    1
+                                    ? `Израсходовать ${selectedQuantity}`
+                                    : 'Израсходовать'
                               }
                             </button>
                           )
@@ -1127,7 +1219,7 @@ export default function AdminEventParticipants({
 
       if (
         !window.confirm(
-          `Израсходовать «${itemName}» у ${participant.character.name || participant.characterId}? Предмет будет удалён из Google-инвентаря.`
+          `Израсходовать «${loadoutItemDisplayName(item, itemName)}» × ${loadoutItemQuantity(item)} у ${participant.character.name || participant.characterId}? Если в Google указано количество в скобках, оно уменьшится. Если количества нет — предмет удалится полностью.`
         )
       ) {
         return;

@@ -213,30 +213,73 @@ export default async function (
       );
     }
 
-    const itemIds =
+    const requestedSelections =
       Array.isArray(
-        body?.itemIds
+        body?.items
       )
-        ? Array.from(
-            new Set(
-              body.itemIds
-                .map(
-                  cleanText
-                )
-                .filter(Boolean)
+        ? body.items
+            .map(
+              value => {
+                const id = cleanText(
+                  value?.id
+                );
+
+                const quantity = Math.max(
+                  1,
+                  Math.trunc(
+                    Number(
+                      value?.quantity
+                    ) || 1
+                  )
+                );
+
+                return id
+                  ? { id, quantity }
+                  : null;
+              }
             )
-          )
-        : [];
+            .filter(Boolean)
+        : (
+            Array.isArray(
+              body?.itemIds
+            )
+              ? body.itemIds
+                  .map(
+                    value => ({
+                      id: cleanText(value),
+                      quantity: 1,
+                    })
+                  )
+                  .filter(
+                    value => value.id
+                  )
+              : []
+          );
+
+    const selectionById = new Map();
+
+    requestedSelections.forEach(
+      selection => {
+        selectionById.set(
+          selection.id,
+          selection
+        );
+      }
+    );
+
+    const selections = Array.from(
+      selectionById.values()
+    );
 
     if (
-      itemIds.length >
+      selections.length >
       60
     ) {
       return json(
         {
           ok: false,
           error:
-            'На один ивент нельзя взять больше 60 экземпляров предметов.',
+            'На один ивент нельзя выбрать больше 60 разных позиций.',
         },
         400
       );
@@ -364,10 +407,15 @@ export default async function (
       );
 
     const missing =
-      itemIds.filter(
-        id =>
-          !liveById.has(id)
-      );
+      selections
+        .map(
+          selection =>
+            selection.id
+        )
+        .filter(
+          id =>
+            !liveById.has(id)
+        );
 
     if (
       missing.length >
@@ -409,24 +457,81 @@ export default async function (
       );
 
     const selectedItems =
-      itemIds
+      selections
         .filter(
-          id =>
-            !consumedIds.has(id)
+          selection =>
+            !consumedIds.has(
+              selection.id
+            )
         )
         .map(
-          id =>
-            liveById.get(id)
+          selection => {
+            const item =
+              liveById.get(
+                selection.id
+              );
+
+            if (!item) {
+              return null;
+            }
+
+            const availableQuantity =
+              Math.max(
+                1,
+                Math.trunc(
+                  Number(
+                    item.availableQuantity
+                  ) || 1
+                )
+              );
+
+            if (
+              selection.quantity >
+              availableQuantity
+            ) {
+              throw new Error(
+                `У предмета «${item.displayName || item.name}» доступно ${availableQuantity}, а выбрано ${selection.quantity}. Обновите страницу.`
+              );
+            }
+
+            return {
+              ...item,
+              selectedQuantity:
+                selection.quantity,
+              selectedAt:
+                new Date()
+                  .toISOString(),
+            };
+          }
         )
-        .filter(Boolean)
-        .map(
-          item => ({
-            ...item,
-            selectedAt:
-              new Date()
-                .toISOString(),
-          })
-        );
+        .filter(Boolean);
+
+    const selectedUnits =
+      selectedItems.reduce(
+        (sum, item) =>
+          sum +
+          Math.max(
+            1,
+            Number(
+              item.selectedQuantity
+            ) || 1
+          ),
+        0
+      );
+
+    if (
+      selectedUnits >
+      60
+    ) {
+      return json(
+        {
+          ok: false,
+          error:
+            'На один ивент нельзя взять больше 60 единиц предметов.',
+        },
+        400
+      );
+    }
 
     const combined =
       [

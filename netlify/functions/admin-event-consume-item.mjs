@@ -127,6 +127,30 @@ function normalizeLoadoutItem(value) {
             )
           )
         : -1,
+    displayName:
+      cleanText(
+        item.displayName ||
+        item.name,
+        1000
+      ),
+    availableQuantity:
+      Math.max(
+        1,
+        Math.trunc(
+          Number(
+            item.availableQuantity
+          ) || 1
+        )
+      ),
+    selectedQuantity:
+      Math.max(
+        1,
+        Math.trunc(
+          Number(
+            item.selectedQuantity
+          ) || 1
+        )
+      ),
   };
 }
 
@@ -257,6 +281,9 @@ async function callCharacterService({
                     item.cellA1,
                   lineIndex:
                     item.lineIndex,
+                  selectedQuantity:
+                    item.selectedQuantity ||
+                    1,
                 },
               },
             }),
@@ -562,6 +589,13 @@ export default async function (
 
     const updatedItem = {
       ...found.item,
+      ...(
+        google.item &&
+        typeof google.item ===
+          'object'
+          ? google.item
+          : {}
+      ),
       consumedAt,
       consumedBy: {
         login:
@@ -642,7 +676,7 @@ export default async function (
           500
         ),
       details:
-        `Израсходован предмет «${updatedItem.name}» у ${signup.character?.name || characterId}`,
+        `Израсходован предмет «${updatedItem.displayName || updatedItem.name}» × ${updatedItem.consumedQuantity || updatedItem.selectedQuantity || 1} у ${signup.character?.name || characterId}`,
     });
 
     return json({

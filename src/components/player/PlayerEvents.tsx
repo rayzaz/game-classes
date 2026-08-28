@@ -37,14 +37,26 @@ type EventMaterial = {
 type EventInventoryItem = {
   id: string;
   name: string;
+  displayName?: string;
   group: string;
   areaKey?: string;
   category: string;
+  availableQuantity?: number;
+  selectedQuantity?: number;
+  consumedQuantity?: number;
+  remainingQuantity?: number;
+  hasExplicitQuantity?: boolean;
   consumedAt?: string;
   consumedBy?: {
     login?: string;
     name?: string;
   };
+};
+
+
+type EventLoadoutSelection = {
+  id: string;
+  quantity: number;
 };
 
 
@@ -611,6 +623,67 @@ function EventWarning({
 
 
 
+function getEventItemDisplayName(
+  item: EventInventoryItem
+) {
+  const explicit =
+    String(
+      item.displayName ||
+      ''
+    )
+      .trim();
+
+  if (explicit) {
+    return explicit;
+  }
+
+  return String(
+    item.name ||
+    ''
+  )
+    .replace(
+      /\s*\(\d+\)\s*$/,
+      ''
+    )
+    .trim();
+}
+
+
+function getEventItemAvailableQuantity(
+  item: EventInventoryItem
+) {
+  const value =
+    Math.trunc(
+      Number(
+        item.availableQuantity
+      ) || 1
+    );
+
+  return Math.max(
+    1,
+    value
+  );
+}
+
+
+function getEventItemSelectedQuantity(
+  item: EventInventoryItem
+) {
+  const value =
+    Math.trunc(
+      Number(
+        item.consumedQuantity ||
+        item.selectedQuantity
+      ) || 1
+    );
+
+  return Math.max(
+    1,
+    value
+  );
+}
+
+
 function LoadoutEditor({
   event,
   items,
@@ -623,7 +696,8 @@ function LoadoutEditor({
   onSave:
     (
       event: PlayerEvent,
-      itemIds: string[]
+      selections:
+        EventLoadoutSelection[]
     ) => void;
 }) {
   const [
@@ -677,30 +751,47 @@ function LoadoutEditor({
     );
 
 
+  const makeInitialSelection =
+    () => {
+      const next:
+        Record<
+          string,
+          number
+        > = {};
+
+      activeCurrentItems
+        .forEach(
+          item => {
+            if (!item.id) {
+              return;
+            }
+
+            next[item.id] =
+              getEventItemSelectedQuantity(
+                item
+              );
+          }
+        );
+
+      return next;
+    };
+
+
   const [
-    selectedIds,
-    setSelectedIds,
+    selectedQuantities,
+    setSelectedQuantities,
   ] =
-    useState<string[]>(
-      () =>
-        activeCurrentItems
-          .map(
-            item =>
-              item.id
-          )
-          .filter(Boolean)
+    useState<
+      Record<string, number>
+    >(
+      makeInitialSelection
     );
 
 
   useEffect(
     () => {
-      setSelectedIds(
-        activeCurrentItems
-          .map(
-            item =>
-              item.id
-          )
-          .filter(Boolean)
+      setSelectedQuantities(
+        makeInitialSelection()
       );
     },
     [
@@ -758,25 +849,119 @@ function LoadoutEditor({
 
   const toggleItem =
     (
-      itemId:
-        string
+      item:
+        EventInventoryItem
     ) => {
-      setSelectedIds(
-        current =>
-          current.includes(
-            itemId
-          )
-            ? current.filter(
-                id =>
-                  id !==
-                  itemId
+      setSelectedQuantities(
+        current => {
+          const next = {
+            ...current,
+          };
+
+          if (
+            Object.prototype
+              .hasOwnProperty.call(
+                next,
+                item.id
               )
-            : [
-                ...current,
-                itemId,
-              ]
+          ) {
+            delete next[
+              item.id
+            ];
+          } else {
+            next[item.id] =
+              1;
+          }
+
+          return next;
+        }
       );
     };
+
+
+  const changeQuantity =
+    (
+      item:
+        EventInventoryItem,
+      nextQuantity:
+        number
+    ) => {
+      const available =
+        getEventItemAvailableQuantity(
+          item
+        );
+
+      const quantity =
+        Math.max(
+          1,
+          Math.min(
+            available,
+            Math.trunc(
+              Number(
+                nextQuantity
+              ) || 1
+            )
+          )
+        );
+
+      setSelectedQuantities(
+        current => ({
+          ...current,
+          [item.id]:
+            quantity,
+        })
+      );
+    };
+
+
+  const activeUnits =
+    activeCurrentItems.reduce(
+      (
+        sum,
+        item
+      ) =>
+        sum +
+        getEventItemSelectedQuantity(
+          item
+        ),
+      0
+    );
+
+
+  const consumedUnits =
+    consumedItems.reduce(
+      (
+        sum,
+        item
+      ) =>
+        sum +
+        getEventItemSelectedQuantity(
+          item
+        ),
+      0
+    );
+
+
+  const selectedEntries =
+    Object.entries(
+      selectedQuantities
+    );
+
+  const selectedUnits =
+    selectedEntries.reduce(
+      (
+        sum,
+        [, quantity]
+      ) =>
+        sum +
+        Math.max(
+          1,
+          Number(
+            quantity
+          ) || 1
+        ),
+      0
+    );
 
 
   return (
@@ -788,13 +973,13 @@ function LoadoutEditor({
           </strong>
 
           <span>
-            Взято: {
-              activeCurrentItems.length
+            Взято единиц: {
+              activeUnits
             }
             {
-              consumedItems.length >
+              consumedUnits >
               0
-                ? ` · израсходовано: ${consumedItems.length}`
+                ? ` · израсходовано: ${consumedUnits}`
                 : ''
             }
           </span>
@@ -833,7 +1018,13 @@ function LoadoutEditor({
                       }
                     >
                       ✓ {
-                        item.name
+                        getEventItemDisplayName(
+                          item
+                        )
+                      } × {
+                        getEventItemSelectedQuantity(
+                          item
+                        )
                       }
                     </span>
                   )
@@ -850,7 +1041,7 @@ function LoadoutEditor({
           ? (
             <div className="player-event-loadout-editor">
               <p>
-                Предметы пока остаются в обычном инвентаре. Они исчезнут только если ивентер нажмёт «Израсходовать».
+                Если у предмета в Google написано «(6)», можно взять только часть стопки — например 1 из 6. Без количества в скобках предмет считается одной штукой и при расходовании удаляется полностью.
               </p>
 
               {
@@ -878,46 +1069,128 @@ function LoadoutEditor({
                           <div className="player-event-loadout-options">
                             {
                               categoryItems.map(
-                                item => (
-                                  <label
-                                    className="player-event-loadout-option"
-                                    key={
+                                item => {
+                                  const selected =
+                                    Object.prototype
+                                      .hasOwnProperty.call(
+                                        selectedQuantities,
+                                        item.id
+                                      );
+
+                                  const available =
+                                    getEventItemAvailableQuantity(
+                                      item
+                                    );
+
+                                  const quantity =
+                                    selectedQuantities[
                                       item.id
-                                    }
-                                  >
-                                    <input
-                                      type="checkbox"
-                                      checked={
-                                        selectedIds.includes(
-                                          item.id
-                                        )
-                                      }
-                                      onChange={() =>
-                                        toggleItem(
-                                          item.id
-                                        )
-                                      }
-                                      disabled={
-                                        busy
-                                      }
-                                    />
+                                    ] || 1;
 
-                                    <span>
-                                      {
-                                        item.group ===
-                                          'equipment'
-                                          ? '⚔'
-                                          : '🎒'
+                                  return (
+                                    <div
+                                      className="player-event-loadout-option"
+                                      key={
+                                        item.id
                                       }
-                                    </span>
+                                    >
+                                      <label className="player-event-loadout-option-main">
+                                        <input
+                                          type="checkbox"
+                                          checked={
+                                            selected
+                                          }
+                                          onChange={() =>
+                                            toggleItem(
+                                              item
+                                            )
+                                          }
+                                          disabled={
+                                            busy
+                                          }
+                                        />
 
-                                    <span>
+                                        <span>
+                                          {
+                                            item.group ===
+                                              'equipment'
+                                              ? '⚔'
+                                              : '🎒'
+                                          }
+                                        </span>
+
+                                        <span className="player-event-loadout-option-name">
+                                          {
+                                            getEventItemDisplayName(
+                                              item
+                                            )
+                                          }
+
+                                          {
+                                            available >
+                                            1
+                                              ? (
+                                                <small>
+                                                  Доступно: {available}
+                                                </small>
+                                              )
+                                              : null
+                                          }
+                                        </span>
+                                      </label>
+
                                       {
-                                        item.name
+                                        selected &&
+                                        available >
+                                        1
+                                          ? (
+                                            <div className="player-event-loadout-quantity">
+                                              <button
+                                                type="button"
+                                                disabled={
+                                                  busy ||
+                                                  quantity <=
+                                                    1
+                                                }
+                                                onClick={() =>
+                                                  changeQuantity(
+                                                    item,
+                                                    quantity -
+                                                      1
+                                                  )
+                                                }
+                                              >
+                                                −
+                                              </button>
+
+                                              <span>
+                                                {quantity} из {available}
+                                              </span>
+
+                                              <button
+                                                type="button"
+                                                disabled={
+                                                  busy ||
+                                                  quantity >=
+                                                    available
+                                                }
+                                                onClick={() =>
+                                                  changeQuantity(
+                                                    item,
+                                                    quantity +
+                                                      1
+                                                  )
+                                                }
+                                              >
+                                                +
+                                              </button>
+                                            </div>
+                                          )
+                                          : null
                                       }
-                                    </span>
-                                  </label>
-                                )
+                                    </div>
+                                  );
+                                }
                               )
                             }
                           </div>
@@ -933,8 +1206,10 @@ function LoadoutEditor({
 
               <div className="player-event-loadout-actions">
                 <span>
-                  Выбрано: {
-                    selectedIds.length
+                  Позиций: {
+                    selectedEntries.length
+                  } · единиц: {
+                    selectedUnits
                   }
                 </span>
 
@@ -942,12 +1217,30 @@ function LoadoutEditor({
                   type="button"
                   className="nero-button"
                   disabled={
-                    busy
+                    busy ||
+                    selectedUnits >
+                      60
                   }
                   onClick={() =>
                     onSave(
                       event,
-                      selectedIds
+                      selectedEntries.map(
+                        ([
+                          id,
+                          quantity,
+                        ]) => ({
+                          id,
+                          quantity:
+                            Math.max(
+                              1,
+                              Math.trunc(
+                                Number(
+                                  quantity
+                                ) || 1
+                              )
+                            ),
+                        })
+                      )
                     )
                   }
                 >
@@ -958,6 +1251,17 @@ function LoadoutEditor({
                   }
                 </button>
               </div>
+
+              {
+                selectedUnits >
+                60
+                  ? (
+                    <div className="player-event-loadout-limit">
+                      На один ивент можно взять не больше 60 единиц предметов.
+                    </div>
+                  )
+                  : null
+              }
             </div>
           )
           : null
@@ -991,7 +1295,8 @@ function EventCard({
   onSaveLoadout:
     (
       event: PlayerEvent,
-      itemIds: string[]
+      selections:
+        EventLoadoutSelection[]
     ) => void;
 }) {
   const materials =
@@ -2027,8 +2332,8 @@ export default function PlayerEvents({
     async (
       event:
         PlayerEvent,
-      itemIds:
-        string[]
+      selections:
+        EventLoadoutSelection[]
     ) => {
       setLoadoutBusyKey(
         event.key
@@ -2039,12 +2344,14 @@ export default function PlayerEvents({
         const body:
           {
             key: string;
-            itemIds: string[];
+            items:
+              EventLoadoutSelection[];
             characterId?: string;
           } = {
             key:
               event.key,
-            itemIds,
+            items:
+              selections,
           };
 
 

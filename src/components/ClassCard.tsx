@@ -1,223 +1,296 @@
-// src/components/ClassCard.tsx
-import React, { useEffect, useMemo, useRef } from 'react';
-import '../styles.css';
+import React, { useEffect, useMemo, useState } from 'react';
 
-// ───────── Роли
-function splitRoles(input?: string, extraTags?: string[]): string[] {
-  const raw = (input ?? '').toString();
-  const s = raw.replace(/[—–]/g, '-');
-  const parts = s
-    .split(/(?:\s+|-|,|\/|;|(?:\sи\s))/i)
-    .map(t => t.trim())
-    .filter(Boolean);
-
-  const tags = (extraTags ?? []).map(t => t.trim()).filter(Boolean);
-  const merged = [...parts, ...tags];
-
-  const seen = new Set<string>();
-  const nice = (w: string) =>
-    w.length ? w[0].toUpperCase() + w.slice(1).toLowerCase() : w;
-
-  const out: string[] = [];
-  for (const w of merged) {
-    const key = w.toLowerCase();
-    if (!seen.has(key)) {
-      seen.add(key);
-      out.push(nice(w));
-    }
-  }
-  if (out.length > 2 && !out.map(x => x.toLowerCase()).includes('гибрид')) {
-    out.push('Гибрид');
-  }
-  return out;
-}
-
-// ───────── Сложность
-function splitComplexity(input: unknown): string[] {
-  const mapCx = (v: string): string | null => {
-    const x = v.toLowerCase();
-    if (x === '1' || x.startsWith('низк')) return 'низкая';
-    if (x === '2' || x.startsWith('средн')) return 'средняя';
-    if (x === '3' || x.startsWith('высо')) return 'высокая';
-    if (['-', '–', '—', 'и', '/', ',', ';'].includes(x)) return null;
-    return null;
-  };
-  const toTokens = (val: string) =>
-    val.replace(/[—–]/g, '-')
-       .split(/(?:\s+|-|,|\/|;|(?:\sи\s))/i)
-       .map(t => t.trim())
-       .filter(Boolean);
-
-  let parts: string[] = [];
-  if (Array.isArray(input)) {
-    parts = input.flatMap(v => toTokens(String(v ?? '').toLowerCase().trim()));
-  } else {
-    const raw = String(input ?? '').toLowerCase().trim();
-    if (!raw) return [];
-    parts = toTokens(raw);
-  }
-  const mapped = parts.map(mapCx).filter(Boolean) as string[];
-  return Array.from(new Set(mapped));
-}
-
-// ───────── Утилиты для секций
-function toList(val: any): string[] {
-  if (!val) return [];
-  if (Array.isArray(val)) return val.map(String).map(s => s.trim()).filter(Boolean);
-  return String(val)
-    .split(/\r?\n|;|\/|,|·|•|—|-{2,}/)
-    .map(s => s.trim())
-    .filter(Boolean);
-}
-function pickField(obj: Record<string, any>, names: string[]): string[] {
-  for (const n of names) if (n in obj) return toList(obj[n]);
-  return [];
-}
-
-type Props = {
-  name: string;
-  emoji?: string;
-  emote?: string;
-  icon?: string;
-  role?: string;
-  tags?: string[];
-  complexity?: string | string[] | number;
-
-  // спец для плейсхолдера
-  placeholder?: boolean;
-  image?: string;
-
-  [key: string]: any;
+type ProfileItem = {
+  label: string;
+  value: string;
 };
 
-export default function ClassCard(props: Props) {
-  // ==== ОСОБЫЙ СЛУЧАЙ: плейсхолдер ====
-  if (props.placeholder) {
-    return (
-      <div className="card placeholder-card">
-        <div className="image-wrap">
-          <img src={props.image} alt="В разработке" />
-          <div className="new-badge">NEW</div>
-        </div>
-        <h3 style={{ marginTop: '8px', textAlign:'center' }}>В разработке</h3>
-      </div>
-    );
-  }
+type Props = {
+  id?: string;
+  name: string;
+  emoji?: string;
+  image?: string;
+  role?: string;
+  tags?: string[];
+  complexity?: string;
+  detailTagline?: string;
+  detailHowToPlay?: string;
+  detailProfile?: ProfileItem[];
+  detailStrengths?: string[];
+  detailWeaknesses?: string[];
+  detailSynergy?: string[];
+  detailMistakes?: string[];
+  detailProgression?: string;
+};
 
-  // ==== Обычная карточка ====
-  const {
-    name, emoji, emote, icon,
-    role, tags, complexity,
-    ...rest
-  } = props;
+function splitRoles(input?: string, tags?: string[]) {
+  const values = [
+    ...String(input ?? '')
+      .split(/[,/;]+/)
+      .map(value => value.trim())
+      .filter(Boolean),
+    ...(tags ?? []).map(value => value.trim()).filter(Boolean),
+  ];
 
-  const emojiText = (emoji || emote || icon || '').toString();
-  const emojiRef = useRef<HTMLSpanElement>(null);
+  const seen = new Set<string>();
+  return values.filter(value => {
+    const key = value.toLowerCase();
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+}
 
-  // Twemoji
-  useEffect(() => {
-    const tw = (window as any).twemoji;
-    if (tw && emojiRef.current) {
-      tw.parse(emojiRef.current, { folder: 'svg', ext: '.svg' });
-    }
-  }, [emojiText]);
+function classMonogram(name: string) {
+  const cleaned = name.replace(/\([^)]*\)/g, ' ').trim();
+  const parts = cleaned.split(/[\s–—-]+/).filter(Boolean);
+  if (!parts.length) return '✦';
+  return parts.slice(0, 2).map(part => part[0]).join('').toUpperCase();
+}
 
-  const roleChips = useMemo(() => splitRoles(role, tags), [role, tags]);
-  const cxChips   = useMemo(() => splitComplexity(complexity), [complexity]);
+function TextBlock({ text }: { text?: string }) {
+  if (!text) return null;
 
-  // Секции данных
-  const who = pickField(rest, ['кто','кто вы','кто_вы','кто это','кто_это','who','whoYouAre','identity','about']);
-  const strengths = pickField(rest, ['сильные стороны','сильные','преимущества','плюсы','strengths','pros','advantages']);
-  const weaknesses = pickField(rest, ['слабые стороны','слабые','недостатки','минусы','weaknesses','cons','disadvantages']);
-  const bestAllies = pickField(rest, ['лучшие союзники','союзники','ally','allies','bestAllies']);
-  const counterplay = pickField(rest, ['контрплей по тебе','контрплей','опасные противники','контры','counters','counterplay']);
-  const newbieMistakes = pickField(rest, ['ошибки новичка','частые ошибки','mistakes','noobMistakes','commonMistakes']);
-  const suitableFor = pickField(rest, ['кому подойдёт','кому подойдет','подойдёт','подойдет','suitableFor','goodFor','whoShouldPlay']);
+  const paragraphs = text
+    .split(/\n\s*\n/)
+    .map(value => value.trim())
+    .filter(Boolean);
 
   return (
-    <div className="card">
-      <h3 style={{ margin: '2px 0 10px', display:'flex', alignItems:'center', gap:'.35rem' }}>
-        {emojiText && (
-          <span ref={emojiRef} className="emoji-row" aria-hidden="true">
-            {emojiText}
-          </span>
-        )}
-        <span>{name}</span>
-      </h3>
+    <div className="class-detail-copy">
+      {paragraphs.map((paragraph, index) => (
+        <p key={`${index}-${paragraph.slice(0, 24)}`}>{paragraph}</p>
+      ))}
+    </div>
+  );
+}
 
-      {/* Роли и Сложность — отдельно и с лейблами */}
-      <div className="badges-row">
-        {roleChips.length > 0 && (
-          <div className="badges">
-            <span className="badge badge-label">Роли:</span>
-            {roleChips.map((r, i) => <span key={`r-${i}`} className="badge">{r}</span>)}
-          </div>
-        )}
-        {cxChips.length > 0 && (
-          <div className="badges">
-            <span className="badge badge-label">Сложность:</span>
-            {cxChips.map((c, i) => <span key={`c-${i}`} className="badge badge--soft">{c}</span>)}
-          </div>
-        )}
+function BulletSection({
+  title,
+  items,
+  tone,
+}: {
+  title: string;
+  items?: string[];
+  tone?: 'positive' | 'negative';
+}) {
+  if (!items?.length) return null;
+
+  return (
+    <section className={`class-detail-panel ${tone ? `is-${tone}` : ''}`}>
+      <h3>{title}</h3>
+      <ul>
+        {items.map((item, index) => (
+          <li key={`${title}-${index}`}>{item}</li>
+        ))}
+      </ul>
+    </section>
+  );
+}
+
+export default function ClassCard({
+  id,
+  name,
+  image,
+  role,
+  tags,
+  complexity,
+  detailTagline: tagline,
+  detailHowToPlay: howToPlay,
+  detailProfile: profile = [],
+  detailStrengths: strengths = [],
+  detailWeaknesses: weaknesses = [],
+  detailSynergy: synergy = [],
+  detailMistakes: mistakes = [],
+  detailProgression: progression,
+}: Props) {
+  const [open, setOpen] = useState(false);
+  const [imageFailed, setImageFailed] = useState(false);
+  const [imageReady, setImageReady] = useState(false);
+  const roles = useMemo(() => splitRoles(role, tags), [role, tags]);
+  const primaryRole = roles[0] ?? 'Класс';
+  const monogram = classMonogram(name);
+
+  useEffect(() => {
+    if (!open) return;
+
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') setOpen(false);
+    };
+
+    window.addEventListener('keydown', onKeyDown);
+
+    return () => {
+      document.body.style.overflow = previousOverflow;
+      window.removeEventListener('keydown', onKeyDown);
+    };
+  }, [open]);
+
+  const art = image || (id ? `/class-icons/${id}.png` : undefined);
+  const hasArt = Boolean(art && imageReady && !imageFailed);
+  const roleLine = roles.slice(0, 3).join(' · ');
+
+  const artNode = (detail = false) => (
+    <div
+      className={`${detail ? 'class-detail-emblem' : 'class-card-emblem'} ${hasArt ? 'has-image' : 'is-fallback'}`}
+      aria-hidden="true"
+    >
+      <span className="class-emblem-halo" />
+      <div className="class-emblem-fallback">
+        <span>{monogram}</span>
       </div>
 
-      <div className="hr" />
-
-      {who.length > 0 && (
-        <details><summary><strong>Кто вы</strong></summary>
-          <ul style={{ margin:'6px 0 4px', paddingLeft:'18px' }}>
-            {who.map((it, i) => <li key={`who-${i}`}>{it}</li>)}
-          </ul>
-        </details>
-      )}
-
-      {strengths.length > 0 && (
-        <details><summary><strong>Сильные стороны</strong></summary>
-          <ul style={{ margin:'6px 0 4px', paddingLeft:'18px' }}>
-            {strengths.map((it, i) => <li key={`str-${i}`}>{it}</li>)}
-          </ul>
-        </details>
-      )}
-
-      {weaknesses.length > 0 && (
-        <details><summary><strong>Слабые стороны</strong></summary>
-          <ul style={{ margin:'6px 0 4px', paddingLeft:'18px' }}>
-            {weaknesses.map((it, i) => <li key={`weak-${i}`}>{it}</li>)}
-          </ul>
-        </details>
-      )}
-
-      {bestAllies.length > 0 && (
-        <details><summary><strong>Лучшие союзники</strong></summary>
-          <ul style={{ margin:'6px 0 4px', paddingLeft:'18px' }}>
-            {bestAllies.map((it, i) => <li key={`ally-${i}`}>{it}</li>)}
-          </ul>
-        </details>
-      )}
-
-      {counterplay.length > 0 && (
-        <details><summary><strong>Контрплей по тебе</strong></summary>
-          <ul style={{ margin:'6px 0 4px', paddingLeft:'18px' }}>
-            {counterplay.map((it, i) => <li key={`ctr-${i}`}>{it}</li>)}
-          </ul>
-        </details>
-      )}
-
-      {newbieMistakes.length > 0 && (
-        <details><summary><strong>Ошибки новичка</strong></summary>
-          <ul style={{ margin:'6px 0 4px', paddingLeft:'18px' }}>
-            {newbieMistakes.map((it, i) => <li key={`mis-${i}`}>{it}</li>)}
-          </ul>
-        </details>
-      )}
-
-      {suitableFor.length > 0 && (
-        <details><summary><strong>Кому подойдёт</strong></summary>
-          <ul style={{ margin:'6px 0 4px', paddingLeft:'18px' }}>
-            {suitableFor.map((it, i) => <li key={`fit-${i}`}>{it}</li>)}
-          </ul>
-        </details>
-      )}
+      {art && !imageFailed ? (
+        <img
+          src={art}
+          alt=""
+          loading={detail ? undefined : 'lazy'}
+          onLoad={() => setImageReady(true)}
+          onError={() => {
+            setImageFailed(true);
+            setImageReady(false);
+          }}
+        />
+      ) : null}
     </div>
+  );
+
+  return (
+    <>
+      <article className="class-card" data-primary-role={primaryRole.toLowerCase()}>
+        <button
+          type="button"
+          className="class-card-open"
+          onClick={() => setOpen(true)}
+          aria-label={`Открыть класс ${name}`}
+        >
+          <div className="class-card-visual">
+            {artNode(false)}
+          </div>
+
+          <div className="class-card-body">
+            <div className="class-card-meta">
+              <span className="class-card-roleline">{roleLine || primaryRole}</span>
+              {complexity ? <span className="class-card-complexity-inline">{complexity}</span> : null}
+            </div>
+
+            <h2>{name}</h2>
+            {tagline ? <p className="class-card-tagline">{tagline}</p> : null}
+
+            <div className="class-card-footer">
+              <span>Подробнее</span>
+              <b aria-hidden="true">↗</b>
+            </div>
+          </div>
+        </button>
+      </article>
+
+      {open ? (
+        <div
+          className="class-detail-backdrop"
+          role="presentation"
+          onMouseDown={event => {
+            if (event.currentTarget === event.target) setOpen(false);
+          }}
+        >
+          <section
+            className="class-detail-modal"
+            role="dialog"
+            aria-modal="true"
+            aria-label={name}
+          >
+            <button
+              type="button"
+              className="class-detail-close"
+              onClick={() => setOpen(false)}
+              aria-label="Закрыть"
+            >
+              ×
+            </button>
+
+            <header className="class-detail-hero">
+              <div className="class-detail-visual">
+                {artNode(true)}
+              </div>
+
+              <div className="class-detail-heading">
+                <div className="class-detail-overline">
+                  <span>{primaryRole}</span>
+                  {complexity ? <span>{complexity}</span> : null}
+                </div>
+
+                <h2>{name}</h2>
+                {tagline ? <p>{tagline}</p> : null}
+
+                {roles.length ? (
+                  <div className="class-detail-roles">
+                    {roles.map(value => <span key={value}>{value}</span>)}
+                  </div>
+                ) : null}
+              </div>
+            </header>
+
+            <div className="class-detail-content">
+              {profile.length ? (
+                <section className="class-detail-profile" aria-label="Профиль класса">
+                  {profile.map(item => (
+                    <div key={`${item.label}-${item.value}`}>
+                      <span>{item.label}</span>
+                      <strong>{item.value}</strong>
+                    </div>
+                  ))}
+                </section>
+              ) : null}
+
+              <div className="class-detail-main-grid">
+                <div className="class-detail-main-column">
+                  {howToPlay ? (
+                    <section className="class-detail-story class-detail-story-main">
+                      <div className="class-detail-section-title">Как играется</div>
+                      <TextBlock text={howToPlay} />
+                    </section>
+                  ) : null}
+
+                  {(strengths.length || weaknesses.length) ? (
+                    <div className="class-detail-columns">
+                      <BulletSection title="Сильные стороны" items={strengths} tone="positive" />
+                      <BulletSection title="Слабые стороны" items={weaknesses} tone="negative" />
+                    </div>
+                  ) : null}
+                </div>
+
+                <aside className="class-detail-side-column">
+                  {synergy.length ? (
+                    <section className="class-detail-story">
+                      <div className="class-detail-section-title">Хорошо сочетается</div>
+                      <div className="class-detail-copy">
+                        {synergy.map((item, index) => <p key={`synergy-${index}`}>{item}</p>)}
+                      </div>
+                    </section>
+                  ) : null}
+
+                  {mistakes.length ? (
+                    <BulletSection
+                      title={mistakes.length === 1 ? 'Частая ошибка' : 'Частые ошибки'}
+                      items={mistakes}
+                    />
+                  ) : null}
+
+                  {progression ? (
+                    <section className="class-detail-story class-detail-progression">
+                      <div className="class-detail-section-title">Развитие</div>
+                      <TextBlock text={progression} />
+                    </section>
+                  ) : null}
+                </aside>
+              </div>
+            </div>
+          </section>
+        </div>
+      ) : null}
+    </>
   );
 }

@@ -284,6 +284,28 @@ export default async function (
                   cleanText(
                     item?.category
                   ),
+
+                displayName:
+                  cleanText(
+                    item?.displayName ||
+                    item?.name
+                  ),
+
+                availableQuantity:
+                  Math.max(
+                    1,
+                    Math.trunc(
+                      numberValue(
+                        item?.availableQuantity ||
+                        1
+                      )
+                    )
+                  ),
+
+                hasExplicitQuantity:
+                  Boolean(
+                    item?.hasExplicitQuantity
+                  ),
               })
             )
             .filter(

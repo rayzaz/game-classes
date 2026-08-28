@@ -498,3 +498,78 @@
     width: 100%;
   }
 }
+
+/* Количество предметов в стопке для ивентов */
+.player-event-loadout-option {
+  justify-content: space-between;
+  cursor: default;
+}
+
+.player-event-loadout-option-main {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  flex: 1 1 auto;
+  cursor: pointer;
+}
+
+.player-event-loadout-option-name {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.player-event-loadout-option-name small {
+  opacity: 0.58;
+  font-size: 9px;
+  font-weight: 700;
+}
+
+.player-event-loadout-quantity {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  flex: 0 0 auto;
+}
+
+.player-event-loadout-quantity button {
+  width: 26px;
+  height: 26px;
+  padding: 0;
+  border-radius: 7px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: rgba(255, 255, 255, 0.05);
+  color: inherit;
+  cursor: pointer;
+  font: inherit;
+  font-weight: 900;
+}
+
+.player-event-loadout-quantity button:disabled {
+  opacity: 0.35;
+  cursor: default;
+}
+
+.player-event-loadout-quantity span {
+  min-width: 54px;
+  text-align: center;
+  font-size: 9px;
+  font-weight: 900;
+}
+
+.player-event-loadout-limit {
+  font-size: 9px;
+  opacity: 0.75;
+}
+
+@media (max-width: 620px) {
+  .player-event-loadout-option {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .player-event-loadout-quantity {
+    padding-left: 26px;
+  }
+}

@@ -9,6 +9,7 @@ type Props = {
     onBack: () => void;
     characterId: string;
     adminView?: boolean;
+    initialView?: 'cabinet' | 'events';
 };
 
 type ClassSkill = {
@@ -1362,6 +1363,7 @@ export default function PlayerCabinet({
     onBack,
     characterId,
     adminView = false,
+    initialView = 'cabinet',
 }: Props) {
 
    const characterThemeClass =
@@ -1411,7 +1413,7 @@ export default function PlayerCabinet({
             'cabinet' |
             'events'
         >(
-            'cabinet'
+            initialView
         );
 
 
