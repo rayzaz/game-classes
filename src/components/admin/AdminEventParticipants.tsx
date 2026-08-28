@@ -2,6 +2,7 @@ import React, {
   useCallback,
   useEffect,
   useMemo,
+  useRef,
   useState,
 } from 'react';
 
@@ -19,6 +20,9 @@ import './admin-event-participants.css';
 const API =
   '/.netlify/functions/admin-event-participants';
 
+const CONSUME_ITEM_API =
+  '/.netlify/functions/admin-event-consume-item';
+
 
 type CharacterSnapshot = {
   name: string;
@@ -30,9 +34,19 @@ type CharacterSnapshot = {
 
 
 type LoadoutItem = {
+  id?: string;
   name?: string;
   count?: number;
+  group?: string;
+  areaKey?: string;
   category?: string;
+  cellA1?: string;
+  lineIndex?: number;
+  consumedAt?: string;
+  consumedBy?: {
+    login?: string;
+    name?: string;
+  };
 };
 
 
@@ -82,12 +96,27 @@ type ResponseData = {
   candidates?:
     Candidate[];
 
+  participant?:
+    Participant;
+
+  item?:
+    LoadoutItem;
+
+  alreadyConsumed?:
+    boolean;
+
+  removedCharacterId?:
+    string;
+
   error?: string;
 };
 
 
 type Props = {
   eventKey: string;
+
+  onCountChange?:
+    (count: number) => void;
 };
 
 
@@ -190,17 +219,30 @@ function getLoadoutItemText(
 function ParticipantCard({
   participant,
   busy,
+  busyItemId,
   onRemove,
+  onConsume,
 }: {
   participant:
     Participant;
 
   busy: boolean;
 
+  busyItemId:
+    string;
+
   onRemove:
     (
       participant:
         Participant
+    ) => void;
+
+  onConsume:
+    (
+      participant:
+        Participant,
+      item:
+        LoadoutItem
     ) => void;
 }) {
   const character =
@@ -241,13 +283,55 @@ function ParticipantCard({
 
   const loadoutItems =
     [
-      ...equipment,
-      ...inventory,
+      ...equipment.map(
+        item => ({
+          raw:
+            item,
+          icon:
+            '⚔',
+        })
+      ),
+
+      ...inventory.map(
+        item => ({
+          raw:
+            item,
+          icon:
+            '🎒',
+        })
+      ),
     ]
       .map(
-        getLoadoutItemText
+        (
+          entry,
+          index
+        ) => {
+          const text =
+            getLoadoutItemText(
+              entry.raw
+            );
+
+          if (!text) {
+            return null;
+          }
+
+          const item =
+            typeof entry.raw ===
+              'string'
+              ? null
+              : entry.raw;
+
+          return {
+            ...entry,
+            index,
+            text,
+            item,
+          };
+        }
       )
-      .filter(Boolean);
+      .filter(
+        Boolean
+      );
 
 
   return (
@@ -361,26 +445,113 @@ function ParticipantCard({
         0 ? (
           <div className="admin-event-member-loadout-list">
             {loadoutItems.map(
-              (
-                item,
-                index
-              ) => (
-                <div
-                  className="admin-event-member-loadout-item"
-                  key={`${item}-${index}`}
-                >
-                  <span>
-                    {index <
-                    equipment.length
-                      ? '⚔'
-                      : '🎒'}
-                  </span>
+              entry => {
+                if (!entry) {
+                  return null;
+                }
 
-                  <span>
-                    {item}
-                  </span>
-                </div>
-              )
+                const item =
+                  entry.item;
+
+                const consumed =
+                  Boolean(
+                    item
+                      ?.consumedAt
+                  );
+
+                const itemId =
+                  String(
+                    item
+                      ?.id ||
+                    ''
+                  );
+
+                const canConsume =
+                  Boolean(
+                    itemId &&
+                    !consumed
+                  );
+
+                const itemBusy =
+                  Boolean(
+                    itemId &&
+                    busyItemId ===
+                      itemId
+                  );
+
+                return (
+                  <div
+                    className={
+                      `admin-event-member-loadout-item${
+                        consumed
+                          ? ' admin-event-member-loadout-item-consumed'
+                          : ''
+                      }`
+                    }
+                    key={
+                      itemId ||
+                      `${entry.text}-${entry.index}`
+                    }
+                  >
+                    <span>
+                      {entry.icon}
+                    </span>
+
+                    <div className="admin-event-member-loadout-copy">
+                      <span>
+                        {entry.text}
+                      </span>
+
+                      {
+                        item
+                          ?.category
+                          ? (
+                            <small>
+                              {item.category}
+                            </small>
+                          )
+                          : null
+                      }
+                    </div>
+
+                    {
+                      consumed
+                        ? (
+                          <span className="admin-event-member-consumed-badge">
+                            ✓ Израсходовано
+                          </span>
+                        )
+                        : canConsume
+                          ? (
+                            <button
+                              type="button"
+                              className="admin-button admin-event-consume-button"
+                              disabled={
+                                itemBusy
+                              }
+                              onClick={() =>
+                                onConsume(
+                                  participant,
+                                  item as LoadoutItem
+                                )
+                              }
+                            >
+                              {
+                                itemBusy
+                                  ? 'Списываем...'
+                                  : 'Израсходовать'
+                              }
+                            </button>
+                          )
+                          : (
+                            <span className="admin-event-member-legacy-item">
+                              Старый формат
+                            </span>
+                          )
+                    }
+                  </div>
+                );
+              }
             )}
           </div>
         ) : (
@@ -416,7 +587,23 @@ function ParticipantCard({
 
 export default function AdminEventParticipants({
   eventKey,
+  onCountChange,
 }: Props) {
+  const onCountChangeRef =
+    useRef(onCountChange);
+
+
+  useEffect(
+    () => {
+      onCountChangeRef.current =
+        onCountChange;
+    },
+    [
+      onCountChange,
+    ]
+  );
+
+
   const [
     participants,
     setParticipants,
@@ -437,6 +624,34 @@ export default function AdminEventParticipants({
     >(
       []
     );
+
+
+  const [
+    addPanelOpen,
+    setAddPanelOpen,
+  ] =
+    useState(false);
+
+
+  const [
+    candidatesLoaded,
+    setCandidatesLoaded,
+  ] =
+    useState(false);
+
+
+  const [
+    candidatesLoading,
+    setCandidatesLoading,
+  ] =
+    useState(false);
+
+
+  const [
+    candidatesError,
+    setCandidatesError,
+  ] =
+    useState('');
 
 
   const [
@@ -467,6 +682,13 @@ export default function AdminEventParticipants({
     useState('');
 
 
+  const [
+    busyItemId,
+    setBusyItemId,
+  ] =
+    useState('');
+
+
   const load =
     useCallback(
       async () => {
@@ -476,7 +698,7 @@ export default function AdminEventParticipants({
         try {
           const response =
             await fetch(
-              `${API}?key=${encodeURIComponent(eventKey)}&t=${Date.now()}`,
+              `${API}?key=${encodeURIComponent(eventKey)}&mode=participants&t=${Date.now()}`,
               {
                 cache:
                   'no-store',
@@ -500,21 +722,21 @@ export default function AdminEventParticipants({
           }
 
 
-          setParticipants(
+          const nextParticipants =
             Array.isArray(
               result.participants
             )
               ? result.participants
-              : []
+              : [];
+
+
+          setParticipants(
+            nextParticipants
           );
 
 
-          setCandidates(
-            Array.isArray(
-              result.candidates
-            )
-              ? result.candidates
-              : []
+          onCountChangeRef.current?.(
+            nextParticipants.length
           );
 
         } catch (
@@ -544,6 +766,96 @@ export default function AdminEventParticipants({
       load,
     ]
   );
+
+
+  const loadCandidates =
+    useCallback(
+      async () => {
+        if (
+          candidatesLoading
+        ) {
+          return;
+        }
+
+        setCandidatesLoading(
+          true
+        );
+
+        setCandidatesError(
+          ''
+        );
+
+        try {
+          const response =
+            await fetch(
+              `${API}?key=${encodeURIComponent(eventKey)}&mode=candidates&t=${Date.now()}`,
+              {
+                cache:
+                  'no-store',
+              }
+            );
+
+          const result:
+            ResponseData =
+              await response.json();
+
+          if (
+            !response.ok ||
+            !result.ok
+          ) {
+            throw new Error(
+              result.error ||
+              `Ошибка HTTP: ${response.status}`
+            );
+          }
+
+          setCandidates(
+            Array.isArray(
+              result.candidates
+            )
+              ? result.candidates
+              : []
+          );
+
+          setCandidatesLoaded(
+            true
+          );
+
+        } catch (
+          err
+        ) {
+          setCandidatesError(
+            err instanceof Error
+              ? err.message
+              : String(err)
+          );
+
+        } finally {
+          setCandidatesLoading(
+            false
+          );
+        }
+      },
+      [
+        candidatesLoading,
+        eventKey,
+      ]
+    );
+
+
+  const openAddPanel =
+    () => {
+      setAddPanelOpen(
+        true
+      );
+
+      if (
+        !candidatesLoaded &&
+        !candidatesLoading
+      ) {
+        void loadCandidates();
+      }
+    };
 
 
   const availableCandidates =
@@ -620,7 +932,113 @@ export default function AdminEventParticipants({
         );
 
 
-        await load();
+        if (
+          action ===
+            'add' &&
+          result.participant
+        ) {
+          setParticipants(
+            current => {
+              const withoutDuplicate =
+                current.filter(
+                  participant =>
+                    participant.characterId !==
+                    result.participant
+                      ?.characterId
+                );
+
+              const next =
+                [
+                  ...withoutDuplicate,
+                  result.participant as Participant,
+                ]
+                  .sort(
+                    (
+                      first,
+                      second
+                    ) =>
+                      String(
+                        first.character?.name ||
+                        ''
+                      )
+                        .localeCompare(
+                          String(
+                            second.character?.name ||
+                            ''
+                          ),
+                          'ru'
+                        )
+                  );
+
+              onCountChange?.(
+                next.length
+              );
+
+              return next;
+            }
+          );
+
+          setCandidates(
+            current =>
+              current.map(
+                candidate =>
+                  candidate.characterId ===
+                  characterId
+                    ? {
+                        ...candidate,
+                        registered:
+                          true,
+                        character:
+                          result.participant
+                            ?.character ||
+                          candidate.character,
+                      }
+                    : candidate
+              )
+          );
+        }
+
+
+        if (
+          action ===
+            'remove'
+        ) {
+          const removedId =
+            result.removedCharacterId ||
+            characterId;
+
+          setParticipants(
+            current => {
+              const next =
+                current.filter(
+                  participant =>
+                    participant.characterId !==
+                    removedId
+                );
+
+              onCountChange?.(
+                next.length
+              );
+
+              return next;
+            }
+          );
+
+          setCandidates(
+            current =>
+              current.map(
+                candidate =>
+                  candidate.characterId ===
+                  removedId
+                    ? {
+                        ...candidate,
+                        registered:
+                          false,
+                      }
+                    : candidate
+              )
+          );
+        }
 
       } catch (
         err
@@ -676,6 +1094,188 @@ export default function AdminEventParticipants({
     };
 
 
+  const consumeItem =
+    async (
+      participant:
+        Participant,
+      item:
+        LoadoutItem
+    ) => {
+      const itemId =
+        String(
+          item.id ||
+          ''
+        )
+          .trim();
+
+      const itemName =
+        String(
+          item.name ||
+          'предмет'
+        )
+          .trim();
+
+
+      if (!itemId) {
+        window.alert(
+          'У предмета нет нового event-item id. Персонажу нужно снять его с ивента и выбрать заново.'
+        );
+
+        return;
+      }
+
+
+      if (
+        !window.confirm(
+          `Израсходовать «${itemName}» у ${participant.character.name || participant.characterId}? Предмет будет удалён из Google-инвентаря.`
+        )
+      ) {
+        return;
+      }
+
+
+      setBusyItemId(
+        itemId
+      );
+
+
+      try {
+        const response =
+          await fetch(
+            CONSUME_ITEM_API,
+            {
+              method:
+                'POST',
+
+              headers: {
+                'Content-Type':
+                  'application/json',
+              },
+
+              body:
+                JSON.stringify({
+                  key:
+                    eventKey,
+
+                  characterId:
+                    participant.characterId,
+
+                  itemId,
+                }),
+            }
+          );
+
+
+        const result:
+          ResponseData =
+            await response.json();
+
+
+        if (
+          !response.ok ||
+          !result.ok ||
+          !result.item
+        ) {
+          throw new Error(
+            result.error ||
+            `Ошибка HTTP: ${response.status}`
+          );
+        }
+
+
+        const updatedItem =
+          result.item;
+
+
+        setParticipants(
+          current =>
+            current.map(
+              row => {
+                if (
+                  row.characterId !==
+                  participant.characterId
+                ) {
+                  return row;
+                }
+
+
+                const updateItems =
+                  (
+                    values:
+                      Array<
+                        string |
+                        LoadoutItem
+                      > |
+                      undefined
+                  ) =>
+                    (
+                      Array.isArray(
+                        values
+                      )
+                        ? values
+                        : []
+                    )
+                      .map(
+                        value => {
+                          if (
+                            typeof value ===
+                            'string'
+                          ) {
+                            return value;
+                          }
+
+                          return (
+                            value.id ===
+                            itemId
+                              ? {
+                                  ...value,
+                                  ...updatedItem,
+                                }
+                              : value
+                          );
+                        }
+                      );
+
+
+                return {
+                  ...row,
+
+                  loadout: {
+                    equipment:
+                      updateItems(
+                        row.loadout
+                          ?.equipment
+                      ),
+
+                    inventory:
+                      updateItems(
+                        row.loadout
+                          ?.inventory
+                      ),
+                  },
+                };
+              }
+            )
+        );
+
+
+      } catch (
+        err
+      ) {
+        window.alert(
+          err instanceof Error
+            ? err.message
+            : String(err)
+        );
+
+      } finally {
+        setBusyItemId(
+          ''
+        );
+      }
+    };
+
+
   return (
     <section className="admin-event-members">
       <div className="admin-event-members-head">
@@ -698,70 +1298,139 @@ export default function AdminEventParticipants({
 
 
       {!loading &&
-      !error ? (
+      !error &&
+      !addPanelOpen ? (
         <div className="admin-event-member-add">
-          <select
-            value={
-              selectedCharacterId
-            }
-            onChange={
-              event =>
-                setSelectedCharacterId(
-                  event.target.value
-                )
-            }
-            disabled={
-              availableCandidates.length ===
-              0
-            }
-          >
-            <option value="">
-              {availableCandidates.length >
-              0
-                ? 'Добавить персонажа вручную'
-                : 'Все доступные персонажи уже добавлены'}
-            </option>
-
-
-            {availableCandidates.map(
-              candidate => (
-                <option
-                  key={
-                    candidate.characterId
-                  }
-                  value={
-                    candidate.characterId
-                  }
-                >
-                  {candidate.character.name ||
-                    candidate.accountName ||
-                    candidate.characterId}
-
-                  {' · '}
-
-                  {candidate.character.className ||
-                    'класс не подключён'}
-                </option>
-              )
-            )}
-          </select>
-
-
           <button
             type="button"
             className="admin-button admin-button-primary"
-            disabled={
-              !selectedCharacterId ||
-              Boolean(
-                busyCharacterId
-              )
-            }
             onClick={
-              addSelected
+              openAddPanel
             }
           >
-            Добавить
+            Добавить персонажа вручную
           </button>
+        </div>
+      ) : null}
+
+
+      {!loading &&
+      !error &&
+      addPanelOpen ? (
+        <div className="admin-event-member-add">
+          {candidatesLoading ? (
+            <div className="admin-empty">
+              Загружаем список персонажей…
+            </div>
+          ) : null}
+
+          {!candidatesLoading &&
+          candidatesError ? (
+            <div className="admin-error">
+              <p>
+                {candidatesError}
+              </p>
+
+              <button
+                type="button"
+                className="admin-button"
+                onClick={() =>
+                  void loadCandidates()
+                }
+              >
+                Повторить загрузку списка
+              </button>
+            </div>
+          ) : null}
+
+          {!candidatesLoading &&
+          !candidatesError &&
+          candidatesLoaded ? (
+            <>
+              <select
+                value={
+                  selectedCharacterId
+                }
+                onChange={
+                  event =>
+                    setSelectedCharacterId(
+                      event.target.value
+                    )
+                }
+                disabled={
+                  availableCandidates.length ===
+                  0
+                }
+              >
+                <option value="">
+                  {availableCandidates.length >
+                  0
+                    ? 'Выбрать персонажа'
+                    : 'Все доступные персонажи уже добавлены'}
+                </option>
+
+                {availableCandidates.map(
+                  candidate => (
+                    <option
+                      key={
+                        candidate.characterId
+                      }
+                      value={
+                        candidate.characterId
+                      }
+                    >
+                      {candidate.character.name ||
+                        candidate.accountName ||
+                        candidate.characterId}
+
+                      {candidate.character.className
+                        ? ` · ${candidate.character.className}`
+                        : ''}
+                    </option>
+                  )
+                )}
+              </select>
+
+              <button
+                type="button"
+                className="admin-button admin-button-primary"
+                disabled={
+                  !selectedCharacterId ||
+                  Boolean(
+                    busyCharacterId
+                  )
+                }
+                onClick={
+                  addSelected
+                }
+              >
+                {busyCharacterId
+                  ? 'Добавляем…'
+                  : 'Добавить'}
+              </button>
+
+              <button
+                type="button"
+                className="admin-button"
+                disabled={
+                  Boolean(
+                    busyCharacterId
+                  )
+                }
+                onClick={() => {
+                  setAddPanelOpen(
+                    false
+                  );
+
+                  setSelectedCharacterId(
+                    ''
+                  );
+                }}
+              >
+                Скрыть
+              </button>
+            </>
+          ) : null}
         </div>
       ) : null}
 
@@ -821,8 +1490,14 @@ export default function AdminEventParticipants({
                   busyCharacterId ===
                   participant.characterId
                 }
+                busyItemId={
+                  busyItemId
+                }
                 onRemove={
                   removeParticipant
+                }
+                onConsume={
+                  consumeItem
                 }
               />
             )

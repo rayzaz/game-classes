@@ -61,6 +61,9 @@ type EventData = {
   participants:
     EventParticipant[];
 
+  participantCount?:
+    number;
+
   createdBy?: {
     login?: string;
     name?: string;
@@ -1927,6 +1930,31 @@ export default function AdminEvents() {
   );
 
 
+  const updateParticipantCount =
+    useCallback(
+      (
+        eventKey: string,
+        count: number
+      ) => {
+        setEvents(
+          current =>
+            current.map(
+              event =>
+                event.key ===
+                eventKey
+                  ? {
+                      ...event,
+                      participantCount:
+                        count,
+                    }
+                  : event
+            )
+        );
+      },
+      []
+    );
+
+
   const resetForm =
     () => {
       setTitle('');
@@ -3145,11 +3173,19 @@ export default function AdminEvents() {
 
 
               const participantCount =
-                Array.isArray(
-                  event.participants
+                Number.isFinite(
+                  Number(
+                    event.participantCount
+                  )
                 )
-                  ? event.participants.length
-                  : 0;
+                  ? Number(
+                      event.participantCount
+                    )
+                  : Array.isArray(
+                      event.participants
+                    )
+                    ? event.participants.length
+                    : 0;
 
 
               const busy =
@@ -3386,6 +3422,13 @@ export default function AdminEvents() {
                     <AdminEventParticipants
                       eventKey={
                         event.key
+                      }
+                      onCountChange={
+                        count =>
+                          updateParticipantCount(
+                            event.key,
+                            count
+                          )
                       }
                     />
                   ) : null}

@@ -24,6 +24,9 @@ import {
 const STORE_NAME =
   'gosmag-events';
 
+const SIGNUPS_STORE =
+  'gosmag-event-signups';
+
 
 const ALLOWED_STATUSES =
   new Set([
@@ -48,6 +51,66 @@ function getEventStore() {
     consistency:
       'strong',
   });
+}
+
+
+function getSignupsStore() {
+
+  return getStore({
+    name:
+      SIGNUPS_STORE,
+
+    consistency:
+      'strong',
+  });
+}
+
+
+async function loadParticipantCounts() {
+  const store =
+    getSignupsStore();
+
+  const {
+    blobs,
+  } =
+    await store.list({
+      prefix:
+        'signups/',
+    });
+
+  const counts =
+    new Map();
+
+  for (
+    const blob of
+    blobs
+  ) {
+    const parts =
+      String(
+        blob.key ||
+        ''
+      )
+        .split('/');
+
+    const eventId =
+      parts[1] ||
+      '';
+
+    if (!eventId) {
+      continue;
+    }
+
+    counts.set(
+      eventId,
+      (
+        counts.get(
+          eventId
+        ) || 0
+      ) + 1
+    );
+  }
+
+  return counts;
 }
 
 
@@ -322,6 +385,10 @@ async function listEvents() {
       );
 
 
+  const participantCounts =
+    await loadParticipantCounts();
+
+
   const events =
     (
       await Promise.all(
@@ -485,6 +552,14 @@ async function listEvents() {
                     'object'
                     ? event.createdBy
                     : null,
+
+                participantCount:
+                  participantCounts.get(
+                    String(
+                      event.id ||
+                      ''
+                    )
+                  ) || 0,
 
                 participants:
                   Array.isArray(

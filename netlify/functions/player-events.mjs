@@ -246,6 +246,54 @@ export default async function (
     };
 
 
+    /*
+      Для выбора снаряжения игроку достаточно публичной части descriptor:
+      id + название + категория. Google-locator (ячейка/строка) клиенту
+      не нужен: при сохранении loadout сервер заново читает живой инвентарь.
+    */
+    const inventoryItems =
+      Array.isArray(
+        characterData
+          ?.eventInventoryItems
+      )
+        ? characterData
+            .eventInventoryItems
+            .map(
+              item => ({
+                id:
+                  cleanText(
+                    item?.id
+                  ),
+
+                name:
+                  cleanText(
+                    item?.name
+                  ),
+
+                group:
+                  cleanText(
+                    item?.group
+                  ),
+
+                areaKey:
+                  cleanText(
+                    item?.areaKey
+                  ),
+
+                category:
+                  cleanText(
+                    item?.category
+                  ),
+              })
+            )
+            .filter(
+              item =>
+                item.id &&
+                item.name
+            )
+        : [];
+
+
     /* ========================================================
        ЗАГРУЖАЕМ ИВЕНТЫ
        ======================================================== */
@@ -263,7 +311,7 @@ export default async function (
       });
 
 
-    const rawEvents =
+    const rawItems =
       (
         await Promise.all(
           blobs.map(
@@ -290,35 +338,84 @@ export default async function (
 
 
                 /*
-                  В анкете персонажа
-                  показываем только:
+                  Текущие ивенты:
 
                   published
                   active
 
-                  Не показываем:
+                  Завершённые ивенты не смешиваем
+                  с открытой записью. Они попадут
+                  в отдельную историю только если
+                  у персонажа есть сохранённый
+                  participantReport.
 
-                  draft
-                  cancelled
-                  completed
+                  draft / cancelled игроку
+                  по-прежнему не показываем.
                 */
 
                 if (
-                  event.status !==
-                    'published' &&
-                  event.status !==
+                  event.status ===
+                    'published' ||
+                  event.status ===
                     'active'
                 ) {
-                  return null;
+                  return {
+                    kind:
+                      'current',
+
+                    key:
+                      blob.key,
+
+                    event,
+                  };
                 }
 
 
-                return {
-                  key:
-                    blob.key,
+                if (
+                  event.status ===
+                  'completed'
+                ) {
+                  const participantReports =
+                    Array.isArray(
+                      event.completion
+                        ?.participantReports
+                    )
+                      ? event.completion
+                          .participantReports
+                      : [];
 
-                  event,
-                };
+
+                  const participantReport =
+                    participantReports.find(
+                      item =>
+                        cleanText(
+                          item?.characterId
+                        )
+                          .toLowerCase() ===
+                        characterId
+                    );
+
+
+                  if (!participantReport) {
+                    return null;
+                  }
+
+
+                  return {
+                    kind:
+                      'history',
+
+                    key:
+                      blob.key,
+
+                    event,
+
+                    participantReport,
+                  };
+                }
+
+
+                return null;
 
               } catch (
                 error
@@ -339,6 +436,130 @@ export default async function (
       )
         .filter(
           Boolean
+        );
+
+
+    const rawEvents =
+      rawItems.filter(
+        item =>
+          item.kind ===
+          'current'
+      );
+
+
+    const history =
+      rawItems
+        .filter(
+          item =>
+            item.kind ===
+            'history'
+        )
+        .map(
+          item => {
+            const event =
+              item.event;
+
+            const report =
+              item.participantReport ||
+              {};
+
+            const materials =
+              Array.isArray(
+                event.completion
+                  ?.materialRewards
+              )
+                ? event.completion
+                    .materialRewards
+                : (
+                    Array.isArray(
+                      event.rewards
+                        ?.materials
+                    )
+                      ? event.rewards
+                          .materials
+                      : []
+                  );
+
+
+            return {
+              key:
+                item.key,
+
+              id:
+                cleanText(
+                  event.id
+                ),
+
+              title:
+                cleanText(
+                  event.title
+                ),
+
+              description:
+                cleanText(
+                  event.description
+                ),
+
+              location:
+                cleanText(
+                  event.location
+                ),
+
+              startsAt:
+                cleanText(
+                  event.startsAt
+                ),
+
+              endsAt:
+                cleanText(
+                  event.endsAt
+                ),
+
+              completedAt:
+                cleanText(
+                  event.completion
+                    ?.completedAt ||
+                  event.updatedAt
+                ),
+
+              finalReward: {
+                experience:
+                  numberValue(
+                    report.finalReward
+                      ?.experience
+                  ),
+
+                points:
+                  numberValue(
+                    report.finalReward
+                      ?.points
+                  ),
+
+                money: {
+                  amount:
+                    numberValue(
+                      report.finalReward
+                        ?.money
+                    ),
+
+                  currency:
+                    cleanText(
+                      event.rewards
+                        ?.money
+                        ?.currency
+                    ) ||
+                    'юли',
+                },
+              },
+
+              materials,
+
+              specialReward:
+                cleanText(
+                  report.specialReward
+                ),
+            };
+          }
         );
 
 
@@ -533,6 +754,17 @@ export default async function (
                     signup?.createdAt
                   ),
 
+                loadout:
+                  signup &&
+                  signup.loadout &&
+                  typeof signup.loadout ===
+                    'object'
+                    ? signup.loadout
+                    : {
+                        equipment: [],
+                        inventory: [],
+                      },
+
               },
 
             };
@@ -595,6 +827,44 @@ export default async function (
     );
 
 
+    history.sort(
+      (
+        first,
+        second
+      ) => {
+        const firstTime =
+          new Date(
+            first.completedAt ||
+            first.startsAt ||
+            0
+          )
+            .getTime();
+
+        const secondTime =
+          new Date(
+            second.completedAt ||
+            second.startsAt ||
+            0
+          )
+            .getTime();
+
+        return (
+          Number.isFinite(
+            secondTime
+          )
+            ? secondTime
+            : 0
+        ) - (
+          Number.isFinite(
+            firstTime
+          )
+            ? firstTime
+            : 0
+        );
+      }
+    );
+
+
     /* ========================================================
        ГОТОВО
        ======================================================== */
@@ -608,11 +878,21 @@ export default async function (
       player,
 
 
+      inventoryItems,
+
+
       events,
+
+
+      history,
 
 
       total:
         events.length,
+
+
+      historyTotal:
+        history.length,
 
 
       adminView:

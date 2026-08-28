@@ -582,3 +582,65 @@
       1fr;
   }
 }
+/* =====================================================
+   СПИСАНИЕ ПРЕДМЕТОВ НА ИВЕНТЕ
+   ===================================================== */
+
+.admin-event-member-loadout-copy {
+  display: grid;
+  min-width: 0;
+  flex: 1;
+  gap: 2px;
+}
+
+.admin-event-member-loadout-copy > span {
+  min-width: 0;
+  overflow-wrap: break-word;
+}
+
+.admin-event-member-loadout-copy small {
+  opacity: 0.5;
+  font-size: 8px;
+}
+
+.admin-event-consume-button {
+  flex: 0 0 auto;
+  padding: 6px 8px;
+  font-size: 9px;
+}
+
+.admin-event-member-loadout-item-consumed {
+  opacity: 0.68;
+}
+
+.admin-event-member-loadout-item-consumed .admin-event-member-loadout-copy > span {
+  text-decoration: line-through;
+}
+
+.admin-event-member-consumed-badge,
+.admin-event-member-legacy-item {
+  flex: 0 0 auto;
+  font-size: 8px;
+  white-space: nowrap;
+}
+
+.admin-event-member-consumed-badge {
+  color: #9ee8b2;
+}
+
+.admin-event-member-legacy-item {
+  opacity: 0.45;
+}
+
+@media (max-width: 760px) {
+  .admin-event-member-loadout-item {
+    align-items: flex-start;
+    flex-wrap: wrap;
+  }
+
+  .admin-event-consume-button,
+  .admin-event-member-consumed-badge,
+  .admin-event-member-legacy-item {
+    margin-left: 24px;
+  }
+}

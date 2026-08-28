@@ -22,12 +22,38 @@ const PLAYER_EVENTS_API =
 const PLAYER_EVENT_SIGNUP_API =
   '/.netlify/functions/player-event-signup';
 
+const PLAYER_EVENT_LOADOUT_API =
+  '/.netlify/functions/player-event-loadout';
+
 
 type EventMaterial = {
   id?: string;
   name: string;
   count: number;
   description?: string;
+};
+
+
+type EventInventoryItem = {
+  id: string;
+  name: string;
+  group: string;
+  areaKey?: string;
+  category: string;
+  consumedAt?: string;
+  consumedBy?: {
+    login?: string;
+    name?: string;
+  };
+};
+
+
+type EventLoadout = {
+  equipment:
+    EventInventoryItem[];
+
+  inventory:
+    EventInventoryItem[];
 };
 
 
@@ -106,15 +132,45 @@ type PlayerEvent = {
     joined: boolean;
     status: string;
     joinedAt: string;
+    loadout:
+      EventLoadout;
   };
+};
+
+
+type PlayerEventHistory = {
+  key: string;
+  id: string;
+  title: string;
+  description: string;
+  location: string;
+  startsAt: string;
+  endsAt: string;
+  completedAt: string;
+
+  finalReward: {
+    experience: number;
+    points: number;
+
+    money: {
+      amount: number;
+      currency: string;
+    };
+  };
+
+  materials: EventMaterial[];
+  specialReward: string;
 };
 
 
 type PlayerEventsResponse = {
   ok: boolean;
   player?: PlayerSummary;
+  inventoryItems?: EventInventoryItem[];
   events?: PlayerEvent[];
+  history?: PlayerEventHistory[];
   total?: number;
+  historyTotal?: number;
   adminView?: boolean;
   error?: string;
 };
@@ -131,10 +187,18 @@ type SignupResponse = {
     characterId: string;
     status: string;
     createdAt: string;
+    loadout?: EventLoadout;
   };
 
   eligibility?: EventEligibility;
 
+  error?: string;
+};
+
+
+type LoadoutResponse = {
+  ok: boolean;
+  loadout?: EventLoadout;
   error?: string;
 };
 
@@ -546,19 +610,388 @@ function EventWarning({
 }
 
 
+
+function LoadoutEditor({
+  event,
+  items,
+  busy,
+  onSave,
+}: {
+  event: PlayerEvent;
+  items: EventInventoryItem[];
+  busy: boolean;
+  onSave:
+    (
+      event: PlayerEvent,
+      itemIds: string[]
+    ) => void;
+}) {
+  const [
+    open,
+    setOpen,
+  ] =
+    useState(false);
+
+
+  const loadout =
+    event.registration
+      ?.loadout ||
+    {
+      equipment: [],
+      inventory: [],
+    };
+
+
+  const currentItems =
+    [
+      ...(
+        Array.isArray(
+          loadout.equipment
+        )
+          ? loadout.equipment
+          : []
+      ),
+      ...(
+        Array.isArray(
+          loadout.inventory
+        )
+          ? loadout.inventory
+          : []
+      ),
+    ];
+
+
+  const activeCurrentItems =
+    currentItems.filter(
+      item =>
+        !item.consumedAt
+    );
+
+
+  const consumedItems =
+    currentItems.filter(
+      item =>
+        Boolean(
+          item.consumedAt
+        )
+    );
+
+
+  const [
+    selectedIds,
+    setSelectedIds,
+  ] =
+    useState<string[]>(
+      () =>
+        activeCurrentItems
+          .map(
+            item =>
+              item.id
+          )
+          .filter(Boolean)
+    );
+
+
+  useEffect(
+    () => {
+      setSelectedIds(
+        activeCurrentItems
+          .map(
+            item =>
+              item.id
+          )
+          .filter(Boolean)
+      );
+    },
+    [
+      event.key,
+      event.registration
+        ?.loadout,
+    ]
+  );
+
+
+  const grouped =
+    useMemo(
+      () => {
+        const map =
+          new Map<
+            string,
+            EventInventoryItem[]
+          >();
+
+        items.forEach(
+          item => {
+            const key =
+              item.category ||
+              (
+                item.group ===
+                  'equipment'
+                  ? 'Экипировка'
+                  : 'Инвентарь'
+              );
+
+            const list =
+              map.get(key) ||
+              [];
+
+            list.push(
+              item
+            );
+
+            map.set(
+              key,
+              list
+            );
+          }
+        );
+
+        return Array.from(
+          map.entries()
+        );
+      },
+      [
+        items,
+      ]
+    );
+
+
+  const toggleItem =
+    (
+      itemId:
+        string
+    ) => {
+      setSelectedIds(
+        current =>
+          current.includes(
+            itemId
+          )
+            ? current.filter(
+                id =>
+                  id !==
+                  itemId
+              )
+            : [
+                ...current,
+                itemId,
+              ]
+      );
+    };
+
+
+  return (
+    <div className="player-event-loadout">
+      <div className="player-event-loadout-summary">
+        <div>
+          <strong>
+            🎒 Снаряжение на ивент
+          </strong>
+
+          <span>
+            Взято: {
+              activeCurrentItems.length
+            }
+            {
+              consumedItems.length >
+              0
+                ? ` · израсходовано: ${consumedItems.length}`
+                : ''
+            }
+          </span>
+        </div>
+
+        <button
+          type="button"
+          className="nero-button player-event-loadout-toggle"
+          onClick={() =>
+            setOpen(
+              value =>
+                !value
+            )
+          }
+        >
+          {
+            open
+              ? 'Скрыть'
+              : 'Выбрать вещи'
+          }
+        </button>
+      </div>
+
+
+      {
+        consumedItems.length >
+        0
+          ? (
+            <div className="player-event-loadout-consumed">
+              {
+                consumedItems.map(
+                  item => (
+                    <span
+                      key={
+                        item.id
+                      }
+                    >
+                      ✓ {
+                        item.name
+                      }
+                    </span>
+                  )
+                )
+              }
+            </div>
+          )
+          : null
+      }
+
+
+      {
+        open
+          ? (
+            <div className="player-event-loadout-editor">
+              <p>
+                Предметы пока остаются в обычном инвентаре. Они исчезнут только если ивентер нажмёт «Израсходовать».
+              </p>
+
+              {
+                grouped.length >
+                0
+                  ? grouped.map(
+                      (
+                        [
+                          category,
+                          categoryItems,
+                        ]
+                      ) => (
+                        <div
+                          className="player-event-loadout-group"
+                          key={
+                            category
+                          }
+                        >
+                          <div className="player-event-loadout-group-title">
+                            {
+                              category
+                            }
+                          </div>
+
+                          <div className="player-event-loadout-options">
+                            {
+                              categoryItems.map(
+                                item => (
+                                  <label
+                                    className="player-event-loadout-option"
+                                    key={
+                                      item.id
+                                    }
+                                  >
+                                    <input
+                                      type="checkbox"
+                                      checked={
+                                        selectedIds.includes(
+                                          item.id
+                                        )
+                                      }
+                                      onChange={() =>
+                                        toggleItem(
+                                          item.id
+                                        )
+                                      }
+                                      disabled={
+                                        busy
+                                      }
+                                    />
+
+                                    <span>
+                                      {
+                                        item.group ===
+                                          'equipment'
+                                          ? '⚔'
+                                          : '🎒'
+                                      }
+                                    </span>
+
+                                    <span>
+                                      {
+                                        item.name
+                                      }
+                                    </span>
+                                  </label>
+                                )
+                              )
+                            }
+                          </div>
+                        </div>
+                      )
+                    )
+                  : (
+                    <div className="player-event-loadout-empty">
+                      В текущем Google-инвентаре нет предметов, которые можно взять на ивент.
+                    </div>
+                  )
+              }
+
+              <div className="player-event-loadout-actions">
+                <span>
+                  Выбрано: {
+                    selectedIds.length
+                  }
+                </span>
+
+                <button
+                  type="button"
+                  className="nero-button"
+                  disabled={
+                    busy
+                  }
+                  onClick={() =>
+                    onSave(
+                      event,
+                      selectedIds
+                    )
+                  }
+                >
+                  {
+                    busy
+                      ? 'Сохраняем...'
+                      : 'Сохранить набор'
+                  }
+                </button>
+              </div>
+            </div>
+          )
+          : null
+      }
+    </div>
+  );
+}
+
+
 function EventCard({
   event,
   busy,
+  loadoutBusy,
+  inventoryItems,
   onSignup,
+  onSaveLoadout,
   adminView,
 }: {
   event: PlayerEvent;
   busy: boolean;
+  loadoutBusy: boolean;
+  inventoryItems:
+    EventInventoryItem[];
   adminView: boolean;
 
   onSignup:
     (
       event: PlayerEvent
+    ) => void;
+
+  onSaveLoadout:
+    (
+      event: PlayerEvent,
+      itemIds: string[]
     ) => void;
 }) {
   const materials =
@@ -826,17 +1259,46 @@ function EventCard({
             ?.joined
             ? (
 
-              <div className="player-event-joined">
+              <>
+                <div className="player-event-joined">
 
-                ✓{' '}
+                  ✓{' '}
+
+                  {
+                    adminView
+                      ? 'Персонаж уже записан на ивент'
+                      : 'Вы записаны на ивент'
+                  }
+
+                </div>
 
                 {
-                  adminView
-                    ? 'Персонаж уже записан на ивент'
-                    : 'Вы записаны на ивент'
+                  !adminView &&
+                  (
+                    event.status ===
+                      'published' ||
+                    event.status ===
+                      'active'
+                  )
+                    ? (
+                      <LoadoutEditor
+                        event={
+                          event
+                        }
+                        items={
+                          inventoryItems
+                        }
+                        busy={
+                          loadoutBusy
+                        }
+                        onSave={
+                          onSaveLoadout
+                        }
+                      />
+                    )
+                    : null
                 }
-
-              </div>
+              </>
 
             )
             : event.status !==
@@ -903,6 +1365,236 @@ function EventCard({
 }
 
 
+function HistoryCard({
+  event,
+}: {
+  event: PlayerEventHistory;
+}) {
+  const materials =
+    Array.isArray(
+      event.materials
+    )
+      ? event.materials
+      : [];
+
+  return (
+    <article className="player-event-card player-event-history-card">
+
+      <div className="player-event-card-head">
+
+        <div>
+
+          <div className="player-event-status-row">
+
+            <span className="player-event-status player-event-status-completed">
+              ✓ Завершён
+            </span>
+
+          </div>
+
+          <h3>
+            {
+              event.title
+            }
+          </h3>
+
+        </div>
+
+      </div>
+
+
+      {
+        event.description
+          ? (
+
+            <p className="player-event-description">
+              {
+                event.description
+              }
+            </p>
+
+          )
+          : null
+      }
+
+
+      <div className="player-event-info-grid">
+
+        <div>
+
+          <span>
+            Завершён
+          </span>
+
+          <strong>
+            {
+              formatDate(
+                event.completedAt
+              )
+            }
+          </strong>
+
+        </div>
+
+
+        <div>
+
+          <span>
+            Место
+          </span>
+
+          <strong>
+            {
+              event.location ||
+              'Не указано'
+            }
+          </strong>
+
+        </div>
+
+      </div>
+
+
+      <div className="player-event-reward-title">
+        Получено
+      </div>
+
+
+      <div className="player-event-rewards">
+
+        {
+          event.finalReward
+            .experience > 0
+            ? (
+
+              <span>
+                ✦ +
+                {
+                  formatNumber(
+                    event.finalReward
+                      .experience
+                  )
+                }{' '}
+                опыта
+              </span>
+
+            )
+            : null
+        }
+
+
+        {
+          event.finalReward
+            .points > 0
+            ? (
+
+              <span>
+                ★ +
+                {
+                  formatNumber(
+                    event.finalReward
+                      .points
+                  )
+                }{' '}
+                баллов прокачки
+              </span>
+
+            )
+            : null
+        }
+
+
+        {
+          event.finalReward
+            .money.amount > 0
+            ? (
+
+              <span>
+                💰 +
+                {
+                  formatNumber(
+                    event.finalReward
+                      .money.amount
+                  )
+                }{' '}
+                {
+                  event.finalReward
+                    .money.currency ||
+                  'юли'
+                }
+              </span>
+
+            )
+            : null
+        }
+
+
+        {
+          materials.map(
+            material => (
+
+              <span
+                key={
+                  material.id ||
+                  `${material.name}-${material.count}`
+                }
+              >
+                🎁{' '}
+                {
+                  material.name
+                }{' '}
+                ×
+                {
+                  material.count
+                }
+              </span>
+
+            )
+          )
+        }
+
+
+        {
+          event.specialReward
+            ? (
+
+              <span className="player-event-special-reward">
+                ✧ {
+                  event.specialReward
+                }
+              </span>
+
+            )
+            : null
+        }
+
+
+        {
+          event.finalReward
+            .experience <= 0 &&
+          event.finalReward
+            .points <= 0 &&
+          event.finalReward
+            .money.amount <= 0 &&
+          materials.length === 0 &&
+          !event.specialReward
+            ? (
+
+              <span>
+                Награды не указаны
+              </span>
+
+            )
+            : null
+        }
+
+      </div>
+
+    </article>
+  );
+}
+
+
 export default function PlayerEvents({
   onBack,
   characterId = '',
@@ -933,6 +1625,28 @@ export default function PlayerEvents({
 
 
   const [
+    history,
+    setHistory,
+  ] =
+    useState<
+      PlayerEventHistory[]
+    >(
+      []
+    );
+
+
+  const [
+    inventoryItems,
+    setInventoryItems,
+  ] =
+    useState<
+      EventInventoryItem[]
+    >(
+      []
+    );
+
+
+  const [
     loading,
     setLoading,
   ] =
@@ -953,6 +1667,15 @@ export default function PlayerEvents({
   const [
     signupBusyKey,
     setSignupBusyKey,
+  ] =
+    useState(
+      ''
+    );
+
+
+  const [
+    loadoutBusyKey,
+    setLoadoutBusyKey,
   ] =
     useState(
       ''
@@ -1046,6 +1769,24 @@ export default function PlayerEvents({
               result.events
             )
               ? result.events
+              : []
+          );
+
+
+          setHistory(
+            Array.isArray(
+              result.history
+            )
+              ? result.history
+              : []
+          );
+
+
+          setInventoryItems(
+            Array.isArray(
+              result.inventoryItems
+            )
+              ? result.inventoryItems
               : []
           );
 
@@ -1243,6 +1984,14 @@ export default function PlayerEvents({
                           new Date()
                             .toISOString(),
 
+                        loadout:
+                          result.signup
+                            ?.loadout ||
+                          {
+                            equipment: [],
+                            inventory: [],
+                          },
+
                       },
                     }
                   : item
@@ -1269,6 +2018,124 @@ export default function PlayerEvents({
           ''
         );
 
+      }
+    };
+
+
+
+  const saveLoadout =
+    async (
+      event:
+        PlayerEvent,
+      itemIds:
+        string[]
+    ) => {
+      setLoadoutBusyKey(
+        event.key
+      );
+
+
+      try {
+        const body:
+          {
+            key: string;
+            itemIds: string[];
+            characterId?: string;
+          } = {
+            key:
+              event.key,
+            itemIds,
+          };
+
+
+        if (
+          adminView &&
+          characterId
+        ) {
+          body.characterId =
+            characterId;
+        }
+
+
+        const response =
+          await fetch(
+            PLAYER_EVENT_LOADOUT_API,
+            {
+              method:
+                'POST',
+
+              headers: {
+                'Content-Type':
+                  'application/json',
+              },
+
+              body:
+                JSON.stringify(
+                  body
+                ),
+            }
+          );
+
+
+        const result:
+          LoadoutResponse =
+            await response.json();
+
+
+        if (
+          !response.ok ||
+          !result.ok
+        ) {
+          throw new Error(
+            result.error ||
+            `Ошибка HTTP: ${response.status}`
+          );
+        }
+
+
+        const nextLoadout =
+          result.loadout ||
+          {
+            equipment: [],
+            inventory: [],
+          };
+
+
+        setEvents(
+          current =>
+            current.map(
+              item =>
+                item.key ===
+                event.key
+                  ? {
+                      ...item,
+
+                      registration: {
+                        ...item.registration,
+                        loadout:
+                          nextLoadout,
+                      },
+                    }
+                  : item
+            )
+        );
+
+
+      } catch (
+        err
+      ) {
+        window.alert(
+          err instanceof Error
+            ? err.message
+            : String(
+                err
+              )
+        );
+
+      } finally {
+        setLoadoutBusyKey(
+          ''
+        );
       }
     };
 
@@ -1412,7 +2279,7 @@ export default function PlayerEvents({
           {
             adminView
               ? 'Здесь администратор видит ивенты выбранного персонажа и может записать именно его на опубликованное событие.'
-              : 'Здесь можно записаться на опубликованные события, проверить допуск по рангу и увидеть предупреждение по уровню.'
+              : 'Здесь можно записаться на опубликованные события, проверить допуск по рангу и посмотреть историю уже завершённых ивентов.'
           }
 
         </div>
@@ -1571,8 +2438,21 @@ export default function PlayerEvents({
                                   event.key
                                 }
 
+                                loadoutBusy={
+                                  loadoutBusyKey ===
+                                  event.key
+                                }
+
+                                inventoryItems={
+                                  inventoryItems
+                                }
+
                                 onSignup={
                                   signup
+                                }
+
+                                onSaveLoadout={
+                                  saveLoadout
                                 }
 
                                 adminView={
@@ -1644,8 +2524,21 @@ export default function PlayerEvents({
                                   event.key
                                 }
 
+                                loadoutBusy={
+                                  loadoutBusyKey ===
+                                  event.key
+                                }
+
+                                inventoryItems={
+                                  inventoryItems
+                                }
+
                                 onSignup={
                                   signup
+                                }
+
+                                onSaveLoadout={
+                                  saveLoadout
                                 }
 
                                 adminView={
@@ -1664,6 +2557,72 @@ export default function PlayerEvents({
 
                       <div className="nero-empty">
                         Сейчас нет новых ивентов с открытой записью.
+                      </div>
+
+                    )
+                }
+
+              </section>
+
+
+              <section className="nero-panel">
+
+                <div className="nero-section-head">
+
+                  <div>
+
+                    <div className="nero-kicker">
+                      ИСТОРИЯ
+                    </div>
+
+                    <h2>
+                      Завершённые ивенты
+                    </h2>
+
+                  </div>
+
+
+                  <div className="nero-section-meta">
+                    {
+                      history.length
+                    }
+                  </div>
+
+                </div>
+
+
+                {
+                  history.length >
+                  0
+                    ? (
+
+                      <div className="player-event-grid">
+
+                        {
+                          history.map(
+                            event => (
+
+                              <HistoryCard
+                                key={
+                                  event.key
+                                }
+
+                                event={
+                                  event
+                                }
+                              />
+
+                            )
+                          )
+                        }
+
+                      </div>
+
+                    )
+                    : (
+
+                      <div className="nero-empty">
+                        У персонажа пока нет завершённых ивентов с сохранённым итоговым отчётом.
                       </div>
 
                     )

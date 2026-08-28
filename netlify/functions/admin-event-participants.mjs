@@ -14,16 +14,20 @@ import {
   tryWriteAdminLog,
 } from './_shared/_admin-log.mjs';
 
-import {
-  loadCharacterData,
-} from './_shared/_event-access.mjs';
-
 
 const EVENTS_STORE =
   'gosmag-events';
 
 const SIGNUPS_STORE =
   'gosmag-event-signups';
+
+const REGISTRY_CACHE_TTL_MS =
+  60 * 1000;
+
+let registryCache = {
+  expiresAt: 0,
+  characters: [],
+};
 
 
 function getEventsStore() {
@@ -130,6 +134,19 @@ function loadPortalUsers() {
 
 
 async function loadLiveCharacterRegistry() {
+  const now =
+    Date.now();
+
+  if (
+    registryCache.expiresAt >
+      now &&
+    Array.isArray(
+      registryCache.characters
+    )
+  ) {
+    return registryCache.characters;
+  }
+
   const raw =
     cleanText(
       process.env
@@ -150,13 +167,6 @@ async function loadLiveCharacterRegistry() {
   url.searchParams.set(
     'action',
     'list'
-  );
-
-  url.searchParams.set(
-    '_',
-    String(
-      Date.now()
-    )
   );
 
   const response =
@@ -212,123 +222,74 @@ async function loadLiveCharacterRegistry() {
     );
   }
 
-  return (
-    Array.isArray(
-      data.characters
+  const characters =
+    (
+      Array.isArray(
+        data.characters
+      )
+        ? data.characters
+        : []
     )
-      ? data.characters
-      : []
-  )
-    .map(
-      item => ({
-        characterId:
-          cleanText(
-            item?.characterId ||
-            item?.id
-          )
-            .toLowerCase(),
+      .map(
+        item => ({
+          characterId:
+            cleanText(
+              item?.characterId ||
+              item?.id
+            )
+              .toLowerCase(),
 
-        name:
-          cleanText(
-            item?.name
-          ),
+          name:
+            cleanText(
+              item?.name
+            ),
 
-        player:
-          cleanText(
-            item?.player
-          ),
+          player:
+            cleanText(
+              item?.player
+            ),
 
-        active:
-          item?.active !==
-            false,
-      })
-    )
-    .filter(
-      item =>
-        item.characterId &&
-        item.active
-    );
-}
+          active:
+            item?.active !==
+              false,
 
+          level:
+            Number(
+              item?.level
+            ) || 0,
 
-async function loadCharacterSnapshot(
-  characterId,
-  fallbackName = ''
-) {
-  try {
-    const data =
-      await loadCharacterData(
-        characterId
+          rank:
+            cleanText(
+              item?.rank
+            ),
+
+          className:
+            cleanText(
+              item?.className ||
+              item?.class
+            ),
+
+          squad:
+            cleanText(
+              item?.squad
+            ),
+        })
+      )
+      .filter(
+        item =>
+          item.characterId &&
+          item.active
       );
 
-    return {
-      name:
-        cleanText(
-          data
-            ?.character
-            ?.name ||
-          fallbackName
-        ),
+  registryCache = {
+    expiresAt:
+      now +
+      REGISTRY_CACHE_TTL_MS,
 
-      level:
-        Number(
-          data
-            ?.level
-            ?.current
-        ) || 0,
+    characters,
+  };
 
-      rank:
-        cleanText(
-          data
-            ?.character
-            ?.rank
-        ),
-
-      className:
-        cleanText(
-          data
-            ?.character
-            ?.className
-        ),
-
-      squad:
-        cleanText(
-          data
-            ?.character
-            ?.squad
-        ),
-    };
-
-  } catch (
-    error
-  ) {
-    console.warn(
-      'admin participant character load:',
-      characterId,
-      error?.message ||
-      error
-    );
-
-    return {
-      name:
-        cleanText(
-          fallbackName ||
-          characterId
-        ),
-
-      level:
-        0,
-
-      rank:
-        '',
-
-      className:
-        '',
-
-      squad:
-        '',
-    };
-  }
+  return characters;
 }
 
 
@@ -447,11 +408,24 @@ async function listParticipants(
               !character ||
               !character.name
             ) {
-              character =
-                await loadCharacterSnapshot(
-                  characterId,
-                  signup.playerName
-                );
+              /*
+                ВАЖНО: раскрытие состава ивента не должно
+                ходить в Google вообще. Старые signup без
+                snapshot показываем с безопасным лёгким
+                fallback, а не тормозим весь интерфейс.
+              */
+              character = {
+                name:
+                  cleanText(
+                    signup.playerName ||
+                    characterId
+                  ),
+
+                level: 0,
+                rank: '',
+                className: '',
+                squad: '',
+              };
             }
 
             return {
@@ -529,13 +503,14 @@ async function listCandidates(
   participants
 ) {
   /*
-    Раньше список собирался только из PORTAL_USERS_JSON.
-    Поэтому ивентер видел лишь персонажей, привязанных к аккаунтам.
+    Кандидаты теперь формируются из лёгкого реестра САЙТ.
 
-    Теперь источником является живой лист САЙТ через
-    CHARACTER_SERVICE_URL?action=list — то есть ВСЕ активные персонажи.
-    PORTAL_USERS_JSON используется только как дополнительная информация
-    о логине/аккаунте, если такая привязка существует.
+    Раньше для КАЖДОГО активного персонажа здесь вызывался
+    loadCharacterData(), из-за чего одно раскрытие состава могло
+    породить десятки Google-запросов.
+
+    Полный снимок персонажа читаем только один раз — когда ивентер
+    действительно добавляет выбранного персонажа.
   */
   const registry =
     await loadLiveCharacterRegistry();
@@ -561,68 +536,79 @@ async function listCandidates(
       )
     );
 
-  const candidates =
-    await Promise.all(
-      registry.map(
-        async item => {
-          const user =
-            usersByCharacterId.get(
+  return registry
+    .map(
+      item => {
+        const user =
+          usersByCharacterId.get(
+            item.characterId
+          );
+
+        return {
+          characterId:
+            item.characterId,
+
+          login:
+            user?.login ||
+            '',
+
+          accountName:
+            user?.displayName ||
+            item.player ||
+            '',
+
+          role:
+            user?.role ||
+            'player',
+
+          registered:
+            registered.has(
               item.characterId
-            );
+            ),
 
-          const character =
-            await loadCharacterSnapshot(
-              item.characterId,
-              item.name
-            );
-
-          return {
-            characterId:
+          character: {
+            name:
+              item.name ||
               item.characterId,
 
-            login:
-              user?.login ||
+            level:
+              item.level ||
+              0,
+
+            rank:
+              item.rank ||
               '',
 
-            accountName:
-              user?.displayName ||
-              item.player ||
+            className:
+              item.className ||
               '',
 
-            role:
-              user?.role ||
-              'player',
-
-            registered:
-              registered.has(
-                item.characterId
-              ),
-
-            character,
-          };
-        }
-      )
-    );
-
-  return candidates.sort(
-    (
-      first,
-      second
-    ) =>
-      String(
-        first.character?.name ||
-        first.accountName ||
-        ''
-      )
-        .localeCompare(
-          String(
-            second.character?.name ||
-            second.accountName ||
-            ''
-          ),
-          'ru'
+            squad:
+              item.squad ||
+              '',
+          },
+        };
+      }
+    )
+    .sort(
+      (
+        first,
+        second
+      ) =>
+        String(
+          first.character?.name ||
+          first.accountName ||
+          ''
         )
-  );
+          .localeCompare(
+            String(
+              second.character?.name ||
+              second.accountName ||
+              ''
+            ),
+            'ru'
+          )
+    );
 }
 
 
@@ -698,40 +684,81 @@ export default async function (
         );
       }
 
+      const mode =
+        cleanText(
+          url.searchParams.get(
+            'mode'
+          )
+        )
+          .toLowerCase();
+
       const participants =
         await listParticipants(
           event
         );
+
+      const eventInfo = {
+        key,
+
+        id:
+          cleanText(
+            event.id
+          ),
+
+        title:
+          cleanText(
+            event.title
+          ),
+
+        status:
+          cleanText(
+            event.status
+          ),
+      };
+
+      /*
+        mode=participants — быстрый путь.
+        Только Netlify Blob, БЕЗ Google.
+
+        mode=candidates — тяжёлый реестр Google загружается
+        только тогда, когда ивентер реально открыл добавление
+        персонажа. Он больше не блокирует показ состава.
+      */
+      if (
+        mode ===
+          'participants'
+      ) {
+        return json({
+          ok: true,
+          event: eventInfo,
+          participants,
+        });
+      }
 
       const candidates =
         await listCandidates(
           participants
         );
 
+      if (
+        mode ===
+          'candidates'
+      ) {
+        return json({
+          ok: true,
+          event: eventInfo,
+          candidates,
+        });
+      }
+
+      /*
+        Старое поведение оставляем для обратной совместимости
+        других возможных клиентов API.
+      */
       return json({
         ok: true,
-
-        event: {
-          key,
-
-          id:
-            cleanText(
-              event.id
-            ),
-
-          title:
-            cleanText(
-              event.title
-            ),
-
-          status:
-            cleanText(
-              event.status
-            ),
-        },
-
+        event: eventInfo,
         participants,
-
         candidates,
       });
     }
@@ -970,6 +997,9 @@ export default async function (
 
       return json({
         ok: true,
+
+        removedCharacterId:
+          characterId,
       });
     }
 
@@ -1036,18 +1066,98 @@ export default async function (
         alreadyRegistered:
           true,
 
-        signup:
-          existing,
+        participant: {
+          key:
+            signupKey,
+
+          characterId,
+
+          source:
+            cleanText(
+              existing.source ||
+              'admin'
+            ),
+
+          joinedAt:
+            cleanText(
+              existing.createdAt
+            ),
+
+          character:
+            existing.character ||
+            {
+              name:
+                cleanText(
+                  existing.playerName ||
+                  registryCharacter.name ||
+                  characterId
+                ),
+
+              level:
+                Number(
+                  registryCharacter.level
+                ) || 0,
+
+              rank:
+                cleanText(
+                  registryCharacter.rank
+                ),
+
+              className:
+                cleanText(
+                  registryCharacter.className
+                ),
+
+              squad:
+                cleanText(
+                  registryCharacter.squad
+                ),
+            },
+
+          loadout:
+            existing.loadout ||
+            {
+              equipment: [],
+              inventory: [],
+            },
+        },
       });
     }
 
 
-    const character =
-      await loadCharacterSnapshot(
-        characterId,
-        user?.displayName ||
-        registryCharacter.name
-      );
+    /*
+      Для ручного добавления нам уже достаточно данных из
+      лёгкого реестра САЙТ. Не делаем второй тяжёлый запрос
+      полной карточки персонажа в Google.
+    */
+    const character = {
+      name:
+        cleanText(
+          registryCharacter.name ||
+          user?.displayName ||
+          characterId
+        ),
+
+      level:
+        Number(
+          registryCharacter.level
+        ) || 0,
+
+      rank:
+        cleanText(
+          registryCharacter.rank
+        ),
+
+      className:
+        cleanText(
+          registryCharacter.className
+        ),
+
+      squad:
+        cleanText(
+          registryCharacter.squad
+        ),
+    };
 
     const now =
       new Date()
@@ -1142,7 +1252,23 @@ export default async function (
       alreadyRegistered:
         false,
 
-      signup,
+      participant: {
+        key:
+          signupKey,
+
+        characterId,
+
+        source:
+          'admin',
+
+        joinedAt:
+          now,
+
+        character,
+
+        loadout:
+          signup.loadout,
+      },
     });
 
   } catch (
