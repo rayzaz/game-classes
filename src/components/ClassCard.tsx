@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
+import { createPortal } from 'react-dom';
 
 type ProfileItem = {
   label: string;
@@ -188,9 +189,12 @@ export default function ClassCard({
         </button>
       </article>
 
-      {open ? (
-        <div
-          className="class-detail-backdrop"
+      {open &&
+      typeof document !==
+        'undefined'
+        ? createPortal(
+            <div
+              className="class-detail-backdrop"
           role="presentation"
           onMouseDown={event => {
             if (event.currentTarget === event.target) setOpen(false);
@@ -288,9 +292,11 @@ export default function ClassCard({
                 </aside>
               </div>
             </div>
-          </section>
-        </div>
-      ) : null}
+            </section>
+          </div>,
+          document.body
+        )
+        : null}
     </>
   );
 }

@@ -105,6 +105,9 @@ type ResponseData = {
   participant?:
     Participant;
 
+  candidateDetail?:
+    CharacterSnapshot;
+
   item?:
     LoadoutItem;
 
@@ -754,6 +757,36 @@ export default function AdminEventParticipants({
 
 
   const [
+    selectedCandidateDetail,
+    setSelectedCandidateDetail,
+  ] =
+    useState<
+      CharacterSnapshot |
+      null
+    >(
+      null
+    );
+
+
+  const [
+    selectedCandidateLoading,
+    setSelectedCandidateLoading,
+  ] =
+    useState(
+      false
+    );
+
+
+  const [
+    selectedCandidateError,
+    setSelectedCandidateError,
+  ] =
+    useState(
+      ''
+    );
+
+
+  const [
     loading,
     setLoading,
   ] =
@@ -963,6 +996,104 @@ export default function AdminEventParticipants({
     );
 
 
+  useEffect(
+    () => {
+      let cancelled =
+        false;
+
+      const characterId =
+        selectedCharacterId;
+
+      setSelectedCandidateDetail(
+        null
+      );
+
+      setSelectedCandidateError(
+        ''
+      );
+
+      if (!characterId) {
+        setSelectedCandidateLoading(
+          false
+        );
+        return () => {
+          cancelled =
+            true;
+        };
+      }
+
+      async function loadSelectedCandidate() {
+        setSelectedCandidateLoading(
+          true
+        );
+
+        try {
+          const response =
+            await fetch(
+              `${API}?key=${encodeURIComponent(eventKey)}&mode=candidate-detail&characterId=${encodeURIComponent(characterId)}&t=${Date.now()}`,
+              {
+                cache:
+                  'no-store',
+              }
+            );
+
+          const result:
+            ResponseData =
+              await response.json();
+
+          if (
+            !response.ok ||
+            !result.ok ||
+            !result.candidateDetail
+          ) {
+            throw new Error(
+              result.error ||
+              `Ошибка HTTP: ${response.status}`
+            );
+          }
+
+          if (!cancelled) {
+            setSelectedCandidateDetail(
+              result.candidateDetail
+            );
+          }
+
+        } catch (
+          err
+        ) {
+          if (!cancelled) {
+            setSelectedCandidateError(
+              err instanceof Error
+                ? err.message
+                : String(
+                    err
+                  )
+            );
+          }
+
+        } finally {
+          if (!cancelled) {
+            setSelectedCandidateLoading(
+              false
+            );
+          }
+        }
+      }
+
+      void loadSelectedCandidate();
+
+      return () => {
+        cancelled =
+          true;
+      };
+    },
+    [
+      eventKey,
+      selectedCharacterId,
+    ]
+  );
+
+
   const mutate =
     async (
       action:
@@ -998,6 +1129,12 @@ export default function AdminEventParticipants({
                   action,
 
                   characterId,
+
+                  character:
+                    action ===
+                      'add'
+                      ? selectedCandidateDetail
+                      : undefined,
                 }),
             }
           );
@@ -1020,6 +1157,14 @@ export default function AdminEventParticipants({
 
 
         setSelectedCharacterId(
+          ''
+        );
+
+        setSelectedCandidateDetail(
+          null
+        );
+
+        setSelectedCandidateError(
           ''
         );
 
@@ -1062,7 +1207,7 @@ export default function AdminEventParticipants({
                         )
                   );
 
-              onCountChange?.(
+              onCountChangeRef.current?.(
                 next.length
               );
 
@@ -1108,7 +1253,7 @@ export default function AdminEventParticipants({
                     removedId
                 );
 
-              onCountChange?.(
+              onCountChangeRef.current?.(
                 next.length
               );
 
@@ -1475,6 +1620,10 @@ export default function AdminEventParticipants({
                         candidate.accountName ||
                         candidate.characterId}
 
+                      {candidate.character.level
+                        ? ` · ур. ${candidate.character.level}`
+                        : ''}
+
                       {candidate.character.className
                         ? ` · ${candidate.character.className}`
                         : ''}
@@ -1483,11 +1632,51 @@ export default function AdminEventParticipants({
                 )}
               </select>
 
+              {selectedCharacterId ? (
+                <div className="admin-event-candidate-preview">
+                  {selectedCandidateLoading ? (
+                    <span>
+                      Загружаем уровень и данные персонажа…
+                    </span>
+                  ) : selectedCandidateError ? (
+                    <span className="admin-event-candidate-preview-error">
+                      {selectedCandidateError}
+                    </span>
+                  ) : selectedCandidateDetail ? (
+                    <>
+                      <strong>
+                        {selectedCandidateDetail.name ||
+                          selectedCharacterId}
+                      </strong>
+
+                      <div>
+                        <span>
+                          Ур. {selectedCandidateDetail.level ||
+                            '—'}
+                        </span>
+
+                        <span>
+                          {selectedCandidateDetail.className ||
+                            'Класс не указан'}
+                        </span>
+
+                        <span>
+                          {selectedCandidateDetail.rank ||
+                            'Ранг не указан'}
+                        </span>
+                      </div>
+                    </>
+                  ) : null}
+                </div>
+              ) : null}
+
               <button
                 type="button"
                 className="admin-button admin-button-primary"
                 disabled={
                   !selectedCharacterId ||
+                  selectedCandidateLoading ||
+                  !selectedCandidateDetail ||
                   Boolean(
                     busyCharacterId
                   )
@@ -1498,7 +1687,9 @@ export default function AdminEventParticipants({
               >
                 {busyCharacterId
                   ? 'Добавляем…'
-                  : 'Добавить'}
+                  : selectedCandidateLoading
+                    ? 'Загружаем уровень…'
+                    : 'Добавить'}
               </button>
 
               <button

@@ -174,6 +174,19 @@ function cleanNumber(
 }
 
 
+
+function validEventKey(
+  key
+) {
+  return /^events\/[0-9]+_[a-f0-9-]{36}$/i
+    .test(
+      String(
+        key || ''
+      )
+    );
+}
+
+
 /* ============================================================
    МАТЕРИАЛЬНЫЕ НАГРАДЫ
    ============================================================ */
@@ -1035,6 +1048,184 @@ async function createEvent(
 }
 
 
+
+async function deleteEvent(
+  request,
+  session
+) {
+  const body =
+    await request
+      .json()
+      .catch(
+        () => ({})
+      );
+
+  const key =
+    cleanText(
+      body?.key,
+      300
+    );
+
+  if (
+    !validEventKey(
+      key
+    )
+  ) {
+    return json(
+      {
+        ok: false,
+        error:
+          'Некорректный ключ ивента',
+      },
+      400
+    );
+  }
+
+  const store =
+    getEventStore();
+
+  const event =
+    await store.get(
+      key,
+      {
+        type:
+          'json',
+        consistency:
+          'strong',
+      }
+    );
+
+  if (!event) {
+    return json(
+      {
+        ok: false,
+        error:
+          'Ивент не найден',
+      },
+      404
+    );
+  }
+
+  const status =
+    cleanText(
+      event.status ||
+        'draft',
+      50
+    )
+      .toLowerCase();
+
+  if (
+    status ===
+      'active'
+  ) {
+    return json(
+      {
+        ok: false,
+        error:
+          'Идущий ивент нельзя удалить. Сначала отмените или завершите его.',
+      },
+      409
+    );
+  }
+
+  if (
+    status ===
+      'completed'
+  ) {
+    return json(
+      {
+        ok: false,
+        error:
+          'Завершённый ивент нельзя удалить: он хранит историю отчёта и выданных наград.',
+      },
+      409
+    );
+  }
+
+  const eventId =
+    cleanText(
+      event.id,
+      100
+    );
+
+  let removedSignups =
+    0;
+
+  if (eventId) {
+    const signupsStore =
+      getSignupsStore();
+
+    const listed =
+      await signupsStore.list({
+        prefix:
+          `signups/${eventId}/`,
+      });
+
+    const signupBlobs =
+      Array.isArray(
+        listed?.blobs
+      )
+        ? listed.blobs
+        : [];
+
+    await Promise.all(
+      signupBlobs.map(
+        blob =>
+          signupsStore.delete(
+            blob.key
+          )
+      )
+    );
+
+    removedSignups =
+      signupBlobs.length;
+  }
+
+  await store.delete(
+    key
+  );
+
+  const adminName =
+    getAdminName(
+      session
+    );
+
+  await tryWriteAdminLog({
+    adminLogin:
+      session.sub,
+    adminName,
+    action:
+      'DELETE_EVENT',
+    targetType:
+      'event',
+    targetId:
+      eventId || key,
+    targetName:
+      cleanText(
+        event.title,
+        200
+      ) || 'Ивент',
+    details:
+      `Удалён ивент «${cleanText(event.title, 200) || 'Без названия'}». Статус до удаления: ${status}. Удалено записей участников: ${removedSignups}.`,
+  });
+
+  return json({
+    ok: true,
+    deleted: {
+      key,
+      id:
+        eventId,
+      title:
+        cleanText(
+          event.title,
+          200
+        ),
+    },
+    removedSignups,
+  });
+}
+
+
 /* ============================================================
    NETLIFY FUNCTION
    ============================================================ */
@@ -1097,6 +1288,22 @@ export default async function (
     ) {
 
       return await createEvent(
+        request,
+        session
+      );
+    }
+
+
+    /* =========================
+       DELETE — УДАЛИТЬ ИВЕНТ
+       ========================= */
+
+    if (
+      request.method ===
+      'DELETE'
+    ) {
+
+      return await deleteEvent(
         request,
         session
       );

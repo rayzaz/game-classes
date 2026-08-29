@@ -9,6 +9,8 @@ import AssistantLumin from './AssistantLumin';
 import MerioQuestionnaire from './assistants/Merio/MerioQuestionnaire';
 import RenQuestionnaire from './assistants/Ren/RenQuestionnaire';
 import LuminQuestionnaire from './assistants/Lumin/LuminQuestionnaire';
+import { clearQuestionnaireDraft } from './questionnaire/QuestionnaireWizard';
+import './gosmag-modern.css';
 
 import { CLASSES } from '../data/classes';
 import {
@@ -48,7 +50,8 @@ type Phase =
   | 'place'
   | 'register'
   | 'login'
-  | 'questionnaire';
+  | 'questionnaire'
+  | 'submitted';
 
 
 type AssistantDef = {
@@ -762,18 +765,10 @@ export default function Portal({
           false
         );
 
+        clearQuestionnaireDraft();
 
         setPhase(
-          'welcome'
-        );
-
-
-        window.setTimeout(
-          () =>
-            setPhase(
-              'dialog'
-            ),
-          1000
+          'submitted'
         );
 
       } catch (
@@ -813,7 +808,7 @@ export default function Portal({
     >
 
       <div
-        className="portal-container solid"
+        className={`portal-container solid gosmag-portal ${phase === 'questionnaire' ? 'gosmag-portal--questionnaire' : ''}`}
         onClick={
           (e) =>
             e.stopPropagation()
@@ -922,64 +917,42 @@ export default function Portal({
               {phase === 'dialog' && (
                 <>
 
-                  <div className="asst-text">
-                    Вы здесь впервые?
+                  <div className="gosmag-service-kicker">ГосМАГ · единый магический реестр</div>
+                  <div className="asst-text gosmag-service-intro">
+                    <strong>Что хотите сделать?</strong>
+                    <span>Войдите в существующий кабинет или оформите нового персонажа.</span>
                   </div>
 
-
-                  <div className="asst-actions">
-
+                  <div className="asst-actions gosmag-service-actions">
                     <button
-                      className="btn"
-                      onClick={
-                        () =>
-                          setPhase(
-                            'login'
-                          )
-                      }
+                      className="btn primary gosmag-service-action gosmag-service-action--primary"
+                      onClick={() => setPhase('questionnaire')}
                     >
-                      Нет, меня регистрировали
+                      <span className="gosmag-service-action-icon">＋</span>
+                      <span><b>Создать анкету</b><small>Регистрация нового персонажа</small></span>
                     </button>
 
-
                     <button
-                      className="btn primary"
-                      onClick={
-                        () =>
-                          setPhase(
-                            'questionnaire'
-                          )
-                      }
+                      className="btn gosmag-service-action"
+                      onClick={() => setPhase('login')}
                     >
-                      Да, не зарегистрирован(а)
+                      <span className="gosmag-service-action-icon">↗</span>
+                      <span><b>Войти в кабинет</b><small>Для уже зарегистрированных</small></span>
                     </button>
 
-
                     <button
-                      className="btn"
-                      onClick={
-                        () =>
-                          setPhase(
-                            'about'
-                          )
-                      }
+                      className="btn gosmag-service-mini"
+                      onClick={() => setPhase('about')}
                     >
-                      Кто ты?
+                      О помощнике
                     </button>
 
-
                     <button
-                      className="btn"
-                      onClick={
-                        () =>
-                          setPhase(
-                            'place'
-                          )
-                      }
+                      className="btn gosmag-service-mini"
+                      onClick={() => setPhase('place')}
                     >
-                      Где я нахожусь?
+                      Что умеет портал
                     </button>
-
                   </div>
 
                 </>
@@ -1061,62 +1034,16 @@ export default function Portal({
 
           <section className="portal-panel">
 
-            <div
-              className="portal-heading"
-              style={{
-                marginBottom:
-                  8,
-              }}
-            >
-              🔐 Вход в ГосМАГ-услуги
+            <div className="gosmag-login-head">
+              <div className="gosmag-service-kicker">ГосМАГ · личный кабинет</div>
+              <div className="portal-heading">Вход в систему</div>
+              <div className="portal-subtle">Используйте логин и пароль, выданные после регистрации персонажа.</div>
             </div>
 
 
-            <div
-              className="portal-subtle"
-              style={{
-                marginBottom:
-                  24,
-              }}
-            >
-              Введите данные, выданные после регистрации персонажа.
-            </div>
+            <form onSubmit={handleLogin} className="gosmag-login-form">
 
-
-            <form
-              onSubmit={
-                handleLogin
-              }
-              style={{
-                width:
-                  'min(430px, 100%)',
-
-                margin:
-                  '0 auto',
-
-                display:
-                  'flex',
-
-                flexDirection:
-                  'column',
-
-                gap:
-                  16,
-              }}
-            >
-
-              <label
-                style={{
-                  display:
-                    'flex',
-
-                  flexDirection:
-                    'column',
-
-                  gap:
-                    7,
-                }}
-              >
+              <label className="gosmag-login-field">
 
                 <span>
                   Логин
@@ -1140,42 +1067,13 @@ export default function Portal({
                   placeholder="Логин игрока"
                   autoComplete="username"
                   autoFocus
-                  style={{
-                    width:
-                      '100%',
 
-                    boxSizing:
-                      'border-box',
-
-                    padding:
-                      '12px 14px',
-
-                    borderRadius:
-                      10,
-
-                    border:
-                      '1px solid rgba(127,127,127,.35)',
-
-                    font:
-                      'inherit',
-                  }}
                 />
 
               </label>
 
 
-              <label
-                style={{
-                  display:
-                    'flex',
-
-                  flexDirection:
-                    'column',
-
-                  gap:
-                    7,
-                }}
-              >
+              <label className="gosmag-login-field">
 
                 <span>
                   Пароль
@@ -1198,25 +1096,7 @@ export default function Portal({
                   }
                   placeholder="Введите пароль"
                   autoComplete="current-password"
-                  style={{
-                    width:
-                      '100%',
 
-                    boxSizing:
-                      'border-box',
-
-                    padding:
-                      '12px 14px',
-
-                    borderRadius:
-                      10,
-
-                    border:
-                      '1px solid rgba(127,127,127,.35)',
-
-                    font:
-                      'inherit',
-                  }}
                 />
 
               </label>
@@ -1224,28 +1104,14 @@ export default function Portal({
 
               {loginError && (
 
-                <div
-                  style={{
-                    padding:
-                      '10px 12px',
-
-                    borderRadius:
-                      10,
-
-                    background:
-                      'rgba(170, 40, 40, .12)',
-
-                    color:
-                      '#b04444',
-                  }}
-                >
+                <div className="gosmag-login-error">
                   {loginError}
                 </div>
 
               )}
 
 
-              <div className="asst-actions">
+              <div className="asst-actions gosmag-login-actions">
 
                 <button
                   type="submit"
@@ -1296,13 +1162,16 @@ export default function Portal({
 
         {phase === 'questionnaire' && (
 
-          <section className="portal-dialog">
+          <section className="portal-dialog portal-questionnaire-dialog">
 
-            <AssistantView
-              speaking={
-                qSpeaking
-              }
-            />
+            <aside className="portal-questionnaire-assistant">
+              <AssistantView speaking={qSpeaking} />
+              <div className="portal-questionnaire-assistant-meta">
+                <span>Помощник регистрации</span>
+                <strong>{ASST.name}</strong>
+                <small>{ASST.title}</small>
+              </div>
+            </aside>
 
 
             {ASST.id === 'mereo' ? (
@@ -1432,6 +1301,20 @@ export default function Portal({
 
           </section>
 
+        )}
+
+
+        {phase === 'submitted' && (
+          <section className="portal-panel gosmag-submitted">
+            <div className="gosmag-submitted-mark">✓</div>
+            <div className="gosmag-service-kicker">ГосМАГ · регистрационное дело принято</div>
+            <h2>Анкета отправлена</h2>
+            <p>Она появилась у администрации на проверке. После одобрения вам выдадут данные для входа в личный кабинет.</p>
+            <div className="gosmag-submitted-actions">
+              <button type="button" className="btn primary" onClick={() => setPhase('dialog')}>Вернуться в ГосМАГ</button>
+              <button type="button" className="btn" onClick={onClose}>Закрыть</button>
+            </div>
+          </section>
         )}
 
       </div>

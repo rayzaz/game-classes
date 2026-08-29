@@ -644,3 +644,80 @@
     margin-left: 24px;
   }
 }
+
+/* =====================================================
+   ВЫБРАННЫЙ КАНДИДАТ / УРОВЕНЬ
+   ===================================================== */
+
+.admin-event-candidate-preview {
+  grid-column: 1 / -1;
+  display: grid;
+  gap: 7px;
+  min-width: 0;
+  padding: 11px 12px;
+  border: 1px solid rgba(132,108,255,.18);
+  border-radius: 12px;
+  background: rgba(132,108,255,.045);
+}
+
+.admin-event-candidate-preview > strong {
+  font-size: 12px;
+}
+
+.admin-event-candidate-preview > div {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.admin-event-candidate-preview > div > span {
+  padding: 5px 7px;
+  border: 1px solid rgba(255,255,255,.07);
+  border-radius: 8px;
+  color: rgba(255,255,255,.72);
+  background: rgba(255,255,255,.025);
+  font-size: 9px;
+}
+
+.admin-event-candidate-preview > span,
+.admin-event-candidate-preview-error {
+  color: rgba(255,255,255,.58);
+  font-size: 10px;
+  line-height: 1.5;
+}
+
+.admin-event-candidate-preview-error {
+  color: #eaa0a9 !important;
+}
+
+/* Ранг никогда не растягиваем по ширине карточки. */
+.admin-event-member-rank {
+  overflow: hidden;
+}
+
+.admin-event-member-rank img {
+  width: auto !important;
+  max-width: min(105px, 44%) !important;
+  height: 25px !important;
+  flex: 0 1 auto !important;
+  object-fit: contain !important;
+  object-position: left center;
+}
+
+@media (max-width: 620px) {
+  .admin-event-member-add {
+    grid-template-columns: 1fr;
+  }
+
+  .admin-event-candidate-preview {
+    grid-column: auto;
+  }
+
+  .admin-event-member-info {
+    grid-template-columns: 1fr;
+  }
+
+  .admin-event-member-rank img {
+    max-width: 96px !important;
+  }
+}

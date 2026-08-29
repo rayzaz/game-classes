@@ -1,5 +1,6 @@
 import React, {
   useEffect,
+  useMemo,
   useState,
 } from 'react';
 
@@ -8,10 +9,9 @@ import AdminCharacters, {
 } from './AdminCharacters';
 
 import AdminQuestionnaires from './AdminQuestionnaires';
-
 import AdminEvents from './AdminEvents';
+import AdminEventReports from './AdminEventReports';
 import AdminEventerAccess from './AdminEventerAccess';
-
 import AdminAuditLog from './AdminAuditLog';
 import AdminCalendar from './AdminCalendar';
 
@@ -20,9 +20,7 @@ import './admin.css';
 
 type Props = {
   displayName: string;
-
   onBack: () => void;
-
   onOpenCharacter:
     (
       characterId: string
@@ -34,36 +32,74 @@ type AdminSection =
   | 'characters'
   | 'questionnaires'
   | 'events'
+  | 'reports'
   | 'eventers'
   | 'calendar'
-  | 'notifications'
   | 'audit';
 
 
 type SessionUser = {
   login: string;
-
   displayName: string;
-
   role:
     | 'player'
     | 'admin';
-
   characterId: string;
-
   cabinetReady: boolean;
 };
 
 
 type SessionResponse = {
   ok: boolean;
-
   user:
     SessionUser |
     null;
-
   error?: string;
 };
+
+
+const NAV_ITEMS:
+  Array<{
+    id: AdminSection;
+    label: string;
+    icon: string;
+  }> = [
+    {
+      id: 'characters',
+      label: 'Персонажи',
+      icon: '◇',
+    },
+    {
+      id: 'questionnaires',
+      label: 'Анкеты',
+      icon: '▤',
+    },
+    {
+      id: 'events',
+      label: 'Ивенты',
+      icon: '✦',
+    },
+    {
+      id: 'reports',
+      label: 'Отчёты ивентеров',
+      icon: '≡',
+    },
+    {
+      id: 'eventers',
+      label: 'Права ивентеров',
+      icon: '◎',
+    },
+    {
+      id: 'calendar',
+      label: 'Календарь',
+      icon: '◷',
+    },
+    {
+      id: 'audit',
+      label: 'Журнал действий',
+      icon: '↺',
+    },
+  ];
 
 
 export default function AdminCabinet({
@@ -71,7 +107,6 @@ export default function AdminCabinet({
   onBack,
   onOpenCharacter,
 }: Props) {
-
   const [
     section,
     setSection
@@ -79,7 +114,6 @@ export default function AdminCabinet({
     useState<AdminSection>(
       'characters'
     );
-
 
   const [
     characters,
@@ -91,7 +125,6 @@ export default function AdminCabinet({
       []
     );
 
-
   const [
     loading,
     setLoading
@@ -99,7 +132,6 @@ export default function AdminCabinet({
     useState(
       true
     );
-
 
   const [
     error,
@@ -109,11 +141,6 @@ export default function AdminCabinet({
       ''
     );
 
-
-  /* ============================================================
-     СОБСТВЕННЫЙ ПЕРСОНАЖ АДМИНА
-     ============================================================ */
-
   const [
     ownCharacterId,
     setOwnCharacterId
@@ -121,7 +148,6 @@ export default function AdminCabinet({
     useState(
       ''
     );
-
 
   const [
     sessionChecked,
@@ -134,15 +160,11 @@ export default function AdminCabinet({
 
   useEffect(
     () => {
-
       let cancelled =
         false;
 
-
       async function loadSession() {
-
         try {
-
           const response =
             await fetch(
               `/.netlify/functions/session?t=${Date.now()}`,
@@ -155,31 +177,16 @@ export default function AdminCabinet({
               }
             );
 
-
-          let result:
-            SessionResponse |
-            null =
-              null;
-
-
-          try {
-
-            result =
-              await response.json();
-
-          } catch {
-
-            result =
-              null;
-          }
-
+          const result:
+            SessionResponse =
+              await response
+                .json();
 
           if (
             cancelled
           ) {
             return;
           }
-
 
           if (
             response.ok &&
@@ -188,7 +195,6 @@ export default function AdminCabinet({
             result.user.role ===
               'admin'
           ) {
-
             setOwnCharacterId(
               String(
                 result.user
@@ -198,9 +204,7 @@ export default function AdminCabinet({
                 .trim()
                 .toLowerCase()
             );
-
           } else {
-
             setOwnCharacterId(
               ''
             );
@@ -209,28 +213,23 @@ export default function AdminCabinet({
         } catch (
           err
         ) {
-
           console.error(
             'Не удалось определить персонажа администратора:',
             err
           );
 
-
           if (
             !cancelled
           ) {
-
             setOwnCharacterId(
               ''
             );
           }
 
         } finally {
-
           if (
             !cancelled
           ) {
-
             setSessionChecked(
               true
             );
@@ -238,34 +237,23 @@ export default function AdminCabinet({
         }
       }
 
-
-      loadSession();
-
+      void loadSession();
 
       return () => {
-
         cancelled =
           true;
       };
-
     },
     []
   );
 
 
-  /* ============================================================
-     ПОЛУЧАЕМ ПЕРСОНАЖЕЙ
-     ============================================================ */
-
   useEffect(
     () => {
-
       let cancelled =
         false;
 
-
       async function loadCharacters() {
-
         setLoading(
           true
         );
@@ -274,9 +262,7 @@ export default function AdminCabinet({
           ''
         );
 
-
         try {
-
           const response =
             await fetch(
               `/.netlify/functions/admin-characters?t=${Date.now()}`,
@@ -289,39 +275,28 @@ export default function AdminCabinet({
               }
             );
 
-
-          let result: any =
-            null;
-
-
-          try {
-
-            result =
-              await response.json();
-
-          } catch {
-
-            result =
-              null;
-          }
-
+          const result:
+            {
+              ok?: boolean;
+              characters?: AdminCharacterSummary[];
+              error?: string;
+            } =
+              await response
+                .json();
 
           if (
             !response.ok ||
             !result?.ok
           ) {
-
             throw new Error(
               result?.error ||
               'Не удалось загрузить реестр персонажей'
             );
           }
 
-
           if (
             !cancelled
           ) {
-
             setCharacters(
               Array.isArray(
                 result.characters
@@ -332,27 +307,24 @@ export default function AdminCabinet({
           }
 
         } catch (
-          err: any
+          err
         ) {
-
           if (
             !cancelled
           ) {
-
             setError(
-              err?.message ||
-              String(
-                err
-              )
+              err instanceof Error
+                ? err.message
+                : String(
+                    err
+                  )
             );
           }
 
         } finally {
-
           if (
             !cancelled
           ) {
-
             setLoading(
               false
             );
@@ -360,423 +332,199 @@ export default function AdminCabinet({
         }
       }
 
-
-      loadCharacters();
-
+      void loadCharacters();
 
       return () => {
-
         cancelled =
           true;
       };
-
     },
     []
   );
 
 
+  const activeLabel =
+    useMemo(
+      () =>
+        NAV_ITEMS.find(
+          item =>
+            item.id ===
+            section
+        )?.label ||
+        'Админ-центр',
+      [
+        section,
+      ]
+    );
+
+
   return (
-
     <main className="admin-root">
-
       <div className="admin-shell">
-
-        {/* ======================================================
-            ВЕРХНЯЯ ПАНЕЛЬ
-            ====================================================== */}
-
-        <header className="admin-topbar">
-
+        <header className="admin-topbar admin-topbar-modern">
           <div className="admin-brand">
-
             <strong>
-              ГосМАГ · Администрация
+              ГосМАГ · Админ-центр
             </strong>
 
             <span>
-              Управление игровым реестром
+              {activeLabel}
             </span>
-
           </div>
 
+          <div className="admin-topbar-actions">
+            <div className="admin-user">
+              <span className="admin-user-dot" />
 
-          <div className="admin-user">
+              <span>
+                {displayName ||
+                  'Администратор'}
+              </span>
+            </div>
 
-            <span className="admin-user-dot" />
-
-            <span>
-              {
-                displayName ||
-                'Администратор'
+            <button
+              type="button"
+              className="admin-button"
+              onClick={
+                onBack
               }
-            </span>
-
+            >
+              ← На главную
+            </button>
           </div>
-
         </header>
 
-
-        {/* ======================================================
-            НАВИГАЦИЯ
-            ====================================================== */}
-
-        <nav className="admin-nav">
-
-          {/* =========================
-              МОЙ ПЕРСОНАЖ
-
-              Показываем ТОЛЬКО если
-              у текущего администратора
-              есть characterId.
-              ========================= */}
-
-          {
-            sessionChecked &&
-            ownCharacterId
-              ? (
-
-                <button
-                  type="button"
-
-                  className="admin-nav-button"
-
-                  onClick={
-                    () =>
-                      onOpenCharacter(
-                        ownCharacterId
+        <div className="admin-workspace">
+          <aside className="admin-sidebar">
+            <nav className="admin-sidebar-nav">
+              {NAV_ITEMS.map(
+                item => (
+                  <button
+                    key={
+                      item.id
+                    }
+                    type="button"
+                    className={`admin-sidebar-button${
+                      section ===
+                      item.id
+                        ? ' active'
+                        : ''
+                    }`}
+                    onClick={() =>
+                      setSection(
+                        item.id
                       )
-                  }
+                    }
+                  >
+                    <span aria-hidden="true">
+                      {item.icon}
+                    </span>
 
-                  title="Открыть своего игрового персонажа"
-                >
-                  ✦ Мой персонаж
-                </button>
-
-              )
-              : null
-          }
-
-
-          {/* =========================
-              ПЕРСОНАЖИ
-              ========================= */}
-
-          <button
-            type="button"
-
-            className={
-              `admin-nav-button ${
-                section ===
-                'characters'
-                  ? 'active'
-                  : ''
-              }`
-            }
-
-            onClick={
-              () =>
-                setSection(
-                  'characters'
+                    <strong>
+                      {item.label}
+                    </strong>
+                  </button>
                 )
-            }
-          >
-            Персонажи
-          </button>
+              )}
+            </nav>
 
+            {sessionChecked &&
+            ownCharacterId ? (
+              <button
+                type="button"
+                className="admin-sidebar-character"
+                onClick={() =>
+                  onOpenCharacter(
+                    ownCharacterId
+                  )
+                }
+              >
+                <span>
+                  ✦
+                </span>
 
-          {/* =========================
-              АНКЕТЫ
-              ========================= */}
+                <div>
+                  <strong>
+                    Мой персонаж
+                  </strong>
 
-          <button
-            type="button"
+                  <small>
+                    Открыть личное дело
+                  </small>
+                </div>
+              </button>
+            ) : null}
+          </aside>
 
-            className={
-              `admin-nav-button ${
-                section ===
-                'questionnaires'
-                  ? 'active'
-                  : ''
-              }`
-            }
+          <div className="admin-main admin-main-modern">
+            {section ===
+            'characters' ? (
+              <AdminCharacters
+                characters={
+                  characters
+                }
+                loading={
+                  loading
+                }
+                error={
+                  error
+                }
+                onOpenCharacter={
+                  onOpenCharacter
+                }
+              />
+            ) : null}
 
-            onClick={
-              () =>
-                setSection(
-                  'questionnaires'
-                )
-            }
-          >
-            Анкеты
-          </button>
+            {section ===
+            'questionnaires' ? (
+              <AdminQuestionnaires />
+            ) : null}
 
+            {section ===
+            'events' ? (
+              <AdminEvents />
+            ) : null}
 
-          {/* =========================
-              ИВЕНТЫ
-              ========================= */}
+            {section ===
+            'reports' ? (
+              <AdminEventReports />
+            ) : null}
 
-          <button
-            type="button"
+            {section ===
+            'eventers' ? (
+              <section className="admin-modern-section">
+                <div className="admin-section-head">
+                  <div>
+                    <div className="admin-kicker">
+                      ДОСТУП
+                    </div>
 
-            className={
-              `admin-nav-button ${
-                section ===
-                'events'
-                  ? 'active'
-                  : ''
-              }`
-            }
+                    <h2>
+                      Права ивентеров
+                    </h2>
 
-            onClick={
-              () =>
-                setSection(
-                  'events'
-                )
-            }
-          >
-            Ивенты
-          </button>
+                    <p>
+                      Выдача и отзыв доступа к созданию и проведению ивентов.
+                    </p>
+                  </div>
+                </div>
 
-
-          {/* =========================
-              ИВЕНТЕРЫ
-              ========================= */}
-
-          <button
-            type="button"
-            className={
-              `admin-nav-button ${
-                section ===
-                'eventers'
-                  ? 'active'
-                  : ''
-              }`
-            }
-            onClick={() =>
-              setSection(
-                'eventers'
-              )
-            }
-          >
-            Ивентеры
-          </button>
-
-
-          {/* =========================
-              КАЛЕНДАРЬ
-              ========================= */}
-
-          <button
-            type="button"
-
-            className={
-              `admin-nav-button ${
-                section ===
-                'calendar'
-                  ? 'active'
-                  : ''
-              }`
-            }
-
-            onClick={
-              () =>
-                setSection(
-                  'calendar'
-                )
-            }
-          >
-            ◷ Календарь
-          </button>
-
-
-          {/* =========================
-              УВЕДОМЛЕНИЯ
-              ПОКА ЗАБЛОКИРОВАНЫ
-              ========================= */}
-
-          <button
-            type="button"
-
-            className="admin-nav-button"
-
-            disabled
-
-            title="Добавим после системы ивентов"
-          >
-            Уведомления
-          </button>
-
-
-          {/* =========================
-              ИВЕНТЕРЫ
-              ========================= */}
-
-          {
-            section ===
-            'eventers'
-              ? (
                 <AdminEventerAccess />
-              )
-              : null
-          }
+              </section>
+            ) : null}
 
+            {section ===
+            'calendar' ? (
+              <AdminCalendar />
+            ) : null}
 
-          {/* =========================
-              ЖУРНАЛ
-              ========================= */}
-
-          <button
-            type="button"
-
-            className={
-              `admin-nav-button ${
-                section ===
-                'audit'
-                  ? 'active'
-                  : ''
-              }`
-            }
-
-            onClick={
-              () =>
-                setSection(
-                  'audit'
-                )
-            }
-          >
-            Журнал действий
-          </button>
-
-
-          {/* =========================
-              НАЗАД В КАТАЛОГ
-              ========================= */}
-
-          <button
-            type="button"
-
-            className="admin-button"
-
-            onClick={
-              onBack
-            }
-
-            style={{
-              marginLeft:
-                'auto',
-            }}
-          >
-            ← В каталог
-          </button>
-
-        </nav>
-
-
-        {/* ======================================================
-            СОДЕРЖИМОЕ
-            ====================================================== */}
-
-        <div className="admin-main">
-
-          {/* =========================
-              ПЕРСОНАЖИ
-              ========================= */}
-
-          {
-            section ===
-            'characters'
-              ? (
-
-                <AdminCharacters
-                  characters={
-                    characters
-                  }
-
-                  loading={
-                    loading
-                  }
-
-                  error={
-                    error
-                  }
-
-                  onOpenCharacter={
-                    onOpenCharacter
-                  }
-                />
-
-              )
-              : null
-          }
-
-
-          {/* =========================
-              АНКЕТЫ
-              ========================= */}
-
-          {
-            section ===
-            'questionnaires'
-              ? (
-
-                <AdminQuestionnaires />
-
-              )
-              : null
-          }
-
-
-          {/* =========================
-              ИВЕНТЫ
-              ========================= */}
-
-          {
-            section ===
-            'events'
-              ? (
-
-                <AdminEvents />
-
-              )
-              : null
-          }
-
-
-          {/* =========================
-              КАЛЕНДАРЬ
-              ========================= */}
-
-          {
-            section ===
-            'calendar'
-              ? (
-
-                <AdminCalendar />
-
-              )
-              : null
-          }
-
-
-          {/* =========================
-              ЖУРНАЛ
-              ========================= */}
-
-          {
-            section ===
-            'audit'
-              ? (
-
-                <AdminAuditLog />
-
-              )
-              : null
-          }
-
+            {section ===
+            'audit' ? (
+              <AdminAuditLog />
+            ) : null}
+          </div>
         </div>
-
       </div>
-
     </main>
   );
 }

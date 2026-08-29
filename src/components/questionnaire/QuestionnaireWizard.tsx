@@ -205,6 +205,10 @@ function toKey(c: GameClass) {
   return String(c.id ?? c.key ?? c.name);
 }
 
+function classIcon(c: GameClass) {
+  return c.image || `/class-icons/${toKey(c)}.png`;
+}
+
 function collectRoles(c: GameClass): string[] {
   const bucket: string[] = [];
   if (typeof c.role === 'string' && c.role.trim()) bucket.push(c.role);
@@ -966,7 +970,7 @@ export default function QuestionnaireWizard({
                   {recommendedClasses.map(({ klass, score }, index) => (
                     <button key={toKey(klass)} type="button" className={`qf-class-card featured ${data.classKey === toKey(klass) ? 'is-selected' : ''}`} onClick={() => selectClass(klass)}>
                       <span className="qf-rank">{index + 1}</span>
-                      <div className="qf-class-name"><span>{klass.emoji ?? '✦'}</span><b>{klass.name}</b></div>
+                      <div className="qf-class-name"><span className="qf-class-icon"><img src={classIcon(klass)} alt="" /></span><b>{klass.name}</b></div>
                       <strong>{scoreLabel(score, topScore)}</strong>
                       <small>{klass.role || klass.who || 'Подходит по стилю выбранной магии.'}</small>
                     </button>
@@ -979,7 +983,7 @@ export default function QuestionnaireWizard({
             <div className="qf-class-grid">
               {usableClasses.map((klass) => (
                 <button key={toKey(klass)} type="button" className={`qf-class-card ${data.classKey === toKey(klass) ? 'is-selected' : ''}`} onClick={() => selectClass(klass)}>
-                  <div className="qf-class-name"><span>{klass.emoji ?? '✦'}</span><b>{klass.name}</b></div>
+                  <div className="qf-class-name"><span className="qf-class-icon"><img src={classIcon(klass)} alt="" /></span><b>{klass.name}</b></div>
                   <small>{klass.role || klass.who || 'Боевой класс'}</small>
                   {isUniversal(klass) && <em>Требуется d100 ≥ 80</em>}
                 </button>
@@ -987,7 +991,7 @@ export default function QuestionnaireWizard({
             </div>
 
             {classMessage && <div className={`qf-info ${classMessage.includes('заблокированы') ? 'warning' : 'success'}`}>{classMessage}</div>}
-            {pickedClass && <div className="qf-picked-class"><b>Выбран:</b> {pickedClass.emoji ?? '✦'} {pickedClass.name}<span>{pickedClass.fit || pickedClass.who || pickedClass.role}</span></div>}
+            {pickedClass && <div className="qf-picked-class"><span className="qf-picked-class-icon"><img src={classIcon(pickedClass)} alt="" /></span><div><b>Выбран класс</b><strong>{pickedClass.name}</strong></div><span>{pickedClass.fit || pickedClass.who || pickedClass.role}</span></div>}
           </section>
         )}
 
@@ -1055,7 +1059,7 @@ export default function QuestionnaireWizard({
               <div className="qf-review-card"><div><b>История</b><button type="button" onClick={() => goTo(1)}>Изменить</button></div><p>{data.bio || '—'}</p><span>Игрок: {data.playerLink || '—'}</span></div>
               <div className="qf-review-card"><div><b>Внешность и системные параметры</b><button type="button" onClick={() => goTo(2)}>Изменить</button></div><p>Рост: {data.height || '—'} см · Вес: {data.weight || '—'} кг</p><span>Весовая категория: {data.weightCategory}</span><span>Телосложение: {data.body}</span></div>
               <div className="qf-review-card"><div><b>Магия</b><button type="button" onClick={() => goTo(3)}>Изменить</button></div><h4>{data.magicName || '—'}</h4><p>{data.elementKeys.map(getElementLabel).join(' + ') || '—'}</p><span>Вдохновитель: {data.magicInspiration || '—'}</span><span>{data.magicDescription || '—'}</span>{data.grimoirePhoto?.dataUrl && <img src={data.grimoirePhoto.dataUrl} alt="Гримуар" style={{ width: 64, height: 96, objectFit: 'contain', marginTop: 10, borderRadius: 12 }} />}</div>
-              <div className="qf-review-card"><div><b>Класс</b><button type="button" onClick={() => goTo(4)}>Изменить</button></div><h4>{pickedClass ? `${pickedClass.emoji ?? '✦'} ${pickedClass.name}` : '—'}</h4><p>{pickedClass?.role || pickedClass?.who || '—'}</p></div>
+              <div className="qf-review-card qf-review-class"><div><b>Класс</b><button type="button" onClick={() => goTo(4)}>Изменить</button></div>{pickedClass ? <div className="qf-review-class-main"><span className="qf-review-class-icon"><img src={classIcon(pickedClass)} alt="" /></span><div><h4>{pickedClass.name}</h4><p>{pickedClass.role || pickedClass.who || '—'}</p></div></div> : <h4>—</h4>}</div>
               <div className="qf-review-card wide"><div><b>Заклинания</b><button type="button" onClick={() => goTo(5)}>Изменить</button></div><div className="qf-review-spells">{data.spells.map((spell, index) => <div key={index}><b>{index + 1}. {spell.name}</b><span>{spell.powerType}: {spell.power ?? '—'} · d20</span><p>{spell.effect}</p></div>)}</div></div>
             </div>
 

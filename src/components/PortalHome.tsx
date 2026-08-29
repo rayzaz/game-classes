@@ -18,6 +18,7 @@ type Props = {
   onOpenCatalog: () => void;
   onOpenCharacter: () => void;
   onOpenEvents: () => void;
+  onOpenRankings: () => void;
   onOpenAdmin: () => void;
   onOpenEventer: () => void;
 };
@@ -49,6 +50,7 @@ export default function PortalHome({
   onOpenCatalog,
   onOpenCharacter,
   onOpenEvents,
+  onOpenRankings,
   onOpenAdmin,
   onOpenEventer,
 }: Props) {
@@ -228,6 +230,23 @@ export default function PortalHome({
                 <span className="portal-home-card-arrow" aria-hidden>↗</span>
               </button>
             ) : null}
+
+            <button
+              type="button"
+              className="portal-home-card"
+              onClick={onOpenRankings}
+            >
+              <HomeIcon>↟</HomeIcon>
+
+              <span className="portal-home-card-copy">
+                <strong>Рейтинг персонажей</strong>
+                <span>
+                  Кто лидирует в атаке, защите, лечении и других направлениях.
+                </span>
+              </span>
+
+              <span className="portal-home-card-arrow" aria-hidden>↗</span>
+            </button>
 
             <button
               type="button"

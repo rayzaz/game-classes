@@ -573,3 +573,46 @@
     padding-left: 26px;
   }
 }
+
+/* =====================================================
+   СТАБИЛЬНЫЕ РАНГИ НА МОБИЛЬНЫХ УСТРОЙСТВАХ
+   ===================================================== */
+
+.player-events-rank-large,
+.player-event-rank {
+  min-width: 0;
+  overflow: hidden;
+}
+
+.player-events-rank-large img,
+.player-event-rank img {
+  width: auto !important;
+  max-width: min(112px, 42%) !important;
+  height: 27px !important;
+  flex: 0 1 auto;
+  object-fit: contain !important;
+  object-position: left center;
+}
+
+.player-event-rank img {
+  max-width: min(95px, 40%) !important;
+  height: 24px !important;
+}
+
+.player-events-rank-large span,
+.player-event-rank span {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+@media (max-width: 620px) {
+  .player-events-rank-large img {
+    max-width: 96px !important;
+    height: 24px !important;
+  }
+
+  .player-event-rank img {
+    max-width: 84px !important;
+    height: 22px !important;
+  }
+}

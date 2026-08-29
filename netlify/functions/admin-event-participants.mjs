@@ -4,7 +4,12 @@ import {
 
 import {
   json,
+  loadUsers,
 } from './_shared/_auth.mjs';
+
+import {
+  loadCharacterData,
+} from './_shared/_event-access.mjs';
 
 import {
   requireEventManager,
@@ -74,25 +79,21 @@ function validEventKey(
 
 
 function loadPortalUsers() {
-  const raw =
-    process.env
-      .PORTAL_USERS_JSON;
+  let users = [];
 
-  if (!raw) {
-    return [];
+  try {
+    users =
+      loadUsers();
+  } catch (
+    error
+  ) {
+    console.error(
+      'portal users read error:',
+      error
+    );
+
+    users = [];
   }
-
-  const parsed =
-    JSON.parse(raw);
-
-  const users =
-    Array.isArray(parsed)
-      ? parsed
-      : parsed &&
-          typeof parsed ===
-            'object'
-        ? Object.values(parsed)
-        : [];
 
   return users
     .filter(
@@ -131,7 +132,6 @@ function loadPortalUsers() {
         user.characterId
     );
 }
-
 
 async function loadLiveCharacterRegistry() {
   const now =
@@ -290,6 +290,104 @@ async function loadLiveCharacterRegistry() {
   };
 
   return characters;
+}
+
+
+function characterSnapshotFromFullData(
+  data,
+  fallback = {}
+) {
+  return {
+    name:
+      cleanText(
+        data?.character?.name ||
+        fallback?.name
+      ),
+
+    level:
+      Number(
+        data?.level?.current ||
+        fallback?.level
+      ) || 0,
+
+    rank:
+      cleanText(
+        data?.character?.rank ||
+        fallback?.rank
+      ),
+
+    className:
+      cleanText(
+        data?.character?.className ||
+        fallback?.className
+      ),
+
+    squad:
+      cleanText(
+        data?.character?.squad ||
+        fallback?.squad
+      ),
+  };
+}
+
+
+function cleanIncomingSnapshot(
+  value,
+  fallback = {}
+) {
+  const source =
+    value &&
+    typeof value ===
+      'object' &&
+    !Array.isArray(
+      value
+    )
+      ? value
+      : {};
+
+  const level =
+    Number(
+      source.level
+    );
+
+  return {
+    name:
+      cleanText(
+        source.name ||
+        fallback?.name
+      ),
+
+    level:
+      Number.isFinite(
+        level
+      ) &&
+      level >
+        0
+        ? Math.trunc(
+            level
+          )
+        : Number(
+            fallback?.level
+          ) || 0,
+
+    rank:
+      cleanText(
+        source.rank ||
+        fallback?.rank
+      ),
+
+    className:
+      cleanText(
+        source.className ||
+        fallback?.className
+      ),
+
+    squad:
+      cleanText(
+        source.squad ||
+        fallback?.squad
+      ),
+  };
 }
 
 
@@ -691,6 +789,67 @@ export default async function (
           )
         )
           .toLowerCase();
+
+      if (
+        mode ===
+          'candidate-detail'
+      ) {
+        const characterId =
+          cleanText(
+            url.searchParams.get(
+              'characterId'
+            )
+          )
+            .toLowerCase();
+
+        if (!characterId) {
+          return json(
+            {
+              ok: false,
+              error:
+                'Не указан персонаж',
+            },
+            400
+          );
+        }
+
+        const registry =
+          await loadLiveCharacterRegistry();
+
+        const registryCharacter =
+          registry.find(
+            item =>
+              item.characterId ===
+              characterId
+          );
+
+        if (!registryCharacter) {
+          return json(
+            {
+              ok: false,
+              error:
+                'Персонаж не найден в активном реестре',
+            },
+            404
+          );
+        }
+
+        const data =
+          await loadCharacterData(
+            characterId
+          );
+
+        return json({
+          ok: true,
+
+          candidateDetail:
+            characterSnapshotFromFullData(
+              data,
+              registryCharacter
+            ),
+        });
+      }
+
 
       const participants =
         await listParticipants(
@@ -1126,38 +1285,36 @@ export default async function (
 
 
     /*
-      Для ручного добавления нам уже достаточно данных из
-      лёгкого реестра САЙТ. Не делаем второй тяжёлый запрос
-      полной карточки персонажа в Google.
+      Уровень не входит в лёгкий action=list текущего Apps Script,
+      поэтому frontend перед добавлением загружает один точный снимок
+      выбранного персонажа через mode=candidate-detail.
+
+      Здесь сохраняем этот снимок в signup, чтобы уровень не исчезал
+      после обновления страницы. Если старый клиент снимок не прислал,
+      остаётся безопасный fallback из реестра.
     */
-    const character = {
-      name:
-        cleanText(
-          registryCharacter.name ||
-          user?.displayName ||
-          characterId
-        ),
+    const character =
+      cleanIncomingSnapshot(
+        body?.character,
+        {
+          name:
+            registryCharacter.name ||
+            user?.displayName ||
+            characterId,
 
-      level:
-        Number(
-          registryCharacter.level
-        ) || 0,
+          level:
+            registryCharacter.level,
 
-      rank:
-        cleanText(
-          registryCharacter.rank
-        ),
+          rank:
+            registryCharacter.rank,
 
-      className:
-        cleanText(
-          registryCharacter.className
-        ),
+          className:
+            registryCharacter.className,
 
-      squad:
-        cleanText(
-          registryCharacter.squad
-        ),
-    };
+          squad:
+            registryCharacter.squad,
+        }
+      );
 
     const now =
       new Date()

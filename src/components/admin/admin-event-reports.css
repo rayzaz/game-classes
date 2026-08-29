@@ -1,0 +1,338 @@
+.admin-event-reports {
+  padding: 26px;
+  border: 1px solid var(--admin-line);
+  border-radius: 26px;
+  background: var(--admin-panel);
+  box-shadow: 0 24px 70px rgba(0,0,0,.25);
+}
+
+.admin-event-reports-head {
+  align-items: center;
+}
+
+.admin-event-reports-total {
+  display: grid;
+  min-width: 116px;
+  padding: 14px 18px;
+  border: 1px solid var(--admin-line);
+  border-radius: 17px;
+  background: rgba(255,255,255,.025);
+  text-align: right;
+}
+
+.admin-event-reports-total strong {
+  font-size: 24px;
+  line-height: 1;
+}
+
+.admin-event-reports-total span {
+  margin-top: 5px;
+  color: var(--admin-muted);
+  font-size: 10px;
+}
+
+.admin-event-reports-toolbar {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 10px;
+  margin-bottom: 18px;
+}
+
+.admin-event-reports-toolbar input {
+  width: 100%;
+  min-height: 44px;
+  box-sizing: border-box;
+  padding: 10px 13px;
+  border: 1px solid var(--admin-line);
+  border-radius: 13px;
+  outline: none;
+  color: var(--admin-text);
+  background: rgba(0,0,0,.18);
+  font: inherit;
+}
+
+.admin-event-reports-toolbar input:focus {
+  border-color: rgba(132,108,255,.5);
+  box-shadow: 0 0 0 4px rgba(132,108,255,.09);
+}
+
+.admin-event-report-list {
+  display: grid;
+  gap: 11px;
+}
+
+.admin-event-report-card {
+  overflow: hidden;
+  border: 1px solid var(--admin-line-soft);
+  border-radius: 18px;
+  background: rgba(255,255,255,.018);
+  transition: border-color .16s ease, background .16s ease;
+}
+
+.admin-event-report-card.is-open {
+  border-color: rgba(132,108,255,.25);
+  background: rgba(132,108,255,.025);
+}
+
+.admin-event-report-summary {
+  display: flex;
+  width: 100%;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+  padding: 17px 18px;
+  border: 0;
+  color: inherit;
+  background: transparent;
+  text-align: left;
+  cursor: pointer;
+  font: inherit;
+}
+
+.admin-event-report-summary-main {
+  min-width: 0;
+}
+
+.admin-event-report-title-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  color: var(--admin-muted-2);
+  font-size: 9px;
+}
+
+.admin-event-report-status {
+  padding: 4px 7px;
+  border: 1px solid rgba(114,212,164,.22);
+  border-radius: 999px;
+  color: var(--admin-green);
+  background: rgba(114,212,164,.07);
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.admin-event-report-summary h3 {
+  margin: 8px 0 4px;
+  font-size: 18px;
+  letter-spacing: -.025em;
+}
+
+.admin-event-report-summary p {
+  margin: 0;
+  color: var(--admin-muted);
+  font-size: 11px;
+}
+
+.admin-event-report-summary-side {
+  display: grid;
+  grid-template-columns: auto auto;
+  align-items: center;
+  gap: 1px 8px;
+  flex: 0 0 auto;
+  text-align: right;
+}
+
+.admin-event-report-summary-side strong {
+  grid-row: 1 / 3;
+  font-size: 24px;
+}
+
+.admin-event-report-summary-side span {
+  color: var(--admin-muted);
+  font-size: 9px;
+}
+
+.admin-event-report-summary-side b {
+  color: var(--admin-accent-2);
+  font-size: 18px;
+}
+
+.admin-event-report-details {
+  display: grid;
+  gap: 16px;
+  padding: 0 18px 18px;
+  border-top: 1px solid var(--admin-line-soft);
+}
+
+.admin-event-report-facts {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0,1fr));
+  gap: 8px;
+  padding-top: 16px;
+}
+
+.admin-event-report-facts > div,
+.admin-event-report-general,
+.admin-event-report-member {
+  border: 1px solid var(--admin-line-soft);
+  border-radius: 14px;
+  background: rgba(0,0,0,.13);
+}
+
+.admin-event-report-facts > div {
+  min-width: 0;
+  padding: 11px 12px;
+}
+
+.admin-event-report-facts span,
+.admin-event-report-general > span,
+.admin-event-report-member-head > div > span,
+.admin-event-report-member-grid span,
+.admin-event-report-adjustment > span {
+  display: block;
+  margin-bottom: 6px;
+  color: var(--admin-muted-2);
+  font-size: 8px;
+  font-weight: 800;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+}
+
+.admin-event-report-facts strong {
+  display: block;
+  overflow-wrap: anywhere;
+  font-size: 11px;
+}
+
+.admin-event-report-general {
+  padding: 15px;
+}
+
+.admin-event-report-general p {
+  margin: 0;
+  color: #c8cbd4;
+  white-space: pre-wrap;
+  font-size: 12px;
+  line-height: 1.65;
+}
+
+.admin-event-report-participants {
+  display: grid;
+  gap: 10px;
+}
+
+.admin-event-report-member {
+  display: grid;
+  gap: 13px;
+  padding: 15px;
+}
+
+.admin-event-report-member-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 14px;
+}
+
+.admin-event-report-member-head h4 {
+  margin: 0;
+  font-size: 15px;
+}
+
+.admin-event-report-final-reward {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 5px;
+}
+
+.admin-event-report-final-reward span {
+  padding: 5px 7px;
+  border-radius: 8px;
+  color: #d9d3ff;
+  background: rgba(132,108,255,.08);
+  font-size: 9px;
+  font-weight: 700;
+}
+
+.admin-event-report-adjustment {
+  padding: 11px 12px;
+  border: 1px solid rgba(227,186,106,.18);
+  border-radius: 12px;
+  background: rgba(227,186,106,.05);
+}
+
+.admin-event-report-adjustment strong {
+  font-size: 10px;
+}
+
+.admin-event-report-adjustment p {
+  margin: 7px 0 0;
+  color: var(--admin-muted);
+  font-size: 10px;
+  line-height: 1.55;
+}
+
+.admin-event-report-member-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0,1fr));
+  gap: 8px;
+}
+
+.admin-event-report-member-grid > div {
+  min-width: 0;
+  padding: 11px 12px;
+  border: 1px solid var(--admin-line-soft);
+  border-radius: 12px;
+  background: rgba(255,255,255,.018);
+}
+
+.admin-event-report-member-grid .is-positive {
+  border-color: rgba(114,212,164,.14);
+}
+
+.admin-event-report-member-grid .is-negative {
+  border-color: rgba(231,122,135,.14);
+}
+
+.admin-event-report-member-grid p {
+  margin: 0;
+  overflow-wrap: anywhere;
+  color: #c8cbd4;
+  white-space: pre-wrap;
+  font-size: 10px;
+  line-height: 1.55;
+}
+
+@media (max-width: 760px) {
+  .admin-event-reports {
+    padding: 17px;
+    border-radius: 20px;
+  }
+
+  .admin-event-reports-head {
+    align-items: stretch;
+  }
+
+  .admin-event-reports-total {
+    min-width: 0;
+    text-align: left;
+  }
+
+  .admin-event-reports-toolbar,
+  .admin-event-report-facts,
+  .admin-event-report-member-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .admin-event-report-summary,
+  .admin-event-report-member-head {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .admin-event-report-summary-side {
+    width: 100%;
+    grid-template-columns: auto 1fr auto;
+    text-align: left;
+  }
+
+  .admin-event-report-summary-side strong {
+    grid-row: auto;
+  }
+
+  .admin-event-report-final-reward {
+    justify-content: flex-start;
+  }
+}

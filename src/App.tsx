@@ -10,6 +10,7 @@ import CLASSES from './data/merged';
 import ClassCard from './components/ClassCard';
 import WorldCalendarBadge from './components/WorldCalendarBadge';
 import PortalHome from './components/PortalHome';
+import CharacterRankings from './components/CharacterRankings';
 import './components/class-catalog.css';
 
 import Portal, {
@@ -303,6 +304,7 @@ function splitComplexity(
 type AppPage =
   | 'home'
   | 'catalog'
+  | 'rankings'
   | 'cabinet'
   | 'admin'
   | 'eventer';
@@ -1159,9 +1161,7 @@ export default function App() {
   if (
     page ===
       'eventer' &&
-    activeUser?.role ===
-      'player' &&
-    activeUser.permissions
+    activeUser?.permissions
       ?.canManageEvents
   ) {
     return (
@@ -1184,6 +1184,28 @@ export default function App() {
             'cabinet'
           );
         }}
+      />
+    );
+  }
+
+
+  /* =========================
+     РЕЙТИНГ ПЕРСОНАЖЕЙ
+     ========================= */
+
+  if (
+    page ===
+      'rankings' &&
+    activeUser
+  ) {
+    return (
+      <CharacterRankings
+        ownCharacterId={
+          activeUser.characterId
+        }
+        onBack={
+          goHome
+        }
       />
     );
   }
@@ -1313,6 +1335,16 @@ export default function App() {
 
             setPage(
               'cabinet'
+            );
+          }}
+
+          onOpenRankings={() => {
+            if (!activeUser) {
+              return;
+            }
+
+            setPage(
+              'rankings'
             );
           }}
 

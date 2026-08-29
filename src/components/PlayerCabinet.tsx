@@ -623,57 +623,6 @@ function BattleRadar({
                             index
                         ) => {
 
-                            const ratio =
-                                Math.max(
-                                    0,
-
-                                    Math.min(
-                                        1,
-
-                                        (
-                                            item.percent ||
-                                            0
-                                        ) /
-                                        100
-                                    )
-                                );
-
-                            const p =
-                                getPoint(
-                                    index,
-                                    ratio
-                                );
-
-                            return (
-                                <circle
-                                    key={
-                                        `dot-${index}`
-                                    }
-
-                                    cx={
-                                        p.x
-                                    }
-
-                                    cy={
-                                        p.y
-                                    }
-
-                                    r="4.5"
-
-                                    fill="currentColor"
-                                />
-                            );
-                        }
-                    )
-                }
-
-                {
-                    items.map(
-                        (
-                            item,
-                            index
-                        ) => {
-
                             const p =
                                 getPoint(
                                     index,
@@ -753,37 +702,6 @@ function BattleRadar({
                         }
                     )
                 }
-
-                <circle
-                    cx={
-                        cx
-                    }
-
-                    cy={
-                        cy
-                    }
-
-                    r="27"
-
-                    className="nero-radar-core"
-                />
-
-                <text
-                    x={
-                        cx
-                    }
-
-                    y={
-                        cy +
-                        7
-                    }
-
-                    textAnchor="middle"
-
-                    className="nero-radar-core-symbol"
-                >
-                    ✦
-                </text>
 
             </svg>
 
@@ -1043,37 +961,6 @@ function PchkTriangle({
                     strokeLinejoin="round"
                 />
 
-                {
-                    [
-                        protectionPoint,
-                        sensesPoint,
-                        controlPoint,
-                    ].map(
-                        (
-                            point,
-                            index
-                        ) => (
-                            <circle
-                                key={
-                                    index
-                                }
-
-                                cx={
-                                    point.x
-                                }
-
-                                cy={
-                                    point.y
-                                }
-
-                                r="5"
-
-                                fill="currentColor"
-                            />
-                        )
-                    )
-                }
-
                 <text
                     x="260"
                     y="28"
@@ -1216,37 +1103,6 @@ function PchkTriangle({
                         )
                     }
                     %
-                </text>
-
-                <circle
-                    cx={
-                        center.x
-                    }
-
-                    cy={
-                        center.y
-                    }
-
-                    r="25"
-
-                    className="nero-radar-core"
-                />
-
-                <text
-                    x={
-                        center.x
-                    }
-
-                    y={
-                        center.y +
-                        6
-                    }
-
-                    textAnchor="middle"
-
-                    className="nero-radar-core-symbol"
-                >
-                    ПЧК
                 </text>
 
             </svg>

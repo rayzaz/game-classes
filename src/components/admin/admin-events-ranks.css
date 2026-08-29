@@ -112,3 +112,35 @@
     max-width: 100px;
   }
 }
+/* Защита от растягивания PNG рангов на отдельных мобильных движках. */
+.admin-event-rank {
+  min-width: 0;
+  overflow: hidden;
+  flex-wrap: nowrap;
+}
+
+.admin-event-rank img {
+  width: auto !important;
+  max-width: min(112px, 42%) !important;
+  height: 28px !important;
+  flex: 0 1 auto;
+  object-fit: contain !important;
+  object-position: left center;
+}
+
+.admin-event-rank strong {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+@media (max-width: 700px) {
+  .admin-event-rank {
+    align-items: center;
+    flex-direction: row;
+  }
+
+  .admin-event-rank img {
+    max-width: 92px !important;
+    height: 24px !important;
+  }
+}

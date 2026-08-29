@@ -22,48 +22,83 @@ export default function EventerCabinet({
   return (
     <main className="admin-root">
       <div className="admin-shell">
-        <header className="admin-topbar">
+        <header className="admin-topbar admin-topbar-modern">
           <div className="admin-brand">
-            <strong>ГосМАГ · Центр ивентера</strong>
-            <span>Создание и проведение игровых ивентов</span>
+            <strong>
+              ГосМАГ · Центр ивентера
+            </strong>
+
+            <span>
+              Ивенты
+            </span>
           </div>
 
-          <div className="admin-user">
-            <span className="admin-user-dot" />
-            <span>{displayName || 'Ивентер'}</span>
+          <div className="admin-topbar-actions">
+            <div className="admin-user">
+              <span className="admin-user-dot" />
+              <span>
+                {displayName ||
+                  'Ивентер'}
+              </span>
+            </div>
+
+            <button
+              type="button"
+              className="admin-button"
+              onClick={
+                onBack
+              }
+            >
+              ← На главную
+            </button>
           </div>
         </header>
 
-        <nav className="admin-nav">
-          <button
-            type="button"
-            className="admin-nav-button active"
-          >
-            Ивенты
-          </button>
+        <div className="admin-workspace admin-workspace-eventer">
+          <aside className="admin-sidebar">
+            <nav className="admin-sidebar-nav">
+              <button
+                type="button"
+                className="admin-sidebar-button active"
+              >
+                <span aria-hidden="true">
+                  ✦
+                </span>
 
-          {characterId ? (
-            <button
-              type="button"
-              className="admin-nav-button"
-              onClick={onOpenOwnCharacter}
-            >
-              ✦ Мой персонаж
-            </button>
-          ) : null}
+                <strong>
+                  Ивенты
+                </strong>
+              </button>
+            </nav>
 
-          <button
-            type="button"
-            className="admin-button"
-            onClick={onBack}
-            style={{ marginLeft: 'auto' }}
-          >
-            ← В каталог
-          </button>
-        </nav>
+            {characterId ? (
+              <button
+                type="button"
+                className="admin-sidebar-character"
+                onClick={
+                  onOpenOwnCharacter
+                }
+              >
+                <span>
+                  ◇
+                </span>
 
-        <div className="admin-main">
-          <AdminEvents />
+                <div>
+                  <strong>
+                    Мой персонаж
+                  </strong>
+
+                  <small>
+                    Открыть личное дело
+                  </small>
+                </div>
+              </button>
+            ) : null}
+          </aside>
+
+          <div className="admin-main admin-main-modern">
+            <AdminEvents />
+          </div>
         </div>
       </div>
     </main>

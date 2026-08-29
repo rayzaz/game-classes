@@ -101,6 +101,21 @@ type StatusResponse = {
 };
 
 
+type DeleteResponse = {
+  ok: boolean;
+
+  deleted?: {
+    key: string;
+    id?: string;
+    title?: string;
+  };
+
+  removedSignups?: number;
+
+  error?: string;
+};
+
+
 type MaterialDraft = {
   tempId: string;
   name: string;
@@ -1732,6 +1747,21 @@ export default function AdminEvents() {
 
 
   const [
+    eventFilter,
+    setEventFilter,
+  ] =
+    useState<
+      'all' |
+      'draft' |
+      'published' |
+      'active' |
+      'completed'
+    >(
+      'all'
+    );
+
+
+  const [
     saving,
     setSaving,
   ] =
@@ -2360,6 +2390,144 @@ export default function AdminEvents() {
     };
 
 
+  const removeEvent =
+    async (
+      event:
+        EventData
+    ) => {
+      if (
+        !event.key
+      ) {
+        window.alert(
+          'У ивента нет ключа хранилища.'
+        );
+
+        return;
+      }
+
+      if (
+        event.status ===
+          'active'
+      ) {
+        window.alert(
+          'Идущий ивент сначала нужно отменить или завершить.'
+        );
+
+        return;
+      }
+
+      if (
+        event.status ===
+          'completed'
+      ) {
+        window.alert(
+          'Завершённые ивенты сохраняются как история отчётов и наград и не удаляются.'
+        );
+
+        return;
+      }
+
+      const participantCount =
+        Number.isFinite(
+          Number(
+            event.participantCount
+          )
+        )
+          ? Number(
+              event.participantCount
+            )
+          : Array.isArray(
+              event.participants
+            )
+            ? event.participants.length
+            : 0;
+
+      const participantWarning =
+        participantCount > 0
+          ? `\n\nЗаписано участников: ${participantCount}. Их записи на этот ивент тоже будут удалены.`
+          : '';
+
+      if (
+        !window.confirm(
+          `Удалить ивент «${event.title}» навсегда?${participantWarning}\n\nЭто действие нельзя отменить.`
+        )
+      ) {
+        return;
+      }
+
+      setStatusBusyKey(
+        event.key
+      );
+
+      try {
+        const response =
+          await fetch(
+            EVENTS_API,
+            {
+              method:
+                'DELETE',
+
+              headers: {
+                'Content-Type':
+                  'application/json',
+              },
+
+              body:
+                JSON.stringify({
+                  key:
+                    event.key,
+                }),
+            }
+          );
+
+        const result:
+          DeleteResponse =
+            await response.json();
+
+        if (
+          !response.ok ||
+          !result.ok
+        ) {
+          throw new Error(
+            result.error ||
+            `Ошибка HTTP: ${response.status}`
+          );
+        }
+
+        setEvents(
+          current =>
+            current.filter(
+              item =>
+                item.key !==
+                event.key
+            )
+        );
+
+        setOpenParticipantsKey(
+          current =>
+            current ===
+            event.key
+              ? ''
+              : current
+        );
+
+      } catch (
+        err
+      ) {
+        window.alert(
+          err instanceof Error
+            ? err.message
+            : String(err)
+        );
+
+      } finally {
+        setStatusBusyKey(
+          ''
+        );
+      }
+    };
+
+
   const repairCompletedRewards =
     async (
       event:
@@ -2557,6 +2725,64 @@ export default function AdminEvents() {
         ),
       [
         events,
+      ]
+    );
+
+
+  const eventCounts =
+    useMemo(
+      () => ({
+        all:
+          sortedEvents.length,
+
+        draft:
+          sortedEvents.filter(
+            event =>
+              event.status ===
+              'draft'
+          ).length,
+
+        published:
+          sortedEvents.filter(
+            event =>
+              event.status ===
+              'published'
+          ).length,
+
+        active:
+          sortedEvents.filter(
+            event =>
+              event.status ===
+              'active'
+          ).length,
+
+        completed:
+          sortedEvents.filter(
+            event =>
+              event.status ===
+              'completed'
+          ).length,
+      }),
+      [
+        sortedEvents,
+      ]
+    );
+
+
+  const visibleEvents =
+    useMemo(
+      () =>
+        eventFilter ===
+        'all'
+          ? sortedEvents
+          : sortedEvents.filter(
+              event =>
+                event.status ===
+                eventFilter
+            ),
+      [
+        eventFilter,
+        sortedEvents,
       ]
     );
 
@@ -3095,6 +3321,59 @@ export default function AdminEvents() {
       ) : null}
 
 
+      {!loading &&
+      !error &&
+      sortedEvents.length >
+        0 ? (
+        <div className="admin-event-filterbar">
+          {[
+            ['all', 'Все'],
+            ['active', 'Идут'],
+            ['published', 'Опубликованы'],
+            ['draft', 'Черновики'],
+            ['completed', 'Завершённые'],
+          ].map(
+            item => {
+              const key =
+                item[0] as
+                  | 'all'
+                  | 'draft'
+                  | 'published'
+                  | 'active'
+                  | 'completed';
+
+              return (
+                <button
+                  key={
+                    key
+                  }
+                  type="button"
+                  className={
+                    eventFilter ===
+                    key
+                      ? 'active'
+                      : ''
+                  }
+                  onClick={() =>
+                    setEventFilter(
+                      key
+                    )
+                  }
+                >
+                  {item[1]}
+                  <span>
+                    {eventCounts[
+                      key
+                    ]}
+                  </span>
+                </button>
+              );
+            }
+          )}
+        </div>
+      ) : null}
+
+
       {loading ? (
         <div className="admin-empty">
           Загружаем ивенты...
@@ -3139,9 +3418,21 @@ export default function AdminEvents() {
       {!loading &&
       !error &&
       sortedEvents.length >
+        0 &&
+      visibleEvents.length ===
+        0 ? (
+        <div className="admin-empty">
+          В этом разделе ивентов пока нет.
+        </div>
+      ) : null}
+
+
+      {!loading &&
+      !error &&
+      visibleEvents.length >
         0 ? (
         <div className="admin-event-list">
-          {sortedEvents.map(
+          {visibleEvents.map(
             event => {
               const rewards =
                 event.rewards || {
@@ -3414,6 +3705,29 @@ export default function AdminEvents() {
                         ? 'Скрыть участников'
                         : `Участники · ${participantCount}`}
                     </button>
+
+
+                    {event.status !==
+                      'active' &&
+                    event.status !==
+                      'completed' ? (
+                      <button
+                        type="button"
+                        className="admin-button admin-button-danger"
+                        disabled={
+                          busy
+                        }
+                        onClick={() =>
+                          void removeEvent(
+                            event
+                          )
+                        }
+                      >
+                        {busy
+                          ? 'Удаляем...'
+                          : 'Удалить ивент'}
+                      </button>
+                    ) : null}
                   </div>
 
 
