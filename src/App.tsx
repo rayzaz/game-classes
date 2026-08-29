@@ -11,6 +11,7 @@ import ClassCard from './components/ClassCard';
 import WorldCalendarBadge from './components/WorldCalendarBadge';
 import PortalHome from './components/PortalHome';
 import CharacterRankings from './components/CharacterRankings';
+import NpcDirectory from './components/NpcDirectory';
 import './components/class-catalog.css';
 
 import Portal, {
@@ -305,6 +306,7 @@ type AppPage =
   | 'home'
   | 'catalog'
   | 'rankings'
+  | 'npcs'
   | 'cabinet'
   | 'admin'
   | 'eventer';
@@ -1212,6 +1214,25 @@ export default function App() {
 
 
   /* =========================
+     КАТАЛОГ НПС
+     ========================= */
+
+  if (
+    page ===
+      'npcs' &&
+    activeUser
+  ) {
+    return (
+      <NpcDirectory
+        onBack={
+          goHome
+        }
+      />
+    );
+  }
+
+
+  /* =========================
      ЛИЧНЫЙ КАБИНЕТ ИГРОКА
      ========================= */
 
@@ -1345,6 +1366,16 @@ export default function App() {
 
             setPage(
               'rankings'
+            );
+          }}
+
+          onOpenNpcs={() => {
+            if (!activeUser) {
+              return;
+            }
+
+            setPage(
+              'npcs'
             );
           }}
 

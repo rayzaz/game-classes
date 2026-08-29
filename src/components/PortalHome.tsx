@@ -19,6 +19,7 @@ type Props = {
   onOpenCharacter: () => void;
   onOpenEvents: () => void;
   onOpenRankings: () => void;
+  onOpenNpcs: () => void;
   onOpenAdmin: () => void;
   onOpenEventer: () => void;
 };
@@ -51,6 +52,7 @@ export default function PortalHome({
   onOpenCharacter,
   onOpenEvents,
   onOpenRankings,
+  onOpenNpcs,
   onOpenAdmin,
   onOpenEventer,
 }: Props) {
@@ -242,6 +244,23 @@ export default function PortalHome({
                 <strong>Рейтинг персонажей</strong>
                 <span>
                   Кто лидирует в атаке, защите, лечении и других направлениях.
+                </span>
+              </span>
+
+              <span className="portal-home-card-arrow" aria-hidden>↗</span>
+            </button>
+
+            <button
+              type="button"
+              className="portal-home-card"
+              onClick={onOpenNpcs}
+            >
+              <HomeIcon>◉</HomeIcon>
+
+              <span className="portal-home-card-copy">
+                <strong>НПС</strong>
+                <span>
+                  Жители мира, магия, роли и известные связи.
                 </span>
               </span>
 

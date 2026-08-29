@@ -14,8 +14,10 @@ import AdminEventReports from './AdminEventReports';
 import AdminEventerAccess from './AdminEventerAccess';
 import AdminAuditLog from './AdminAuditLog';
 import AdminCalendar from './AdminCalendar';
+import AdminNpcs from './AdminNpcs';
 
 import './admin.css';
+import './admin-npcs.css';
 
 
 type Props = {
@@ -30,6 +32,7 @@ type Props = {
 
 type AdminSection =
   | 'characters'
+  | 'npcs'
   | 'questionnaires'
   | 'events'
   | 'reports'
@@ -68,6 +71,11 @@ const NAV_ITEMS:
       id: 'characters',
       label: 'Персонажи',
       icon: '◇',
+    },
+    {
+      id: 'npcs',
+      label: 'НПС',
+      icon: '◉',
     },
     {
       id: 'questionnaires',
@@ -473,6 +481,11 @@ export default function AdminCabinet({
                   onOpenCharacter
                 }
               />
+            ) : null}
+
+            {section ===
+            'npcs' ? (
+              <AdminNpcs />
             ) : null}
 
             {section ===

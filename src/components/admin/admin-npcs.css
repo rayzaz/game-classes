@@ -1,0 +1,89 @@
+.admin-npcs-section { display:grid; gap:16px; }
+.admin-npcs-head { margin-bottom:0; }
+.admin-npc-stats { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:8px; }
+.admin-npc-stats button { display:grid; gap:5px; min-width:0; padding:14px; border:1px solid var(--admin-line-soft); border-radius:14px; color:var(--admin-text); background:color-mix(in srgb,var(--admin-panel-strong) 86%,transparent); text-align:left; cursor:pointer; font:inherit; }
+.admin-npc-stats button.active { border-color:color-mix(in srgb,var(--admin-accent) 42%,var(--admin-line)); background:color-mix(in srgb,var(--admin-accent) 10%,var(--admin-panel-strong)); }
+.admin-npc-stats span { color:var(--admin-muted); font-size:9px; font-weight:800; text-transform:uppercase; letter-spacing:.07em; }
+.admin-npc-stats strong { font-size:24px; line-height:1; }
+.admin-npc-toolbar { display:flex; align-items:center; gap:12px; }
+.admin-npc-toolbar input { flex:1; min-width:0; min-height:40px; box-sizing:border-box; padding:0 12px; border:1px solid var(--admin-line); border-radius:11px; color:var(--admin-text); background:color-mix(in srgb,var(--admin-panel-strong) 92%,var(--admin-bg)); font:inherit; }
+.admin-npc-toolbar span { color:var(--admin-muted); font-size:10px; white-space:nowrap; }
+.admin-npc-list { display:grid; gap:7px; }
+.admin-npc-row { display:grid; grid-template-columns:58px minmax(0,1fr) minmax(190px,.42fr) 24px; align-items:center; gap:12px; min-width:0; padding:9px; border:1px solid var(--admin-line-soft); border-radius:14px; color:var(--admin-text); background:color-mix(in srgb,var(--admin-panel-strong) 88%,transparent); text-align:left; cursor:pointer; font:inherit; }
+.admin-npc-row:hover { border-color:color-mix(in srgb,var(--admin-accent) 32%,var(--admin-line)); transform:translateY(-1px); }
+.admin-npc-thumb { width:58px; height:58px; display:block; object-fit:cover; object-position:center 20%; border:1px solid var(--admin-line); border-radius:12px; background:var(--admin-panel-strong); }
+.admin-npc-thumb-empty { display:grid; place-items:center; color:var(--admin-muted); font-weight:800; }
+.admin-npc-row-main { display:grid; min-width:0; gap:3px; }
+.admin-npc-row-overline { color:var(--admin-muted-2); font-size:8px; font-weight:800; letter-spacing:.08em; }
+.admin-npc-row-main strong { overflow:hidden; font-size:13px; text-overflow:ellipsis; white-space:nowrap; }
+.admin-npc-row-main small { overflow:hidden; color:var(--admin-muted); font-size:9px; text-overflow:ellipsis; white-space:nowrap; }
+.admin-npc-quality { display:grid; grid-template-columns:1fr auto; gap:4px 8px; align-items:center; min-width:0; }
+.admin-npc-quality strong { font-size:10px; }
+.admin-npc-quality small { grid-column:1/-1; overflow:hidden; color:var(--admin-muted); font-size:8px; text-overflow:ellipsis; white-space:nowrap; }
+.admin-npc-progress { overflow:hidden; height:5px; border-radius:999px; background:color-mix(in srgb,var(--admin-text) 9%,transparent); }
+.admin-npc-progress i { display:block; height:100%; border-radius:inherit; background:var(--admin-accent); }
+.admin-npc-row-arrow { color:var(--admin-muted); }
+.admin-npc-empty,.admin-npc-error { padding:18px; border:1px solid var(--admin-line-soft); border-radius:13px; color:var(--admin-muted); text-align:center; }
+.admin-npc-error { color:var(--admin-red); }
+
+.admin-npc-editor-overlay { position:fixed; z-index:12000; inset:0; overflow-y:auto; overscroll-behavior:contain; padding:18px; box-sizing:border-box; color:var(--fg); background:rgba(4,5,8,.72); backdrop-filter:blur(15px); -webkit-overflow-scrolling:touch; touch-action:pan-y; }
+.admin-npc-editor { --editor-panel:var(--card); --editor-line:var(--card-border); --editor-text:var(--fg); --editor-muted:color-mix(in srgb,var(--fg) 62%,transparent); --editor-accent:var(--accent); width:min(1040px,100%); margin:0 auto; overflow:hidden; border:1px solid var(--editor-line); border-radius:24px; color:var(--editor-text); background:var(--editor-panel); box-shadow:0 34px 100px rgba(0,0,0,.38); font-family:Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif; }
+.admin-npc-editor-head { display:grid; grid-template-columns:84px minmax(0,1fr) 42px; gap:14px; align-items:center; padding:14px; border-bottom:1px solid var(--editor-line); }
+.admin-npc-editor-head .admin-npc-thumb { width:84px; height:84px; border-radius:16px; }
+.admin-npc-editor-head > div { min-width:0; }
+.admin-npc-editor-head span { color:var(--editor-muted); font-size:9px; font-weight:800; letter-spacing:.08em; text-transform:uppercase; }
+.admin-npc-editor-head h2 { margin:3px 0 4px; font-size:25px; letter-spacing:-.035em; }
+.admin-npc-editor-head p { margin:0; color:var(--editor-muted); font-size:10px; }
+.admin-npc-editor-head > button { align-self:start; width:40px; height:40px; border:1px solid var(--editor-line); border-radius:50%; color:var(--editor-text); background:transparent; font-size:24px; cursor:pointer; }
+.admin-npc-editor-body { display:grid; gap:12px; padding:14px; }
+.admin-npc-editor-section { padding:16px; border:1px solid var(--editor-line); border-radius:17px; background:color-mix(in srgb,var(--editor-panel) 94%,var(--editor-text) 6%); }
+.admin-npc-subhead { display:flex; align-items:flex-start; justify-content:space-between; gap:12px; margin-bottom:14px; }
+.admin-npc-subhead span { color:var(--editor-accent); font-size:9px; font-weight:850; letter-spacing:.1em; }
+.admin-npc-subhead h3 { margin:3px 0 0; font-size:17px; }
+.admin-npc-form-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:10px; }
+.admin-npc-field,.admin-npc-relation-form label { display:grid; min-width:0; gap:5px; }
+.admin-npc-field.wide,.admin-npc-relation-form .wide { grid-column:1/-1; }
+.admin-npc-field > span,.admin-npc-relation-form label > span { display:flex; justify-content:space-between; gap:8px; color:var(--editor-muted); font-size:9px; font-weight:800; text-transform:uppercase; letter-spacing:.055em; }
+.admin-npc-field > span i { font-style:normal; }
+.admin-npc-field.state-missing > span i { color:#df6673; }
+.admin-npc-field.state-review > span i { color:#c99b45; }
+.admin-npc-field input,.admin-npc-field textarea,.admin-npc-relation-form input,.admin-npc-relation-form select { width:100%; min-width:0; box-sizing:border-box; padding:10px 11px; border:1px solid var(--editor-line); border-radius:10px; color:var(--editor-text); background:color-mix(in srgb,var(--editor-panel) 93%,var(--editor-text) 7%); font:inherit; font-size:12px; outline:none; resize:vertical; }
+.admin-npc-field.state-missing input,.admin-npc-field.state-missing textarea { border-color:color-mix(in srgb,#df6673 52%,var(--editor-line)); }
+.admin-npc-field.state-review input,.admin-npc-field.state-review textarea { border-color:color-mix(in srgb,#c99b45 52%,var(--editor-line)); }
+.admin-npc-relation-form { display:grid; grid-template-columns:1fr 1fr; gap:10px; align-items:end; }
+.admin-npc-public-toggle { display:flex!important; align-items:center; grid-template-columns:none!important; gap:8px!important; min-height:38px; color:var(--editor-muted); font-size:10px; }
+.admin-npc-public-toggle input { width:auto!important; }
+.admin-npc-relations { display:grid; gap:7px; margin-top:14px; }
+.admin-npc-relation-item { display:flex; align-items:center; justify-content:space-between; gap:12px; padding:10px 11px; border:1px solid var(--editor-line); border-radius:11px; }
+.admin-npc-relation-item > div:first-child { display:grid; min-width:0; gap:2px; }
+.admin-npc-relation-item span { color:var(--editor-accent); font-size:8px; font-weight:800; text-transform:uppercase; letter-spacing:.055em; }
+.admin-npc-relation-item strong { font-size:12px; }
+.admin-npc-relation-item small { color:var(--editor-muted); font-size:9px; }
+.admin-npc-relation-side { display:grid; justify-items:end; gap:4px; }
+.admin-npc-relation-side em { color:var(--editor-muted); font-size:8px; font-style:normal; }
+.admin-npc-relation-side button { border:0; color:#df6673; background:transparent; font:inherit; font-size:9px; cursor:pointer; }
+.admin-npc-editor-message { position:sticky; bottom:8px; padding:11px 13px; border:1px solid var(--editor-line); border-radius:11px; color:var(--editor-text); background:color-mix(in srgb,var(--editor-panel) 92%,var(--editor-accent) 8%); box-shadow:0 8px 26px rgba(0,0,0,.15); font-size:11px; }
+
+@media(max-width:760px){
+  .admin-npc-stats{grid-template-columns:1fr 1fr;}
+  .admin-npc-row{grid-template-columns:50px minmax(0,1fr) 22px;}
+  .admin-npc-thumb{width:50px;height:50px;}
+  .admin-npc-quality{grid-column:2/3;grid-row:2;}
+  .admin-npc-row-arrow{grid-column:3;grid-row:1/3;}
+  .admin-npc-toolbar{align-items:stretch;flex-direction:column;}
+  .admin-npc-toolbar span{white-space:normal;}
+  .admin-npc-editor-overlay{padding:0;}
+  .admin-npc-editor{width:100%;min-height:100dvh;margin:0;border:0;border-radius:0;overflow:visible;}
+  .admin-npc-form-grid,.admin-npc-relation-form{grid-template-columns:1fr;}
+  .admin-npc-field.wide,.admin-npc-relation-form .wide{grid-column:auto;}
+  .admin-npc-subhead{align-items:stretch;flex-direction:column;}
+}
+@media(max-width:440px){
+  .admin-npc-stats{grid-template-columns:1fr 1fr;}
+  .admin-npc-editor-head{grid-template-columns:64px minmax(0,1fr) 38px;}
+  .admin-npc-editor-head .admin-npc-thumb{width:64px;height:64px;}
+  .admin-npc-editor-head h2{font-size:20px;}
+  .admin-npc-editor-section{padding:12px;}
+  .admin-npc-relation-item{align-items:flex-start;flex-direction:column;}
+  .admin-npc-relation-side{width:100%;grid-auto-flow:column;justify-content:space-between;justify-items:start;}
+}
