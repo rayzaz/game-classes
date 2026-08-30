@@ -4590,3 +4590,24 @@ html[data-theme="light"] .admin-root :is(
     width: 100%;
   }
 }
+
+
+/* v36 — явный пол персонажа для родословной */
+.admin-character-gender {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(130px, 180px);
+  align-items: center;
+  gap: 8px 12px;
+  margin: 12px 0;
+  padding: 10px 12px;
+  border: 1px solid var(--admin-border, rgba(127,127,127,.18));
+  border-radius: 14px;
+  background: rgba(127,127,127,.055);
+}
+.admin-character-gender > span { font-size: 12px; font-weight: 800; opacity: .78; }
+.admin-character-gender select { width: 100%; min-width: 0; }
+.admin-character-gender small { grid-column: 1 / -1; font-size: 11px; opacity: .7; }
+@media (max-width: 560px) {
+  .admin-character-gender { grid-template-columns: 1fr; }
+  .admin-character-gender small { grid-column: auto; }
+}

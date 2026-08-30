@@ -26,6 +26,8 @@ export type AdminCharacterSummary = {
   portrait?: string;
 
   cabinetReady: boolean;
+
+  gender?: 'male' | 'female' | '';
 };
 
 
@@ -76,6 +78,32 @@ function CharacterCard({
 
   onOpen: () => void;
 }) {
+  const [gender, setGender] = useState<'male' | 'female' | ''>(character.gender || '');
+  const [genderSaving, setGenderSaving] = useState(false);
+  const [genderMessage, setGenderMessage] = useState('');
+
+  async function saveGender(nextGender: 'male' | 'female' | '') {
+    const previous = gender;
+    setGender(nextGender);
+    setGenderSaving(true);
+    setGenderMessage('');
+
+    try {
+      const response = await fetch('/.netlify/functions/admin-characters', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ characterId: character.id, gender: nextGender }),
+      });
+      const result = await response.json();
+      if (!response.ok || !result?.ok) throw new Error(result?.error || 'Не удалось сохранить пол');
+      setGenderMessage('Сохранено');
+    } catch (error) {
+      setGender(previous);
+      setGenderMessage(error instanceof Error ? error.message : String(error));
+    } finally {
+      setGenderSaving(false);
+    }
+  }
 
   return (
     <article className="admin-character-card">
@@ -207,6 +235,20 @@ function CharacterCard({
 
         </div>
 
+
+        <label className="admin-character-gender">
+          <span>Пол для родословной</span>
+          <select
+            value={gender}
+            disabled={genderSaving}
+            onChange={event => void saveGender(event.target.value as 'male' | 'female' | '')}
+          >
+            <option value="">Не указан</option>
+            <option value="female">Женский</option>
+            <option value="male">Мужской</option>
+          </select>
+          {genderMessage ? <small>{genderMessage}</small> : null}
+        </label>
 
         <button
           type="button"

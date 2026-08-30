@@ -33,6 +33,7 @@ export type NpcRecord = {
   grimoire: string;
   character: string;
   role: string;
+  gender?: 'male' | 'female' | '';
   hasImage: boolean;
   imageUrl: string;
   imageKey: string;
@@ -293,6 +294,7 @@ export default function NpcDirectory({ onBack }: Props) {
                     <div className="npc-detail-chips">
                       {selected.age ? <span>Возраст: {selected.age}</span> : null}
                       {selected.height ? <span>Рост: {selected.height}</span> : null}
+                      {selected.gender ? <span>Пол: {selected.gender === 'female' ? 'Женский' : 'Мужской'}</span> : null}
                     </div>
                   </div>
                 </div>

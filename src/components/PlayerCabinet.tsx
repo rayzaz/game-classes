@@ -1,5 +1,6 @@
 import React, { useEffect, useState, } from 'react';
 import PlayerEvents from './player/PlayerEvents';
+import CharacterFamilyTree from './player/CharacterFamilyTree';
 import './player/player-character-themes.css';
 
 const PLAYER_CABINET_API = '/.netlify/functions/character-data';
@@ -1267,7 +1268,8 @@ export default function PlayerCabinet({
     ] =
         useState<
             'cabinet' |
-            'events'
+            'events' |
+            'family'
         >(
             initialView
         );
@@ -1386,6 +1388,21 @@ export default function PlayerCabinet({
                 adminView={
                     adminView
                 }
+            />
+        );
+    }
+
+
+    if (
+        view ===
+        'family'
+    ) {
+        return (
+            <CharacterFamilyTree
+                characterId={characterId}
+                adminView={adminView}
+                themeClass={characterThemeClass}
+                onBack={() => setView('cabinet')}
             />
         );
     }
@@ -1654,6 +1671,15 @@ export default function PlayerCabinet({
                             ? '✦ Ивенты персонажа'
                             : '✦ Ивенты'
                     }
+                </button>
+
+
+                <button
+                    className="nero-button"
+                    type="button"
+                    onClick={() => setView('family')}
+                >
+                    ♧ Семейное древо
                 </button>
 
 

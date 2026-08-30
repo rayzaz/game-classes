@@ -49,11 +49,35 @@ type AgeReport = {
 };
 
 
+type NpcAgeReport = {
+  updatedCount: number;
+  skippedCount: number;
+  errorCount: number;
+  updated?: Array<{
+    npcId: string;
+    name: string;
+    before: number;
+    after: number;
+  }>;
+  skipped?: Array<{
+    npcId: string;
+    name: string;
+    reason: string;
+  }>;
+  errors?: Array<{
+    npcId: string;
+    name: string;
+    error: string;
+  }>;
+};
+
+
 type CalendarResponse = {
   ok: boolean;
   calendar?: CalendarState;
   yearChanged?: boolean;
   ageReport?: AgeReport | null;
+  npcAgeReport?: NpcAgeReport | null;
   error?: string;
 };
 
@@ -163,6 +187,15 @@ export default function AdminCalendar() {
     useState<AgeReport | null>(
       null
     );
+
+  const [
+    npcAgeReport,
+    setNpcAgeReport
+  ] =
+    useState<NpcAgeReport | null>(
+      null
+    );
+
 
   const [
     setupSeason,
@@ -458,6 +491,11 @@ export default function AdminCalendar() {
         null
       );
 
+      setNpcAgeReport(
+        result.npcAgeReport ||
+        null
+      );
+
       if (
         result.yearChanged
       ) {
@@ -466,18 +504,37 @@ export default function AdminCalendar() {
             ?.updatedCount ??
           0;
 
-        const skipped =
-          result.ageReport
-            ?.skippedCount ??
+        const npcUpdated =
+          result.npcAgeReport
+            ?.updatedCount ??
           0;
+
+        const skipped =
+          (
+            result.ageReport
+              ?.skippedCount ??
+            0
+          ) +
+          (
+            result.npcAgeReport
+              ?.skippedCount ??
+            0
+          );
 
         const errors =
-          result.ageReport
-            ?.errorCount ??
-          0;
+          (
+            result.ageReport
+              ?.errorCount ??
+            0
+          ) +
+          (
+            result.npcAgeReport
+              ?.errorCount ??
+            0
+          );
 
         setMessage(
-          `Наступила весна ${result.calendar.year} года. Возраст увеличен у ${updated} персонажей.${
+          `Наступила весна ${result.calendar.year} года. Возраст увеличен у ${updated} персонажей и ${npcUpdated} НПС.${
             skipped
               ? ` Пропущено: ${skipped}.`
               : ''
@@ -854,6 +911,80 @@ export default function AdminCalendar() {
                                 }
                               >
                                 {item.name || item.characterId}: {item.error}
+                              </li>
+                            )
+                          )
+                        }
+                      </ul>
+                    </div>
+                  )
+                  : null
+              }
+            </details>
+          )
+          : null
+      }
+
+      {
+        npcAgeReport &&
+        (
+          npcAgeReport.skippedCount >
+            0 ||
+          npcAgeReport.errorCount >
+            0
+        )
+          ? (
+            <details className="admin-calendar-report">
+              <summary>
+                Подробности обновления возраста НПС
+              </summary>
+
+              {
+                npcAgeReport.skipped?.length
+                  ? (
+                    <div>
+                      <strong>
+                        Пропущены:
+                      </strong>
+
+                      <ul>
+                        {
+                          npcAgeReport.skipped.map(
+                            item => (
+                              <li
+                                key={
+                                  `npc-skip-${item.npcId}`
+                                }
+                              >
+                                {item.name || item.npcId}: {item.reason}
+                              </li>
+                            )
+                          )
+                        }
+                      </ul>
+                    </div>
+                  )
+                  : null
+              }
+
+              {
+                npcAgeReport.errors?.length
+                  ? (
+                    <div>
+                      <strong>
+                        Ошибки:
+                      </strong>
+
+                      <ul>
+                        {
+                          npcAgeReport.errors.map(
+                            item => (
+                              <li
+                                key={
+                                  `npc-error-${item.npcId}`
+                                }
+                              >
+                                {item.name || item.npcId}: {item.error}
                               </li>
                             )
                           )
