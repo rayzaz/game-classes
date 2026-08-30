@@ -94,7 +94,20 @@ function CharacterCard({
         headers: { 'content-type': 'application/json' },
         body: JSON.stringify({ characterId: character.id, gender: nextGender }),
       });
-      const result = await response.json();
+      const raw = await response.text();
+      let result: { ok?: boolean; error?: string } | null = null;
+
+      try {
+        result = JSON.parse(raw) as { ok?: boolean; error?: string };
+      } catch {
+        const looksLikeHtml = /^\s*</.test(raw);
+        throw new Error(
+          looksLikeHtml
+            ? 'Сервер сохранения пола ещё не опубликован. Нужно задеплоить обновлённую Netlify Function admin-characters.'
+            : 'Сервер вернул некорректный ответ при сохранении пола.'
+        );
+      }
+
       if (!response.ok || !result?.ok) throw new Error(result?.error || 'Не удалось сохранить пол');
       setGenderMessage('Сохранено');
     } catch (error) {

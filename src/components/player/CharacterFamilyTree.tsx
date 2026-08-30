@@ -1022,8 +1022,23 @@ export default function CharacterFamilyTree({ characterId, adminView = false, th
 
     fetch(url, { cache: 'no-store' })
       .then(async response => {
-        const result: FamilyTreeResponse = await response.json();
-        if (!response.ok || !result?.ok) throw new Error(result?.error || 'Не удалось загрузить семейное древо');
+        const raw = await response.text();
+        let result: FamilyTreeResponse | null = null;
+
+        try {
+          result = JSON.parse(raw) as FamilyTreeResponse;
+        } catch {
+          const looksLikeHtml = /^\s*</.test(raw);
+          throw new Error(
+            looksLikeHtml
+              ? 'Сервер семейного древа ещё не опубликован. Нужно задеплоить Netlify Function character-family-tree.'
+              : 'Сервер семейного древа вернул некорректный ответ.'
+          );
+        }
+
+        if (!response.ok || !result?.ok) {
+          throw new Error(result?.error || 'Не удалось загрузить семейное древо');
+        }
         return result;
       })
       .then(result => {

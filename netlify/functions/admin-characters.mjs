@@ -34,21 +34,11 @@ export default async (
 ) => {
 
   /* ==========================================================
-     ТОЛЬКО GET
+     GET — список; POST — пол персонажа для родословной
      ========================================================== */
 
-  if (
-    request.method !==
-    'GET'
-  ) {
-    return json(
-      {
-        ok: false,
-        error:
-          'Метод не поддерживается',
-      },
-      405
-    );
+  if (request.method !== 'GET' && request.method !== 'POST') {
+    return json({ ok: false, error: 'Метод не поддерживается' }, 405);
   }
 
 
@@ -93,6 +83,39 @@ export default async (
       );
     }
 
+
+    if (request.method === 'POST') {
+      const body = await request.json().catch(() => ({}));
+      const characterId = String(body?.characterId || '').trim().toLowerCase();
+      const gender = ['male', 'female'].includes(String(body?.gender || '').trim().toLowerCase())
+        ? String(body.gender).trim().toLowerCase()
+        : '';
+
+      if (!characterId) {
+        return json({ ok: false, error: 'Не указан characterId' }, 400);
+      }
+
+      const response = await fetch(loadCharacterServiceUrl(), {
+        method: 'POST',
+        headers: { 'content-type': 'application/json; charset=utf-8' },
+        body: JSON.stringify({
+          action: 'character-gender-update',
+          characterId,
+          gender,
+          writeSecret: String(process.env.CHARACTER_WRITE_SECRET || '').trim(),
+        }),
+        cache: 'no-store',
+        redirect: 'follow',
+      });
+
+      const text = await response.text();
+      let result = null;
+      try { result = JSON.parse(text); } catch (_) { result = null; }
+      if (!response.ok || !result || result.ok !== true) {
+        return json({ ok: false, error: result?.error || 'Не удалось сохранить пол персонажа' }, 502);
+      }
+      return json(result);
+    }
 
     /* ========================================================
        СОБИРАЕМ URL ЦЕНТРАЛЬНОГО СЕРВИСА
@@ -335,6 +358,11 @@ export default async (
               cabinetReady:
                 character?.cabinetReady !==
                 false,
+
+              gender:
+                ['male', 'female'].includes(String(character?.gender || '').trim().toLowerCase())
+                  ? String(character.gender).trim().toLowerCase()
+                  : '',
             };
           }
         )
