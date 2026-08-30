@@ -19,6 +19,12 @@ export type NpcRelation = {
   public: boolean;
   note?: string;
   reverseOf?: string;
+  origin?: 'manual' | 'auto' | string;
+  autoKey?: string;
+  evidence?: string;
+  customLabel?: string;
+  reverseCustomLabel?: string;
+  locked?: boolean;
 };
 
 export type NpcRecord = {

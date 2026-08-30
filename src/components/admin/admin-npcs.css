@@ -744,3 +744,671 @@
 .admin-npc-inferred-head > small { font-size: 11px; opacity: .7; }
 .admin-npc-relation-item.is-derived { border-style: dashed; }
 .admin-npc-relation-side > b { font-size: 10px; text-transform: uppercase; opacity: .62; }
+
+/* ============================================================
+   v38.1 — глубокая автоматизация родства: фокус на одном НПС
+   ============================================================ */
+.admin-npc-relation-actions { display:flex; gap:8px; align-items:center; flex-wrap:wrap; }
+.admin-npc-relation-actions button:first-child { color:var(--editor-accent); }
+
+.kinship-auto-overlay {
+  position:fixed;
+  inset:0;
+  z-index:1300;
+  display:grid;
+  place-items:center;
+  padding:16px;
+  background:rgba(6,7,16,.72);
+  backdrop-filter:blur(12px);
+}
+.kinship-auto-dialog {
+  width:min(1480px,calc(100vw - 32px));
+  height:min(900px,calc(100vh - 32px));
+  display:grid;
+  grid-template-rows:auto minmax(0,1fr) auto;
+  overflow:hidden;
+  border:1px solid var(--editor-line);
+  border-radius:24px;
+  background:var(--editor-panel);
+  color:var(--editor-text);
+  box-shadow:0 28px 90px rgba(0,0,0,.34);
+}
+.kinship-auto-head { display:flex; align-items:flex-start; justify-content:space-between; gap:24px; padding:18px 20px; border-bottom:1px solid var(--editor-line); }
+.kinship-auto-head > div { min-width:0; display:grid; gap:4px; }
+.kinship-auto-head span { font-size:10px; font-weight:900; letter-spacing:.14em; color:var(--editor-accent); }
+.kinship-auto-head h2 { margin:0; font-size:23px; line-height:1.15; }
+.kinship-auto-head p { margin:0; max-width:900px; color:var(--editor-muted); font-size:11px; line-height:1.5; }
+.kinship-auto-head > button { width:38px; height:38px; flex:0 0 38px; border:1px solid var(--editor-line); border-radius:12px; background:transparent; color:var(--editor-text); font-size:24px; cursor:pointer; }
+
+.kinship-auto-workspace { min-height:0; display:grid; grid-template-columns:300px minmax(0,1fr); }
+.kinship-auto-sources { min-height:0; display:grid; grid-template-rows:auto minmax(0,1fr); border-right:1px solid var(--editor-line); background:color-mix(in srgb,var(--editor-panel) 96%,var(--editor-text) 4%); }
+.kinship-auto-source-search { padding:15px; display:grid; gap:8px; border-bottom:1px solid var(--editor-line); }
+.kinship-auto-source-search strong { font-size:12px; }
+.kinship-auto-source-search input,.kinship-auto-toolbar input { min-width:0; width:100%; box-sizing:border-box; padding:10px 11px; border:1px solid var(--editor-line); border-radius:11px; color:var(--editor-text); background:var(--editor-panel); font:inherit; font-size:12px; outline:none; }
+.kinship-auto-source-search input:focus,.kinship-auto-toolbar input:focus { border-color:color-mix(in srgb,var(--editor-accent) 70%,var(--editor-line)); box-shadow:0 0 0 3px color-mix(in srgb,var(--editor-accent) 11%,transparent); }
+.kinship-auto-source-list { min-height:0; overflow:auto; padding:8px; display:grid; align-content:start; gap:5px; }
+.kinship-auto-source { width:100%; min-width:0; display:grid; grid-template-columns:44px minmax(0,1fr) auto; gap:9px; align-items:center; padding:8px; border:1px solid transparent; border-radius:13px; background:transparent; color:var(--editor-text); text-align:left; cursor:pointer; font:inherit; }
+.kinship-auto-source:hover { background:color-mix(in srgb,var(--editor-text) 5%,transparent); }
+.kinship-auto-source.active { border-color:color-mix(in srgb,var(--editor-accent) 45%,var(--editor-line)); background:color-mix(in srgb,var(--editor-accent) 9%,var(--editor-panel)); }
+.kinship-auto-source .kinship-auto-avatar { width:44px; height:44px; flex-basis:44px; border-radius:10px; }
+.kinship-auto-source-copy { min-width:0; display:grid; gap:2px; }
+.kinship-auto-source-copy strong { font-size:12px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.kinship-auto-source-copy small { color:var(--editor-muted); font-size:9px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.kinship-auto-source-count { min-width:25px; height:25px; display:grid; place-items:center; padding:0 6px; border:1px solid var(--editor-line); border-radius:999px; color:var(--editor-muted); font-size:9px; font-weight:900; }
+.kinship-auto-source-count.has-new { border-color:color-mix(in srgb,var(--editor-accent) 45%,var(--editor-line)); background:color-mix(in srgb,var(--editor-accent) 12%,var(--editor-panel)); color:var(--editor-text); }
+.kinship-auto-source-empty { padding:24px 10px; text-align:center; color:var(--editor-muted); font-size:11px; }
+
+.kinship-auto-main { min-width:0; min-height:0; display:grid; grid-template-rows:auto auto auto minmax(0,1fr); overflow:hidden; }
+.kinship-auto-focus-card { padding:14px 18px; display:flex; align-items:center; justify-content:space-between; gap:18px; border-bottom:1px solid var(--editor-line); background:linear-gradient(110deg,color-mix(in srgb,var(--editor-accent) 9%,var(--editor-panel)),var(--editor-panel) 56%); }
+.kinship-auto-focus-person { min-width:0; display:flex; align-items:center; gap:12px; }
+.kinship-auto-focus-person .kinship-auto-avatar { width:64px; height:64px; flex-basis:64px; border-radius:15px; }
+.kinship-auto-focus-person > div { min-width:0; display:grid; gap:2px; }
+.kinship-auto-focus-person span { color:var(--editor-accent); font-size:8px; font-weight:900; letter-spacing:.1em; }
+.kinship-auto-focus-person h3 { margin:0; font-size:19px; }
+.kinship-auto-focus-person p { margin:0; color:var(--editor-muted); font-size:10px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.kinship-auto-focus-stats { flex:0 0 auto; display:flex; gap:7px; }
+.kinship-auto-focus-stats > div { min-width:82px; padding:8px 10px; display:grid; gap:1px; border:1px solid var(--editor-line); border-radius:11px; background:color-mix(in srgb,var(--editor-panel) 95%,var(--editor-text) 5%); }
+.kinship-auto-focus-stats span { color:var(--editor-muted); font-size:8px; text-transform:uppercase; font-weight:800; }
+.kinship-auto-focus-stats strong { font-size:16px; }
+.kinship-auto-focus-stats .warn { border-color:rgba(222,156,61,.44); }
+
+.kinship-auto-controls { padding:10px 18px; display:grid; gap:8px; border-bottom:1px solid var(--editor-line); }
+.kinship-auto-status-tabs,.kinship-auto-section-tabs { display:flex; gap:6px; flex-wrap:wrap; }
+.kinship-auto-status-tabs button,.kinship-auto-section-tabs button { display:flex; align-items:center; gap:7px; padding:7px 9px; border:1px solid var(--editor-line); border-radius:999px; background:transparent; color:var(--editor-text); font:inherit; font-size:9px; font-weight:800; cursor:pointer; }
+.kinship-auto-status-tabs button b,.kinship-auto-section-tabs button b { min-width:18px; height:18px; display:grid; place-items:center; padding:0 4px; border-radius:999px; background:color-mix(in srgb,var(--editor-text) 7%,transparent); font-size:8px; }
+.kinship-auto-status-tabs button.active,.kinship-auto-section-tabs button.active { border-color:color-mix(in srgb,var(--editor-accent) 55%,var(--editor-line)); background:color-mix(in srgb,var(--editor-accent) 11%,var(--editor-panel)); }
+.kinship-auto-toolbar { display:grid; grid-template-columns:minmax(220px,1fr) auto auto; gap:7px; }
+.kinship-auto-toolbar button,.kinship-auto-footer button { border:1px solid var(--editor-line); border-radius:10px; padding:9px 11px; background:transparent; color:var(--editor-text); font:inherit; font-size:10px; font-weight:800; cursor:pointer; }
+.kinship-auto-toolbar button:hover,.kinship-auto-footer button:hover { background:color-mix(in srgb,var(--editor-text) 5%,transparent); }
+.kinship-auto-toolbar button:disabled,.kinship-auto-footer button:disabled { opacity:.45; cursor:default; }
+
+.kinship-auto-stale { margin:10px 18px 0; padding:9px 11px; display:grid; gap:2px; border:1px solid rgba(222,156,61,.35); border-radius:11px; background:rgba(222,156,61,.08); }
+.kinship-auto-stale strong { font-size:10px; }
+.kinship-auto-stale span { color:var(--editor-muted); font-size:9px; line-height:1.4; }
+
+.kinship-auto-list { min-height:0; overflow:auto; padding:12px 18px 16px; display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); align-content:start; gap:10px; }
+.kinship-auto-card { min-width:0; padding:12px; display:grid; gap:11px; border:1px solid var(--editor-line); border-radius:15px; background:color-mix(in srgb,var(--editor-panel) 97%,var(--editor-text) 3%); }
+.kinship-auto-card:hover { border-color:color-mix(in srgb,var(--editor-accent) 28%,var(--editor-line)); }
+.kinship-auto-card.is-saved { opacity:.72; }
+.kinship-auto-card.is-changed { border-color:color-mix(in srgb,var(--editor-accent) 55%,var(--editor-line)); }
+.kinship-auto-card-top { min-width:0; display:grid; grid-template-columns:22px 54px minmax(0,1fr) auto; gap:9px; align-items:center; }
+.kinship-auto-check { display:grid; place-items:center; }
+.kinship-auto-check input { width:17px; height:17px; accent-color:var(--editor-accent); }
+.kinship-auto-avatar { width:54px; height:54px; flex:0 0 54px; border-radius:12px; object-fit:cover; border:1px solid var(--editor-line); background:color-mix(in srgb,var(--editor-panel) 88%,var(--editor-text) 12%); }
+.kinship-auto-avatar.is-empty { display:grid; place-items:center; font-weight:900; }
+.kinship-auto-card-person { min-width:0; display:grid; gap:2px; }
+.kinship-auto-card-person span { color:var(--editor-muted); font-size:7px; font-weight:900; letter-spacing:.08em; }
+.kinship-auto-card-person strong { font-size:13px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.kinship-auto-card-person small { color:var(--editor-muted); font-size:8px; }
+.kinship-auto-kind { align-self:start; padding:5px 7px; border:1px solid var(--editor-line); border-radius:999px; color:var(--editor-muted); font-size:7px; font-weight:900; white-space:nowrap; }
+.kinship-auto-kind.is-marriage { border-color:rgba(209,159,72,.4); }
+.kinship-auto-kind.is-uncertain { border-color:rgba(222,156,61,.5); }
+.kinship-auto-card-relation { padding:9px 10px; display:grid; gap:3px; border-radius:11px; background:color-mix(in srgb,var(--editor-accent) 6%,transparent); }
+.kinship-auto-card-relation span { color:var(--editor-muted); font-size:8px; font-weight:800; text-transform:uppercase; }
+.kinship-auto-card-relation strong { color:var(--editor-text); font-size:14px; }
+.kinship-auto-card-relation p { margin:0; color:var(--editor-muted); font-size:9px; line-height:1.45; }
+.kinship-auto-fields { min-width:0; display:grid; grid-template-columns:minmax(130px,.8fr) minmax(150px,1.2fr); gap:7px; }
+.kinship-auto-fields label { min-width:0; display:grid; gap:3px; }
+.kinship-auto-fields label > span { color:var(--editor-muted); font-size:7px; font-weight:800; text-transform:uppercase; letter-spacing:.05em; }
+.kinship-auto-fields select,.kinship-auto-fields input { min-width:0; width:100%; box-sizing:border-box; padding:8px 9px; border:1px solid var(--editor-line); border-radius:9px; background:var(--editor-panel); color:var(--editor-text); font:inherit; font-size:10px; }
+.kinship-auto-card-bottom { display:flex; align-items:center; justify-content:space-between; gap:10px; }
+.kinship-auto-public { display:flex; align-items:center; gap:6px; color:var(--editor-muted); font-size:9px; }
+.kinship-auto-public input { width:15px; height:15px; accent-color:var(--editor-accent); }
+.kinship-auto-card-bottom small { color:var(--editor-muted); font-size:8px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.kinship-auto-empty { grid-column:1/-1; padding:42px 18px; display:grid; gap:4px; text-align:center; color:var(--editor-muted); border:1px dashed var(--editor-line); border-radius:14px; }
+.kinship-auto-empty strong { color:var(--editor-text); font-size:13px; }
+.kinship-auto-empty span { font-size:10px; }
+
+.kinship-auto-footer { display:flex; align-items:center; justify-content:flex-end; gap:10px; padding:12px 16px; border-top:1px solid var(--editor-line); background:color-mix(in srgb,var(--editor-panel) 96%,var(--editor-text) 4%); }
+.kinship-auto-footer > div { margin-right:auto; min-width:0; display:grid; gap:2px; }
+.kinship-auto-footer strong { font-size:11px; }
+.kinship-auto-footer span { color:var(--editor-muted); font-size:9px; }
+.kinship-auto-footer button.primary { border-color:transparent; background:var(--editor-accent); color:white; }
+
+@media (max-width:1100px) {
+  .kinship-auto-dialog { width:calc(100vw - 20px); height:calc(100vh - 20px); }
+  .kinship-auto-overlay { padding:10px; }
+  .kinship-auto-workspace { grid-template-columns:250px minmax(0,1fr); }
+  .kinship-auto-list { grid-template-columns:1fr; }
+  .kinship-auto-focus-stats > div { min-width:66px; }
+}
+@media (max-width:760px) {
+  .kinship-auto-dialog { height:calc(100vh - 10px); width:calc(100vw - 10px); border-radius:16px; }
+  .kinship-auto-overlay { padding:5px; }
+  .kinship-auto-head { padding:13px; }
+  .kinship-auto-head h2 { font-size:18px; }
+  .kinship-auto-head p { display:none; }
+  .kinship-auto-workspace { grid-template-columns:1fr; grid-template-rows:180px minmax(0,1fr); }
+  .kinship-auto-sources { border-right:0; border-bottom:1px solid var(--editor-line); }
+  .kinship-auto-source-list { grid-template-columns:repeat(2,minmax(0,1fr)); }
+  .kinship-auto-focus-card { padding:10px 12px; align-items:flex-start; }
+  .kinship-auto-focus-person .kinship-auto-avatar { width:48px; height:48px; flex-basis:48px; }
+  .kinship-auto-focus-stats { display:grid; grid-template-columns:repeat(2,1fr); }
+  .kinship-auto-focus-stats > div { min-width:0; padding:6px 8px; }
+  .kinship-auto-controls { padding:8px 12px; }
+  .kinship-auto-toolbar { grid-template-columns:1fr 1fr; }
+  .kinship-auto-toolbar input { grid-column:1/-1; }
+  .kinship-auto-list { padding:10px 12px; }
+  .kinship-auto-fields { grid-template-columns:1fr; }
+  .kinship-auto-footer { flex-wrap:wrap; padding:9px 12px; }
+  .kinship-auto-footer > div { width:100%; margin:0; }
+  .kinship-auto-footer button { flex:1 1 140px; }
+}
+
+/* ============================================================
+   v38.2 — solid kinship review UI / independent theme tokens
+   ============================================================ */
+.kinship-auto-overlay {
+  --editor-panel: var(--admin-panel-strong, var(--card, #171925));
+  --editor-text: var(--admin-text, var(--fg, #f3f4f8));
+  --editor-line: var(--admin-line, var(--card-border, rgba(127,132,155,.28)));
+  --editor-muted: var(--admin-muted, color-mix(in srgb,var(--editor-text) 64%,transparent));
+  --editor-accent: var(--admin-accent, var(--accent, #7657f6));
+  --kinship-shell: color-mix(in srgb,var(--editor-panel) 94%,#11131c 6%);
+  --kinship-panel: color-mix(in srgb,var(--editor-panel) 97%,var(--editor-text) 3%);
+  --kinship-panel-2: color-mix(in srgb,var(--editor-panel) 91%,var(--editor-text) 9%);
+  --kinship-line: color-mix(in srgb,var(--editor-line) 82%,var(--editor-text) 18%);
+  background:rgba(4,5,11,.78);
+  backdrop-filter:blur(10px) saturate(.9);
+  -webkit-backdrop-filter:blur(10px) saturate(.9);
+}
+
+.kinship-auto-dialog {
+  width:min(1420px,calc(100vw - 36px));
+  height:min(880px,calc(100vh - 36px));
+  border-color:var(--kinship-line);
+  background:var(--kinship-shell);
+  color:var(--editor-text);
+  box-shadow:0 32px 100px rgba(0,0,0,.5),0 0 0 1px color-mix(in srgb,var(--editor-text) 4%,transparent) inset;
+  isolation:isolate;
+}
+
+.kinship-auto-head {
+  padding:18px 22px;
+  background:var(--kinship-panel);
+  border-bottom-color:var(--kinship-line);
+}
+.kinship-auto-head h2 { color:var(--editor-text); }
+.kinship-auto-head p { color:var(--editor-muted); max-width:820px; }
+.kinship-auto-head > button {
+  background:var(--kinship-panel-2);
+  border-color:var(--kinship-line);
+}
+.kinship-auto-head > button:hover { background:color-mix(in srgb,var(--editor-accent) 12%,var(--kinship-panel-2)); }
+
+.kinship-auto-workspace {
+  min-height:0;
+  background:var(--kinship-shell);
+}
+
+.kinship-auto-sources {
+  grid-template-rows:auto minmax(0,1fr);
+  border-right-color:var(--kinship-line);
+  background:var(--kinship-panel);
+}
+.kinship-auto-source-search {
+  position:relative;
+  z-index:2;
+  padding:16px;
+  background:var(--kinship-panel);
+  border-bottom-color:var(--kinship-line);
+}
+.kinship-auto-source-search strong { color:var(--editor-text); font-size:11px; letter-spacing:.02em; }
+.kinship-auto-source-search input,
+.kinship-auto-toolbar input {
+  background:var(--kinship-shell);
+  border-color:var(--kinship-line);
+  color:var(--editor-text);
+}
+.kinship-auto-source-search input::placeholder,
+.kinship-auto-toolbar input::placeholder { color:color-mix(in srgb,var(--editor-muted) 78%,transparent); }
+
+.kinship-auto-source-list {
+  padding:10px;
+  gap:7px;
+  background:var(--kinship-panel);
+  scrollbar-width:thin;
+  scrollbar-color:color-mix(in srgb,var(--editor-accent) 38%,var(--kinship-line)) transparent;
+}
+.kinship-auto-source-list::-webkit-scrollbar,
+.kinship-auto-list::-webkit-scrollbar { width:8px; height:8px; }
+.kinship-auto-source-list::-webkit-scrollbar-track,
+.kinship-auto-list::-webkit-scrollbar-track { background:transparent; }
+.kinship-auto-source-list::-webkit-scrollbar-thumb,
+.kinship-auto-list::-webkit-scrollbar-thumb {
+  border:2px solid transparent;
+  border-radius:999px;
+  background:color-mix(in srgb,var(--editor-accent) 38%,var(--kinship-line));
+  background-clip:padding-box;
+}
+
+.kinship-auto-source {
+  padding:9px;
+  border-color:transparent;
+  background:transparent;
+}
+.kinship-auto-source:hover { background:var(--kinship-panel-2); }
+.kinship-auto-source.active {
+  border-color:color-mix(in srgb,var(--editor-accent) 58%,var(--kinship-line));
+  background:color-mix(in srgb,var(--editor-accent) 13%,var(--kinship-panel));
+  box-shadow:0 0 0 1px color-mix(in srgb,var(--editor-accent) 8%,transparent) inset;
+}
+.kinship-auto-source-copy strong { color:var(--editor-text); font-size:12px; }
+.kinship-auto-source-copy small { color:var(--editor-muted); }
+.kinship-auto-source-count {
+  border-color:var(--kinship-line);
+  background:var(--kinship-shell);
+  color:var(--editor-muted);
+}
+
+.kinship-auto-main {
+  background:var(--kinship-shell);
+}
+.kinship-auto-focus-card {
+  padding:14px 20px;
+  background:linear-gradient(110deg,color-mix(in srgb,var(--editor-accent) 12%,var(--kinship-panel)),var(--kinship-panel) 52%);
+  border-bottom-color:var(--kinship-line);
+}
+.kinship-auto-focus-person h3 { color:var(--editor-text); }
+.kinship-auto-focus-person p { color:var(--editor-muted); }
+.kinship-auto-focus-stats > div {
+  border-color:var(--kinship-line);
+  background:var(--kinship-shell);
+}
+.kinship-auto-focus-stats span { color:var(--editor-muted); }
+.kinship-auto-focus-stats strong { color:var(--editor-text); }
+
+.kinship-auto-controls {
+  padding:11px 20px 12px;
+  background:var(--kinship-panel);
+  border-bottom-color:var(--kinship-line);
+}
+.kinship-auto-status-tabs button,
+.kinship-auto-section-tabs button,
+.kinship-auto-toolbar button,
+.kinship-auto-footer button {
+  background:var(--kinship-shell);
+  border-color:var(--kinship-line);
+  color:var(--editor-text);
+}
+.kinship-auto-status-tabs button:hover,
+.kinship-auto-section-tabs button:hover,
+.kinship-auto-toolbar button:hover,
+.kinship-auto-footer button:hover { background:var(--kinship-panel-2); }
+.kinship-auto-status-tabs button.active,
+.kinship-auto-section-tabs button.active {
+  border-color:color-mix(in srgb,var(--editor-accent) 62%,var(--kinship-line));
+  background:color-mix(in srgb,var(--editor-accent) 14%,var(--kinship-panel));
+}
+
+.kinship-auto-stale {
+  background:color-mix(in srgb,#d89835 10%,var(--kinship-panel));
+  border-color:color-mix(in srgb,#d89835 48%,var(--kinship-line));
+}
+
+.kinship-auto-list {
+  padding:16px 20px 20px;
+  gap:12px;
+  background:var(--kinship-shell);
+  scrollbar-width:thin;
+  scrollbar-color:color-mix(in srgb,var(--editor-accent) 38%,var(--kinship-line)) transparent;
+}
+.kinship-auto-card {
+  padding:14px;
+  gap:12px;
+  border-color:var(--kinship-line);
+  background:var(--kinship-panel);
+  box-shadow:0 8px 24px rgba(0,0,0,.08);
+}
+.kinship-auto-card:hover {
+  border-color:color-mix(in srgb,var(--editor-accent) 45%,var(--kinship-line));
+  box-shadow:0 10px 30px rgba(0,0,0,.12);
+}
+.kinship-auto-card.is-saved { opacity:.82; }
+.kinship-auto-card-person strong { color:var(--editor-text); font-size:13px; }
+.kinship-auto-card-person span,
+.kinship-auto-card-person small { color:var(--editor-muted); }
+.kinship-auto-kind {
+  background:var(--kinship-shell);
+  border-color:var(--kinship-line);
+  color:var(--editor-muted);
+}
+.kinship-auto-card-relation {
+  background:color-mix(in srgb,var(--editor-accent) 9%,var(--kinship-shell));
+  border:1px solid color-mix(in srgb,var(--editor-accent) 20%,var(--kinship-line));
+}
+.kinship-auto-card-relation strong { color:var(--editor-text); }
+.kinship-auto-card-relation p,
+.kinship-auto-card-relation span { color:var(--editor-muted); }
+.kinship-auto-fields select,
+.kinship-auto-fields input {
+  background:var(--kinship-shell);
+  border-color:var(--kinship-line);
+  color:var(--editor-text);
+}
+.kinship-auto-fields select:focus,
+.kinship-auto-fields input:focus {
+  outline:none;
+  border-color:color-mix(in srgb,var(--editor-accent) 68%,var(--kinship-line));
+  box-shadow:0 0 0 3px color-mix(in srgb,var(--editor-accent) 12%,transparent);
+}
+.kinship-auto-public,
+.kinship-auto-card-bottom small { color:var(--editor-muted); }
+
+.kinship-auto-footer {
+  padding:13px 18px;
+  background:var(--kinship-panel);
+  border-top-color:var(--kinship-line);
+  box-shadow:0 -10px 24px rgba(0,0,0,.07);
+}
+.kinship-auto-footer strong { color:var(--editor-text); }
+.kinship-auto-footer span { color:var(--editor-muted); }
+.kinship-auto-footer button.primary {
+  background:var(--editor-accent);
+  color:#fff;
+  border-color:transparent;
+  box-shadow:0 6px 18px color-mix(in srgb,var(--editor-accent) 28%,transparent);
+}
+
+@media (max-width:1100px) {
+  .kinship-auto-dialog { width:calc(100vw - 20px); height:calc(100vh - 20px); }
+  .kinship-auto-workspace { grid-template-columns:270px minmax(0,1fr); }
+}
+
+@media (max-width:760px) {
+  .kinship-auto-dialog { width:calc(100vw - 10px); height:calc(100vh - 10px); }
+  .kinship-auto-workspace { grid-template-rows:168px minmax(0,1fr); }
+  .kinship-auto-source-list { grid-template-columns:repeat(2,minmax(0,1fr)); padding:8px; }
+  .kinship-auto-source { grid-template-columns:40px minmax(0,1fr) auto; }
+  .kinship-auto-source .kinship-auto-avatar { width:40px; height:40px; flex-basis:40px; }
+  .kinship-auto-focus-card { padding:10px 12px; }
+  .kinship-auto-controls { padding:9px 12px; }
+  .kinship-auto-list { padding:10px 12px 14px; }
+}
+
+/* v38.4 — очередь проверки вычисленного родства */
+.kinship-auto-source-search {
+  gap:10px;
+}
+.kinship-auto-source-buckets {
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  gap:6px;
+}
+.kinship-auto-source-buckets button {
+  min-width:0;
+  min-height:34px;
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:7px;
+  padding:7px 9px;
+  border:1px solid var(--kinship-line);
+  border-radius:10px;
+  background:var(--kinship-shell);
+  color:var(--editor-muted);
+  font:inherit;
+  font-size:9px;
+  font-weight:850;
+  cursor:pointer;
+}
+.kinship-auto-source-buckets button:first-child {
+  grid-column:1 / -1;
+}
+.kinship-auto-source-buckets button:hover {
+  border-color:color-mix(in srgb,var(--editor-accent) 42%,var(--kinship-line));
+  color:var(--editor-text);
+}
+.kinship-auto-source-buckets button.active {
+  border-color:color-mix(in srgb,var(--editor-accent) 62%,var(--kinship-line));
+  background:color-mix(in srgb,var(--editor-accent) 13%,var(--kinship-panel));
+  color:var(--editor-text);
+  box-shadow:0 0 0 1px color-mix(in srgb,var(--editor-accent) 7%,transparent) inset;
+}
+.kinship-auto-source-buckets button b {
+  min-width:22px;
+  height:22px;
+  display:grid;
+  place-items:center;
+  padding:0 6px;
+  border-radius:999px;
+  background:color-mix(in srgb,var(--editor-text) 7%,transparent);
+  color:inherit;
+  font-size:9px;
+}
+.kinship-auto-source-count.is-ready {
+  border-color:color-mix(in srgb,#2fa76f 46%,var(--kinship-line));
+  background:color-mix(in srgb,#2fa76f 12%,var(--kinship-shell));
+  color:color-mix(in srgb,#2fa76f 72%,var(--editor-text));
+  font-size:12px;
+}
+.kinship-auto-source-count.is-empty {
+  opacity:.65;
+}
+
+/* v39 — портрет при создании нового НПС */
+.admin-npc-photo-section .admin-npc-subhead {
+  align-items:flex-start;
+}
+.admin-npc-photo-upload {
+  display:grid;
+  grid-template-columns:150px minmax(0,1fr);
+  gap:18px;
+  align-items:center;
+  padding:14px;
+  border:1px solid var(--editor-line);
+  border-radius:16px;
+  background:color-mix(in srgb,var(--editor-panel) 96%,var(--editor-accent) 4%);
+}
+.admin-npc-photo-preview {
+  aspect-ratio:1 / 1;
+  overflow:hidden;
+  display:grid;
+  place-items:center;
+  border:1px dashed color-mix(in srgb,var(--editor-accent) 42%,var(--editor-line));
+  border-radius:16px;
+  background:color-mix(in srgb,var(--editor-panel) 91%,var(--editor-text) 9%);
+}
+.admin-npc-photo-preview > img {
+  width:100%;
+  height:100%;
+  display:block;
+  object-fit:cover;
+}
+.admin-npc-photo-preview > div {
+  display:grid;
+  justify-items:center;
+  gap:5px;
+  color:var(--editor-muted);
+}
+.admin-npc-photo-preview > div b {
+  color:var(--editor-accent);
+  font-size:32px;
+  font-weight:300;
+  line-height:1;
+}
+.admin-npc-photo-preview > div span {
+  font-size:9px;
+  font-weight:800;
+  letter-spacing:.06em;
+  text-transform:uppercase;
+}
+.admin-npc-photo-actions {
+  min-width:0;
+  display:grid;
+  gap:7px;
+}
+.admin-npc-photo-actions > strong {
+  overflow:hidden;
+  color:var(--editor-text);
+  font-size:14px;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+}
+.admin-npc-photo-actions > small {
+  max-width:620px;
+  color:var(--editor-muted);
+  font-size:9px;
+  line-height:1.5;
+}
+.admin-npc-photo-actions > div {
+  display:flex;
+  gap:8px;
+  flex-wrap:wrap;
+  margin-top:3px;
+}
+.admin-npc-photo-actions label.admin-button {
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  cursor:pointer;
+}
+.admin-npc-photo-actions label.admin-button > input {
+  position:absolute;
+  width:1px;
+  height:1px;
+  overflow:hidden;
+  clip:rect(0,0,0,0);
+  white-space:nowrap;
+  clip-path:inset(50%);
+}
+.admin-npc-photo-upload.has-photo {
+  border-color:color-mix(in srgb,var(--editor-accent) 38%,var(--editor-line));
+}
+
+@media(max-width:680px){
+  .admin-npc-photo-upload {
+    grid-template-columns:108px minmax(0,1fr);
+    gap:12px;
+    padding:11px;
+  }
+  .admin-npc-photo-preview { border-radius:13px; }
+  .admin-npc-photo-actions > div { display:grid; grid-template-columns:1fr; }
+  .admin-npc-photo-actions .admin-button { width:100%; }
+}
+
+/* v39.1 — портрет закреплён прямо под шапкой создания НПС, чтобы блок нельзя было пропустить */
+.admin-npc-photo-dock {
+  flex:0 0 auto;
+  display:grid;
+  grid-template-columns:96px minmax(0,1fr) minmax(150px,220px);
+  gap:16px;
+  align-items:center;
+  padding:14px 18px;
+  border-top:1px solid var(--editor-line);
+  border-bottom:1px solid var(--editor-line);
+  background:linear-gradient(90deg,color-mix(in srgb,var(--editor-accent) 10%,var(--editor-panel)),var(--editor-panel) 46%,color-mix(in srgb,var(--editor-accent) 5%,var(--editor-panel)));
+}
+.admin-npc-photo-dock .admin-npc-photo-preview {
+  width:96px;
+  height:96px;
+  aspect-ratio:auto;
+  border-style:solid;
+}
+.admin-npc-photo-dock.has-photo .admin-npc-photo-preview {
+  border-color:color-mix(in srgb,var(--editor-accent) 56%,var(--editor-line));
+}
+.admin-npc-photo-title {
+  display:grid;
+  gap:4px;
+}
+.admin-npc-photo-title > span {
+  color:var(--editor-accent);
+  font-size:9px;
+  font-weight:900;
+  letter-spacing:.09em;
+}
+.admin-npc-photo-title > strong {
+  color:var(--editor-text);
+  font-size:14px;
+}
+.admin-npc-photo-dock-note {
+  display:grid;
+  gap:4px;
+  padding:11px 12px;
+  border:1px solid color-mix(in srgb,var(--editor-accent) 26%,var(--editor-line));
+  border-radius:12px;
+  background:color-mix(in srgb,var(--editor-accent) 7%,var(--editor-panel));
+}
+.admin-npc-photo-dock-note b {
+  color:var(--editor-text);
+  font-size:10px;
+}
+.admin-npc-photo-dock-note span {
+  color:var(--editor-muted);
+  font-size:9px;
+  line-height:1.45;
+}
+@media(max-width:760px){
+  .admin-npc-photo-dock {
+    grid-template-columns:76px minmax(0,1fr);
+    padding:12px;
+  }
+  .admin-npc-photo-dock .admin-npc-photo-preview { width:76px;height:76px; }
+  .admin-npc-photo-dock-note { grid-column:1/-1; }
+}
+
+/* v40 — раса НПС читается из существующих Google chips */
+.admin-npc-race-field {
+  min-width:0;
+}
+.admin-npc-race-chip-control {
+  position:relative;
+  display:flex;
+  align-items:center;
+  min-width:0;
+  min-height:42px;
+  border:1px solid var(--editor-line);
+  border-radius:999px;
+  background:color-mix(in srgb,var(--editor-panel) 91%,var(--editor-text) 9%);
+  overflow:hidden;
+  transition:border-color .15s ease,box-shadow .15s ease,background .15s ease;
+}
+.admin-npc-race-chip-control:focus-within {
+  border-color:color-mix(in srgb,var(--editor-accent) 70%,var(--editor-line));
+  box-shadow:0 0 0 3px color-mix(in srgb,var(--editor-accent) 12%,transparent);
+}
+.admin-npc-race-chip-control.has-value {
+  background:color-mix(in srgb,var(--editor-accent) 9%,var(--editor-panel));
+  border-color:color-mix(in srgb,var(--editor-accent) 34%,var(--editor-line));
+}
+.admin-npc-race-chip-dot {
+  flex:0 0 auto;
+  width:18px;
+  height:18px;
+  margin-left:12px;
+  border-radius:50%;
+  border:1px solid color-mix(in srgb,var(--editor-text) 18%,var(--editor-line));
+  background:color-mix(in srgb,var(--editor-accent) 12%,var(--editor-panel));
+  pointer-events:none;
+}
+.admin-npc-race-chip-control select {
+  flex:1 1 auto;
+  min-width:0;
+  width:100%;
+  min-height:40px;
+  padding:8px 38px 8px 9px;
+  border:0;
+  border-radius:999px;
+  outline:0;
+  color:var(--editor-text);
+  background:transparent;
+  font:inherit;
+  font-size:12px;
+  cursor:pointer;
+}
+.admin-npc-race-field.state-missing .admin-npc-race-chip-control {
+  border-color:color-mix(in srgb,#df6673 52%,var(--editor-line));
+}
+.admin-npc-race-field.state-review .admin-npc-race-chip-control {
+  border-color:color-mix(in srgb,#c99b45 52%,var(--editor-line));
+}
+.admin-npc-race-fallback {
+  display:grid;
+  gap:5px;
+}
+.admin-npc-race-fallback small {
+  color:var(--editor-muted);
+  font-size:9px;
+  line-height:1.35;
+}

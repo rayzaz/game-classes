@@ -41,6 +41,66 @@ type AdminSection =
   | 'audit';
 
 
+const ADMIN_SECTION_STORAGE_KEY =
+  'gosmag.admin.section.v1';
+
+
+function readStoredAdminSection(): AdminSection {
+  if (typeof window === 'undefined') {
+    return 'characters';
+  }
+
+  try {
+    const value =
+      window.sessionStorage.getItem(
+        ADMIN_SECTION_STORAGE_KEY
+      );
+
+    const allowed: AdminSection[] = [
+      'characters',
+      'npcs',
+      'questionnaires',
+      'events',
+      'reports',
+      'eventers',
+      'calendar',
+      'audit',
+    ];
+
+    if (
+      value &&
+      allowed.includes(
+        value as AdminSection
+      )
+    ) {
+      return value as AdminSection;
+    }
+  } catch {
+    // Не критично.
+  }
+
+  return 'characters';
+}
+
+
+function writeStoredAdminSection(
+  section: AdminSection
+) {
+  if (typeof window === 'undefined') {
+    return;
+  }
+
+  try {
+    window.sessionStorage.setItem(
+      ADMIN_SECTION_STORAGE_KEY,
+      section
+    );
+  } catch {
+    // Не критично.
+  }
+}
+
+
 type SessionUser = {
   login: string;
   displayName: string;
@@ -120,8 +180,18 @@ export default function AdminCabinet({
     setSection
   ] =
     useState<AdminSection>(
-      'characters'
+      () => readStoredAdminSection()
     );
+
+  useEffect(
+    () => {
+      writeStoredAdminSection(
+        section
+      );
+    },
+    [section]
+  );
+
 
   const [
     characters,

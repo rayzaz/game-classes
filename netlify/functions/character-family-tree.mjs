@@ -3,6 +3,8 @@ import {
   readSession,
 } from './_shared/_auth.mjs';
 
+import { proxifyNpcImagesDeep } from './_shared/_npc-images.mjs';
+
 function loadCharacterServiceUrl() {
   const raw = String(process.env.CHARACTER_SERVICE_URL || '').trim();
   if (!raw) throw new Error('Не задан CHARACTER_SERVICE_URL');
@@ -53,7 +55,7 @@ export default async (request) => {
       throw new Error(result?.error || `Сервис семейного древа вернул ${response.status}`);
     }
 
-    return json(result);
+    return json(proxifyNpcImagesDeep(result));
   } catch (error) {
     console.error('character-family-tree error:', error);
     return json({

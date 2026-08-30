@@ -4,6 +4,7 @@ import { createPortal } from 'react-dom';
 import type { NpcRecord, NpcRelation } from '../NpcDirectory';
 import '../npc.css';
 import './admin-npcs.css';
+import NpcKinshipAutomation from './NpcKinshipAutomation';
 
 type MissingField = { key: string; label: string };
 type InferredNpcRelation = NpcRelation & { derived?: boolean; reason?: string };
@@ -34,6 +35,7 @@ type RelationHint = {
 };
 type ExistingRelationLike = { targetKind: TargetKind; targetId: string; targetName?: string; type?: string; typeLabel?: string };
 type DraftRelation = { id: string; type: string; targetKind: TargetKind; targetId: string; targetName: string; note: string; public: boolean };
+type PreparedNpcPhoto = { previewUrl: string; imageBase64: string; imageMime: string; fileName: string; originalBytes: number; width: number; height: number };
 type Stats = { slots: number; named: number; complete: number; needsWork: number; unnamed: number };
 
 type LegacyImportRecord = {
@@ -63,6 +65,7 @@ type LegacyImportManifest = {
 type AdminResponse = {
   ok?: boolean;
   npcs?: AdminNpc[];
+  raceOptions?: string[];
   relationTypes?: RelationType[];
   characters?: CharacterOption[];
   stats?: Stats;
@@ -788,18 +791,208 @@ function readMessage(error: unknown) {
   return error instanceof Error ? error.message : String(error);
 }
 
+function fileAsDataUrl(file: File) {
+  return new Promise<string>((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(String(reader.result || ''));
+    reader.onerror = () => reject(new Error('Не удалось прочитать изображение.'));
+    reader.readAsDataURL(file);
+  });
+}
+
+function browserImage(src: string) {
+  return new Promise<HTMLImageElement>((resolve, reject) => {
+    const image = new Image();
+    image.onload = () => resolve(image);
+    image.onerror = () => reject(new Error('Файл не удалось открыть как изображение.'));
+    image.src = src;
+  });
+}
+
+async function prepareNpcPhoto(file: File): Promise<PreparedNpcPhoto> {
+  const allowed = new Set(['image/jpeg', 'image/png', 'image/webp']);
+  if (!allowed.has(file.type)) throw new Error('Для портрета используйте JPG, PNG или WebP.');
+  if (file.size > 15 * 1024 * 1024) throw new Error('Исходное изображение слишком большое. Максимум — 15 МБ.');
+
+  const sourceUrl = await fileAsDataUrl(file);
+  const image = await browserImage(sourceUrl);
+  const width = Math.max(1, image.naturalWidth || image.width || 1);
+  const height = Math.max(1, image.naturalHeight || image.height || 1);
+
+  // Небольшие изображения не пережимаем: так PNG/WebP сохраняют прозрачность.
+  if (file.size <= 2 * 1024 * 1024 && Math.max(width, height) <= 1800) {
+    const comma = sourceUrl.indexOf(',');
+    return {
+      previewUrl: sourceUrl,
+      imageBase64: comma >= 0 ? sourceUrl.slice(comma + 1) : '',
+      imageMime: file.type,
+      fileName: file.name,
+      originalBytes: file.size,
+      width,
+      height,
+    };
+  }
+
+  const maxSide = 1400;
+  const scale = Math.min(1, maxSide / Math.max(width, height));
+  const outWidth = Math.max(1, Math.round(width * scale));
+  const outHeight = Math.max(1, Math.round(height * scale));
+  const canvas = document.createElement('canvas');
+  canvas.width = outWidth;
+  canvas.height = outHeight;
+  const context = canvas.getContext('2d');
+  if (!context) throw new Error('Браузер не смог подготовить портрет.');
+
+  // JPEG максимально совместим с Drive/Sheets. Прозрачные зоны заполняем светлым фоном.
+  context.fillStyle = '#f7f5f2';
+  context.fillRect(0, 0, outWidth, outHeight);
+  context.drawImage(image, 0, 0, outWidth, outHeight);
+
+  let quality = 0.88;
+  let dataUrl = canvas.toDataURL('image/jpeg', quality);
+  while (dataUrl.length > 2_800_000 && quality > 0.56) {
+    quality -= 0.08;
+    dataUrl = canvas.toDataURL('image/jpeg', quality);
+  }
+
+  const comma = dataUrl.indexOf(',');
+  return {
+    previewUrl: dataUrl,
+    imageBase64: comma >= 0 ? dataUrl.slice(comma + 1) : '',
+    imageMime: 'image/jpeg',
+    fileName: file.name.replace(/\.[^.]+$/, '') + '.jpg',
+    originalBytes: file.size,
+    width: outWidth,
+    height: outHeight,
+  };
+}
+
+const ADMIN_NPCS_STATE_KEY = 'gosmag.admin.npcs.state.v1';
+
+type StoredAdminNpcsState = {
+  filter?: 'all' | 'work' | 'unnamed' | 'complete';
+  query?: string;
+  kinshipOpen?: boolean;
+};
+
+function readAdminNpcsState(): StoredAdminNpcsState {
+  if (typeof window === 'undefined') return {};
+  try {
+    const raw = window.sessionStorage.getItem(ADMIN_NPCS_STATE_KEY);
+    if (!raw) return {};
+    const parsed = JSON.parse(raw) as StoredAdminNpcsState;
+    return parsed && typeof parsed === 'object' ? parsed : {};
+  } catch {
+    return {};
+  }
+}
+
+function writeAdminNpcsState(state: StoredAdminNpcsState) {
+  if (typeof window === 'undefined') return;
+  try {
+    window.sessionStorage.setItem(ADMIN_NPCS_STATE_KEY, JSON.stringify(state));
+  } catch {
+    // Не критично.
+  }
+}
+
+
+function normalizedRaceOptions(options: string[], currentValue: string) {
+  const result: string[] = [];
+  const seen = new Set<string>();
+
+  const push = (value: string) => {
+    const clean = String(value || '').trim();
+    const key = clean.toLocaleLowerCase('ru');
+    if (!clean || seen.has(key)) return;
+    seen.add(key);
+    result.push(clean);
+  };
+
+  push(currentValue);
+  (options || []).forEach(push);
+  return result;
+}
+
+function NpcRaceChipField({
+  value,
+  options,
+  onChange,
+  state = '',
+}: {
+  value: string;
+  options: string[];
+  onChange: (value: string) => void;
+  state?: '' | 'missing' | 'review' | 'ok';
+}) {
+  const values = useMemo(
+    () => normalizedRaceOptions(options, value),
+    [options, value]
+  );
+
+  return (
+    <label className={`admin-npc-field admin-npc-race-field ${state ? `state-${state}` : ''}`.trim()}>
+      <span>
+        Раса
+        {state === 'missing' ? <i>Пусто</i> : state === 'review' ? <i>Проверить</i> : null}
+      </span>
+
+      {options.length ? (
+        <div className={`admin-npc-race-chip-control ${value ? 'has-value' : ''}`}>
+          <span className="admin-npc-race-chip-dot" aria-hidden="true" />
+          <select
+            value={value}
+            onChange={event => onChange(event.target.value)}
+            aria-label="Раса НПС"
+          >
+            <option value="">Выберите расу…</option>
+            {values.map(option => (
+              <option key={option} value={option}>{option}</option>
+            ))}
+          </select>
+        </div>
+      ) : (
+        <div className="admin-npc-race-fallback">
+          <input
+            value={value}
+            onChange={event => onChange(event.target.value)}
+            placeholder="Раса"
+          />
+          <small>Google-чипы рас пока не прочитались — оставлен запасной ввод.</small>
+        </div>
+      )}
+    </label>
+  );
+}
+
+
 export default function AdminNpcs() {
   const [npcs, setNpcs] = useState<AdminNpc[]>([]);
+  const [raceOptions, setRaceOptions] = useState<string[]>([]);
   const [relationTypes, setRelationTypes] = useState<RelationType[]>([]);
   const [characters, setCharacters] = useState<CharacterOption[]>([]);
   const [stats, setStats] = useState<Stats>(EMPTY_STATS);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
-  const [filter, setFilter] = useState<'all' | 'work' | 'unnamed' | 'complete'>('work');
-  const [query, setQuery] = useState('');
+  const [filter, setFilter] = useState<'all' | 'work' | 'unnamed' | 'complete'>(() => {
+    const value = readAdminNpcsState().filter;
+    return value === 'all' || value === 'work' || value === 'unnamed' || value === 'complete'
+      ? value
+      : 'work';
+  });
+  const [query, setQuery] = useState(() => readAdminNpcsState().query || '');
   const [editingId, setEditingId] = useState<string | null>(null);
   const [creating, setCreating] = useState(false);
   const [legacyImportOpen, setLegacyImportOpen] = useState(false);
+  const [kinshipOpen, setKinshipOpen] = useState(() => Boolean(readAdminNpcsState().kinshipOpen));
+
+  useEffect(() => {
+    writeAdminNpcsState({
+      filter,
+      query,
+      kinshipOpen,
+    });
+  }, [filter, query, kinshipOpen]);
 
   async function load() {
     setLoading(true);
@@ -809,6 +1002,7 @@ export default function AdminNpcs() {
       const result: AdminResponse = await response.json();
       if (!response.ok || !result?.ok) throw new Error(result?.error || 'Не удалось загрузить НПС');
       setNpcs(Array.isArray(result.npcs) ? result.npcs : []);
+      setRaceOptions(Array.isArray(result.raceOptions) ? result.raceOptions : []);
       setRelationTypes(Array.isArray(result.relationTypes) ? result.relationTypes : []);
       setCharacters(Array.isArray(result.characters) ? result.characters : []);
       setStats(result.stats || EMPTY_STATS);
@@ -845,6 +1039,7 @@ export default function AdminNpcs() {
         </div>
         <div className="admin-npc-head-actions">
           <button type="button" className="admin-button" onClick={() => setLegacyImportOpen(true)}>⇩ Импорт из старой базы</button>
+          <button type="button" className="admin-button" onClick={() => setKinshipOpen(true)}>✦ Автоматизация родства</button>
           <button type="button" className="admin-button admin-button-primary" onClick={() => setCreating(true)}>＋ Новый НПС</button>
           <button type="button" className="admin-button" onClick={() => void load()} disabled={loading}>↻ Обновить</button>
         </div>
@@ -890,6 +1085,17 @@ export default function AdminNpcs() {
         </div>
       ) : null}
 
+      {kinshipOpen && typeof document !== 'undefined' ? createPortal(
+        <NpcKinshipAutomation
+          npcs={npcs}
+          characters={characters}
+          relationTypes={relationTypes}
+          onClose={() => setKinshipOpen(false)}
+          onChanged={() => void load()}
+        />,
+        document.body
+      ) : null}
+
       {legacyImportOpen && typeof document !== 'undefined' ? createPortal(
         <NpcLegacyImport
           npcs={npcs}
@@ -902,6 +1108,7 @@ export default function AdminNpcs() {
       {creating && typeof document !== 'undefined' ? createPortal(
         <NpcCreateEditor
           npcs={npcs}
+          raceOptions={raceOptions}
           relationTypes={relationTypes}
           characters={characters}
           onClose={() => setCreating(false)}
@@ -914,6 +1121,7 @@ export default function AdminNpcs() {
         <NpcEditor
           npc={editing}
           npcs={npcs}
+          raceOptions={raceOptions}
           relationTypes={relationTypes}
           characters={characters}
           onClose={() => setEditingId(null)}
@@ -1248,12 +1456,14 @@ function renderRelationTypeOptions(relationTypes: RelationType[]) {
 
 function NpcCreateEditor({
   npcs,
+  raceOptions,
   relationTypes,
   characters,
   onClose,
   onCreated,
 }: {
   npcs: AdminNpc[];
+  raceOptions: string[];
   relationTypes: RelationType[];
   characters: CharacterOption[];
   onClose: () => void;
@@ -1274,6 +1484,8 @@ function NpcCreateEditor({
   });
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState('');
+  const [photo, setPhoto] = useState<PreparedNpcPhoto | null>(null);
+  const [photoBusy, setPhotoBusy] = useState(false);
   const [drafts, setDrafts] = useState<DraftRelation[]>([]);
   const [relation, setRelation] = useState({
     type: relationTypes.find(item => item.value === 'relative')?.value || relationTypes[0]?.value || 'relative',
@@ -1360,6 +1572,22 @@ function NpcCreateEditor({
     if (event.key === 'Escape') setTargetOpen(false);
   }
 
+  async function choosePhoto(file?: File | null) {
+    if (!file) return;
+    setPhotoBusy(true);
+    setMessage('');
+    try {
+      const prepared = await prepareNpcPhoto(file);
+      if (!prepared.imageBase64) throw new Error('Не удалось подготовить изображение для отправки.');
+      setPhoto(prepared);
+    } catch (error) {
+      setPhoto(null);
+      setMessage(readMessage(error));
+    } finally {
+      setPhotoBusy(false);
+    }
+  }
+
   function addDraftRelation() {
     if (!relation.targetId) {
       setMessage('Сначала выберите, с кем связан новый НПС.');
@@ -1405,7 +1633,12 @@ function NpcCreateEditor({
         headers: { 'content-type': 'application/json' },
         body: JSON.stringify({
           action: 'create',
-          npc: form,
+          npc: {
+            ...form,
+            imageBase64: photo?.imageBase64 || '',
+            imageMime: photo?.imageMime || '',
+            imageName: photo?.fileName || '',
+          },
           relations: drafts.map(({ type, targetKind, targetId, note, public: isPublic }) => ({
             type,
             targetKind,
@@ -1445,6 +1678,39 @@ function NpcCreateEditor({
           <button type="button" onClick={onClose}>×</button>
         </header>
 
+        <section className={`admin-npc-photo-dock ${photo ? 'has-photo' : ''}`} aria-label="Портрет нового НПС">
+          <div className="admin-npc-photo-preview">
+            {photo ? <img src={photo.previewUrl} alt="Предпросмотр портрета нового НПС" /> : <div><b>＋</b><span>Портрет</span></div>}
+          </div>
+          <div className="admin-npc-photo-actions">
+            <div className="admin-npc-photo-title">
+              <span>ПОРТРЕТ НОВОГО НПС</span>
+              <strong>{photo ? photo.fileName : 'Добавьте изображение сразу при создании'}</strong>
+            </div>
+            <small>{photo ? `${photo.width}×${photo.height} · исходник ${(photo.originalBytes / 1024 / 1024).toFixed(1)} МБ` : 'JPG, PNG или WebP · до 15 МБ. Фото будет записано в Google и появится на сайте.'}</small>
+            <div>
+              <label className={`admin-button ${photo ? '' : 'admin-button-primary'}`}>
+                {photoBusy ? 'Подготавливаю…' : photo ? 'Заменить фото' : 'Выбрать фото'}
+                <input
+                  type="file"
+                  accept="image/jpeg,image/png,image/webp"
+                  disabled={photoBusy || saving}
+                  onChange={event => {
+                    const file = event.currentTarget.files?.[0] || null;
+                    event.currentTarget.value = '';
+                    void choosePhoto(file);
+                  }}
+                />
+              </label>
+              {photo ? <button type="button" className="admin-button" disabled={saving} onClick={() => setPhoto(null)}>Убрать</button> : null}
+            </div>
+          </div>
+          <div className="admin-npc-photo-dock-note">
+            <b>Google + сайт</b>
+            <span>Портрет сохранится вместе с карточкой</span>
+          </div>
+        </section>
+
         <div className="admin-npc-editor-body">
           <section className="admin-npc-editor-section">
             <div className="admin-npc-subhead">
@@ -1452,7 +1718,11 @@ function NpcCreateEditor({
             </div>
             <div className="admin-npc-form-grid">
               {input('name', 'Имя')}
-              {input('race', 'Раса')}
+              <NpcRaceChipField
+                value={form.race}
+                options={raceOptions}
+                onChange={race => setForm(current => ({ ...current, race }))}
+              />
               {input('country', 'Родина')}
               {input('age', 'Возраст')}
               {input('height', 'Рост')}
@@ -1566,7 +1836,7 @@ function NpcCreateEditor({
           <div className="admin-npc-create-footer">
             <div>{message ? <span>{message}</span> : <span>Имя обязательно, остальные поля можно дозаполнить потом.</span>}</div>
             <button type="button" className="admin-button" onClick={onClose} disabled={saving}>Отмена</button>
-            <button type="button" className="admin-button admin-button-primary" onClick={() => void createNpc()} disabled={saving}>{saving ? 'Создаю…' : `Создать НПС${drafts.length ? ` + ${drafts.length} связ.` : ''}`}</button>
+            <button type="button" className="admin-button admin-button-primary" onClick={() => void createNpc()} disabled={saving || photoBusy}>{saving ? 'Создаю…' : photoBusy ? 'Готовлю фото…' : `Создать НПС${photo ? ' + фото' : ''}${drafts.length ? ` + ${drafts.length} связ.` : ''}`}</button>
           </div>
         </div>
       </article>
@@ -1578,6 +1848,7 @@ function NpcCreateEditor({
 function NpcEditor({
   npc,
   npcs,
+  raceOptions,
   relationTypes,
   characters,
   onClose,
@@ -1585,6 +1856,7 @@ function NpcEditor({
 }: {
   npc: AdminNpc;
   npcs: AdminNpc[];
+  raceOptions: string[];
   relationTypes: RelationType[];
   characters: CharacterOption[];
   onClose: () => void;
@@ -1608,10 +1880,12 @@ function NpcEditor({
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState('');
   const [relation, setRelation] = useState({
+    id: '',
     type: relationTypes[0]?.value || 'relative',
     targetKind: 'npc' as 'npc' | 'character',
     targetId: '',
     note: '',
+    customLabel: '',
     public: true,
   });
   const [targetQuery, setTargetQuery] = useState('');
@@ -1655,13 +1929,31 @@ function NpcEditor({
     setSaving(true); setMessage('');
     try {
       await post({ action: 'relation-save', relation: { sourceNpcId: npc.id, ...relation } });
-      setRelation(current => ({ ...current, targetId: '', note: '' }));
+      setRelation(current => ({ ...current, id: '', targetId: '', note: '', customLabel: '' }));
       setTargetQuery('');
       setTargetOpen(false);
       setMessage('Связь сохранена.');
       onChanged();
     } catch (err) { setMessage(readMessage(err)); }
     finally { setSaving(false); }
+  }
+
+  function editRelation(item: NpcRelation) {
+    setRelation({
+      id: item.reverseOf || item.id,
+      type: item.type || 'relative',
+      targetKind: item.targetKind,
+      targetId: item.targetId,
+      note: item.note || '',
+      customLabel: item.customLabel || item.typeLabel || '',
+      public: item.public !== false,
+    });
+    setTargetQuery(item.targetName || '');
+    setTargetOpen(false);
+    setTargetActive(0);
+    setMessage(item.origin === 'auto'
+      ? 'Автоматическая связь открыта для правки. После сохранения она станет ручной и больше не будет перезаписываться автоматикой.'
+      : 'Связь открыта для редактирования.');
   }
 
   async function deleteRelation(item: NpcRelation) {
@@ -1781,7 +2073,12 @@ function NpcEditor({
             <div className="admin-npc-subhead"><div><span>ДАННЫЕ ТАБЛИЦЫ</span><h3>Карточка НПС</h3></div><button type="button" className="admin-button admin-button-primary" onClick={() => void saveNpc()} disabled={saving}>{saving ? 'Сохраняю…' : 'Сохранить в таблицу'}</button></div>
             <div className="admin-npc-form-grid">
               {input('name', 'Имя')}
-              {input('race', 'Раса')}
+              <NpcRaceChipField
+                value={form.race}
+                options={raceOptions}
+                state={fieldState('race')}
+                onChange={race => setForm(current => ({ ...current, race }))}
+              />
               {input('country', 'Родина')}
               {input('age', 'Возраст')}
               {input('height', 'Рост')}
@@ -1848,9 +2145,15 @@ function NpcEditor({
                   </div> : null}
                 </div>
               </label>
+              <label className="wide"><span>Отображаемое родство <i>можно уточнить вручную</i></span><input value={relation.customLabel} onChange={event => setRelation(current => ({ ...current, customLabel: event.target.value }))} placeholder="Например: внучатая племянница" /></label>
               <label className="wide"><span>Комментарий для ГМ</span><input value={relation.note} onChange={event => setRelation(current => ({ ...current, note: event.target.value }))} placeholder="Необязательно" /></label>
               <label className="admin-npc-public-toggle"><input type="checkbox" checked={relation.public} onChange={event => setRelation(current => ({ ...current, public: event.target.checked }))} /><span>Показывать эту связь игрокам</span></label>
-              <button type="button" className="admin-button admin-button-primary" onClick={() => void saveRelation()} disabled={saving}>Добавить связь</button>
+              {relation.id ? <button type="button" className="admin-button" onClick={() => {
+                setRelation(current => ({ ...current, id: '', targetId: '', note: '', customLabel: '' }));
+                setTargetQuery('');
+                setMessage('');
+              }} disabled={saving}>Отменить правку</button> : null}
+              <button type="button" className="admin-button admin-button-primary" onClick={() => void saveRelation()} disabled={saving}>{relation.id ? 'Сохранить изменения' : 'Добавить связь'}</button>
             </div>
 
             <RelationHints
@@ -1897,7 +2200,7 @@ function NpcEditor({
                     imageUrl={targetPortrait(item.targetKind, item.targetId, npcs, characters)}
                   />
                   <div className="admin-npc-relation-copy"><span>{item.typeLabel} · {item.targetKind === 'character' ? 'персонаж' : 'НПС'}</span><strong>{item.targetName}</strong>{item.note ? <small>{item.note}</small> : null}</div>
-                  <div className="admin-npc-relation-side"><em>{item.public ? 'видно игрокам' : 'скрыто'}</em><button type="button" onClick={() => void deleteRelation(item)} disabled={saving}>Удалить</button></div>
+                  <div className="admin-npc-relation-side"><em>{item.origin === 'auto' ? 'авто · ' : ''}{item.public ? 'видно игрокам' : 'скрыто'}</em><span className="admin-npc-relation-actions"><button type="button" onClick={() => editRelation(item)} disabled={saving}>Редактировать</button><button type="button" onClick={() => void deleteRelation(item)} disabled={saving}>Удалить</button></span></div>
                 </div>
               ))}
               {!npc.relations?.length ? <p className="admin-npc-empty">Связи ещё не внесены.</p> : null}

@@ -13,6 +13,51 @@ type Props = {
     initialView?: 'cabinet' | 'events';
 };
 
+type PlayerCabinetView = 'cabinet' | 'events' | 'family';
+
+function playerCabinetViewStorageKey(characterId: string, adminView: boolean) {
+    return `gosmag.player.view.v1:${adminView ? 'admin' : 'self'}:${characterId}`;
+}
+
+function readStoredPlayerCabinetView(
+    characterId: string,
+    adminView: boolean,
+    fallback: 'cabinet' | 'events'
+): PlayerCabinetView {
+    if (typeof window === 'undefined' || !characterId) return fallback;
+
+    try {
+        const value = window.sessionStorage.getItem(
+            playerCabinetViewStorageKey(characterId, adminView)
+        );
+
+        if (value === 'cabinet' || value === 'events' || value === 'family') {
+            return value;
+        }
+    } catch {
+        // Не критично: кабинет продолжит работать без sessionStorage.
+    }
+
+    return fallback;
+}
+
+function writeStoredPlayerCabinetView(
+    characterId: string,
+    adminView: boolean,
+    view: PlayerCabinetView
+) {
+    if (typeof window === 'undefined' || !characterId) return;
+
+    try {
+        window.sessionStorage.setItem(
+            playerCabinetViewStorageKey(characterId, adminView),
+            view
+        );
+    } catch {
+        // Не критично.
+    }
+}
+
 type ClassSkill = {
     name: string;
     description: string;
@@ -1266,13 +1311,48 @@ export default function PlayerCabinet({
         view,
         setView,
     ] =
-        useState<
-            'cabinet' |
-            'events' |
-            'family'
-        >(
-            initialView
+        useState<PlayerCabinetView>(
+            () =>
+                readStoredPlayerCabinetView(
+                    characterId,
+                    adminView,
+                    initialView
+                )
         );
+
+
+    useEffect(
+        () => {
+            setView(
+                readStoredPlayerCabinetView(
+                    characterId,
+                    adminView,
+                    initialView
+                )
+            );
+        },
+        [
+            characterId,
+            adminView,
+            initialView,
+        ]
+    );
+
+
+    useEffect(
+        () => {
+            writeStoredPlayerCabinetView(
+                characterId,
+                adminView,
+                view
+            );
+        },
+        [
+            characterId,
+            adminView,
+            view,
+        ]
+    );
 
 
     useEffect(

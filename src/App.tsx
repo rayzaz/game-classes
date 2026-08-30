@@ -312,6 +312,164 @@ type AppPage =
   | 'eventer';
 
 
+type CabinetView =
+  | 'cabinet'
+  | 'events';
+
+
+type PortalNavigationSnapshot = {
+  page: AppPage;
+  adminCharacterId: string | null;
+  cabinetInitialView: CabinetView;
+};
+
+
+const PORTAL_NAVIGATION_STORAGE_KEY =
+  'gosmag.portal.navigation.v1';
+
+
+function readPortalNavigation(): PortalNavigationSnapshot {
+  const fallback: PortalNavigationSnapshot = {
+    page: 'home',
+    adminCharacterId: null,
+    cabinetInitialView: 'cabinet',
+  };
+
+  if (typeof window === 'undefined') {
+    return fallback;
+  }
+
+  try {
+    const raw =
+      window.sessionStorage.getItem(
+        PORTAL_NAVIGATION_STORAGE_KEY
+      );
+
+    if (!raw) {
+      return fallback;
+    }
+
+    const parsed =
+      JSON.parse(raw) as Partial<PortalNavigationSnapshot>;
+
+    const allowedPages: AppPage[] = [
+      'home',
+      'catalog',
+      'rankings',
+      'npcs',
+      'cabinet',
+      'admin',
+      'eventer',
+    ];
+
+    return {
+      page:
+        parsed.page &&
+        allowedPages.includes(parsed.page)
+          ? parsed.page
+          : 'home',
+      adminCharacterId:
+        typeof parsed.adminCharacterId === 'string' &&
+        parsed.adminCharacterId.trim()
+          ? parsed.adminCharacterId.trim()
+          : null,
+      cabinetInitialView:
+        parsed.cabinetInitialView === 'events'
+          ? 'events'
+          : 'cabinet',
+    };
+  } catch {
+    return fallback;
+  }
+}
+
+
+function writePortalNavigation(
+  snapshot: PortalNavigationSnapshot
+) {
+  if (typeof window === 'undefined') {
+    return;
+  }
+
+  try {
+    window.sessionStorage.setItem(
+      PORTAL_NAVIGATION_STORAGE_KEY,
+      JSON.stringify(snapshot)
+    );
+  } catch {
+    // Навигация не должна ломать приложение, если storage недоступен.
+  }
+}
+
+
+function playerCabinetViewStorageKey(
+  characterId: string,
+  adminView: boolean
+) {
+  return `gosmag.player.view.v1:${
+    adminView ? 'admin' : 'self'
+  }:${characterId}`;
+}
+
+
+function rememberPlayerCabinetView(
+  characterId: string,
+  adminView: boolean,
+  view: 'cabinet' | 'events' | 'family'
+) {
+  if (typeof window === 'undefined' || !characterId) {
+    return;
+  }
+
+  try {
+    window.sessionStorage.setItem(
+      playerCabinetViewStorageKey(characterId, adminView),
+      view
+    );
+  } catch {
+    // Не критично.
+  }
+}
+
+
+function allowedPageForUser(
+  wantedPage: AppPage,
+  user: LoginUser | null
+): AppPage {
+  if (wantedPage === 'home' || wantedPage === 'catalog') {
+    return wantedPage;
+  }
+
+  if (!user) {
+    return 'home';
+  }
+
+  if (wantedPage === 'admin') {
+    return user.role === 'admin'
+      ? 'admin'
+      : 'home';
+  }
+
+  if (wantedPage === 'eventer') {
+    return user.permissions?.canManageEvents
+      ? 'eventer'
+      : 'home';
+  }
+
+  if (wantedPage === 'cabinet') {
+    return user.characterId
+      ? 'cabinet'
+      : 'home';
+  }
+
+  return wantedPage;
+}
+
+
+const INITIAL_PORTAL_NAVIGATION =
+  readPortalNavigation();
+
+
 type SessionResponse = {
   ok: boolean;
 
@@ -507,7 +665,7 @@ export default function App() {
     setPage,
   ] =
     useState<AppPage>(
-      'home'
+      INITIAL_PORTAL_NAVIGATION.page
     );
 
 
@@ -540,7 +698,7 @@ export default function App() {
       string |
       null
     >(
-      null
+      INITIAL_PORTAL_NAVIGATION.adminCharacterId
     );
 
 
@@ -552,8 +710,24 @@ export default function App() {
       'cabinet' |
       'events'
     >(
-      'cabinet'
+      INITIAL_PORTAL_NAVIGATION.cabinetInitialView
     );
+
+
+  useEffect(
+    () => {
+      writePortalNavigation({
+        page,
+        adminCharacterId,
+        cabinetInitialView,
+      });
+    },
+    [
+      page,
+      adminCharacterId,
+      cabinetInitialView,
+    ]
+  );
 
 
   /* =========================
@@ -603,9 +777,37 @@ export default function App() {
                 result.user
               );
 
+              setPage(
+                current =>
+                  allowedPageForUser(
+                    current,
+                    result.user
+                  )
+              );
+
+              if (
+                result.user.role !==
+                'admin'
+              ) {
+                setAdminCharacterId(
+                  null
+                );
+              }
+
             } else {
               setActiveUser(
                 null
+              );
+
+              setAdminCharacterId(
+                null
+              );
+
+              setPage(
+                current =>
+                  current === 'catalog'
+                    ? 'catalog'
+                    : 'home'
               );
             }
 
@@ -616,6 +818,23 @@ export default function App() {
               'session restore error:',
               error
             );
+
+            if (!cancelled) {
+              setActiveUser(
+                null
+              );
+
+              setAdminCharacterId(
+                null
+              );
+
+              setPage(
+                current =>
+                  current === 'catalog'
+                    ? 'catalog'
+                    : 'home'
+              );
+            }
 
           } finally {
             if (
@@ -710,6 +929,15 @@ export default function App() {
         setActiveUser(
           null
         );
+
+
+        try {
+          window.sessionStorage.removeItem(
+            PORTAL_NAVIGATION_STORAGE_KEY
+          );
+        } catch {
+          // Не критично.
+        }
 
 
         setPage(
@@ -1082,6 +1310,35 @@ export default function App() {
     );
 
 
+  if (
+    !sessionChecked &&
+    page !== 'home' &&
+    page !== 'catalog'
+  ) {
+    return (
+      <main
+        style={{
+          minHeight: '100vh',
+          display: 'grid',
+          placeItems: 'center',
+          padding: '24px',
+          background: theme === 'dark' ? '#11101a' : '#f7f5fb',
+          color: theme === 'dark' ? '#f4f0ff' : '#201a2a',
+        }}
+      >
+        <div style={{ textAlign: 'center' }}>
+          <strong style={{ fontSize: '20px' }}>
+            Восстанавливаем раздел…
+          </strong>
+          <div style={{ marginTop: '8px', opacity: 0.7 }}>
+            Проверяем активную сессию
+          </div>
+        </div>
+      </main>
+    );
+  }
+
+
   /* =========================
      АДМИН ОТКРЫЛ ПЕРСОНАЖА
      ========================= */
@@ -1146,6 +1403,12 @@ export default function App() {
 
         onOpenCharacter={
           characterId => {
+            rememberPlayerCabinetView(
+              characterId,
+              true,
+              'cabinet'
+            );
+
             setAdminCharacterId(
               characterId
             );
@@ -1178,6 +1441,16 @@ export default function App() {
           goHome
         }
         onOpenOwnCharacter={() => {
+          if (
+            activeUser.characterId
+          ) {
+            rememberPlayerCabinetView(
+              activeUser.characterId,
+              activeUser.role === 'admin',
+              'cabinet'
+            );
+          }
+
           setCabinetInitialView(
             'cabinet'
           );
@@ -1333,6 +1606,12 @@ export default function App() {
               return;
             }
 
+            rememberPlayerCabinetView(
+              activeUser.characterId,
+              activeUser.role === 'admin',
+              'cabinet'
+            );
+
             setCabinetInitialView(
               'cabinet'
             );
@@ -1349,6 +1628,12 @@ export default function App() {
             ) {
               return;
             }
+
+            rememberPlayerCabinetView(
+              activeUser.characterId,
+              activeUser.role === 'admin',
+              'events'
+            );
 
             setCabinetInitialView(
               'events'

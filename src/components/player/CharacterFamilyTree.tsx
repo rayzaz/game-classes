@@ -1002,13 +1002,52 @@ function FamilyNodeCard({
   );
 }
 
+type StoredFamilyTreeView = {
+  focusId?: string;
+  selectedId?: string;
+  zoom?: number;
+};
+
+function familyTreeViewStorageKey(characterId: string, adminView: boolean) {
+  return `gosmag.family-tree.view.v1:${adminView ? 'admin' : 'self'}:${characterId}`;
+}
+
+function readStoredFamilyTreeView(characterId: string, adminView: boolean): StoredFamilyTreeView {
+  if (typeof window === 'undefined') return {};
+  try {
+    const raw = window.sessionStorage.getItem(familyTreeViewStorageKey(characterId, adminView));
+    if (!raw) return {};
+    const parsed = JSON.parse(raw) as StoredFamilyTreeView;
+    return parsed && typeof parsed === 'object' ? parsed : {};
+  } catch {
+    return {};
+  }
+}
+
+function writeStoredFamilyTreeView(characterId: string, adminView: boolean, state: StoredFamilyTreeView) {
+  if (typeof window === 'undefined') return;
+  try {
+    window.sessionStorage.setItem(
+      familyTreeViewStorageKey(characterId, adminView),
+      JSON.stringify(state)
+    );
+  } catch {
+    // Не критично.
+  }
+}
+
 export default function CharacterFamilyTree({ characterId, adminView = false, themeClass, onBack }: Props) {
   const [data, setData] = useState<FamilyTreeResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [selectedId, setSelectedId] = useState<string>('');
   const [focusId, setFocusId] = useState<string>('');
-  const [treeZoom, setTreeZoom] = useState(0.82);
+  const [treeZoom, setTreeZoom] = useState(() => {
+    const stored = readStoredFamilyTreeView(characterId, adminView).zoom;
+    return typeof stored === 'number' && Number.isFinite(stored)
+      ? Math.min(1.15, Math.max(0.45, stored))
+      : 0.82;
+  });
   const [viewport, setViewport] = useState({ left: 0, width: 1 });
   const [autoFitDone, setAutoFitDone] = useState(false);
   const treeScrollRef = useRef<HTMLDivElement | null>(null);
@@ -1045,8 +1084,19 @@ export default function CharacterFamilyTree({ characterId, adminView = false, th
         if (cancelled) return;
         setData(result);
         const rootId = result.root?.id || '';
-        setSelectedId(rootId);
-        setFocusId(rootId);
+        const availableIds = new Set<string>([
+          rootId,
+          ...(result.nodes || []).map(node => node.id),
+        ]);
+        const stored = readStoredFamilyTreeView(characterId, adminView);
+        const restoredFocus = stored.focusId && availableIds.has(stored.focusId)
+          ? stored.focusId
+          : rootId;
+        const restoredSelected = stored.selectedId && availableIds.has(stored.selectedId)
+          ? stored.selectedId
+          : restoredFocus;
+        setSelectedId(restoredSelected);
+        setFocusId(restoredFocus);
         setLoading(false);
       })
       .catch(err => {
@@ -1057,6 +1107,15 @@ export default function CharacterFamilyTree({ characterId, adminView = false, th
 
     return () => { cancelled = true; };
   }, [characterId, adminView]);
+
+  useEffect(() => {
+    if (!focusId && !selectedId) return;
+    writeStoredFamilyTreeView(characterId, adminView, {
+      focusId,
+      selectedId,
+      zoom: treeZoom,
+    });
+  }, [characterId, adminView, focusId, selectedId, treeZoom]);
 
   const familyModel = useMemo(() => data ? buildFamilyModel(data) : null, [data]);
 
