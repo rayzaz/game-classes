@@ -87,16 +87,19 @@ export function proxifyNpcImagesDeep(value) {
     Apps Script для одной строки, поэтому каталог больше не ждёт картинки.
   */
   const npcId = String(result.id || '').trim();
-  if (
-    /^npc-r\d+$/i.test(npcId) &&
-    result.sheetImage === true &&
-    !String(result.imageUrl || '').trim()
-  ) {
+  const hasAnyPortraitHint =
+    result.hasImage === true ||
+    result.sheetImage === true ||
+    Boolean(String(result.imageKey || '').trim()) ||
+    Boolean(String(result.imageUrl || '').trim());
+
+  if (/^npc-r\d+$/i.test(npcId) && hasAnyPortraitHint) {
     /*
-      v40.5: Google Sheets — источник истины для портрета НПС.
-      Даже если у импортированной карточки сохранился старый imageKey,
-      реальная картинка из C-ячейки должна иметь приоритет. imageKey остаётся
-      только локальным fallback на случай, если Google временно не отдаст арт.
+      v40.7: не доверяем старому imageKey как первичному источнику.
+      Для любой карточки, где вообще заявлен портрет, сначала спрашиваем
+      конкретную строку Google. npc-image проверяет IMAGE(), CellImage,
+      старый OverGridImage и CB. Статический /public/npc остаётся fallback
+      уже в React-компоненте, если Google не смог отдать изображение.
     */
     result.imageUrl = `/.netlify/functions/npc-image?npcId=${encodeURIComponent(npcId)}`;
   }

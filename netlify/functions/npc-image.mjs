@@ -100,7 +100,10 @@ async function resolveNpcCellImage(npcId) {
     throw new Error(result?.error || `Сервис портрета вернул ${response.status}`);
   }
 
-  return String(result.imageUrl || '').trim();
+  return {
+    url: String(result.imageUrl || '').trim(),
+    source: String(result.source || '').trim(),
+  };
 }
 
 export default async function(request) {
@@ -116,6 +119,7 @@ export default async function(request) {
   const url = new URL(request.url);
   let id = String(url.searchParams.get('id') || '').trim();
   let src = String(url.searchParams.get('src') || '').trim();
+  let resolvedSource = '';
   const npcId = String(url.searchParams.get('npcId') || '').trim();
 
   if (npcId) {
@@ -125,11 +129,12 @@ export default async function(request) {
 
     try {
       const resolved = await resolveNpcCellImage(npcId);
-      if (!resolved) return textResponse('У НПС нет изображения в Google-ячейке', 404);
+      if (!resolved.url) return textResponse('У НПС нет изображения в Google', 404);
 
-      const resolvedId = extractGoogleDriveFileId(resolved);
+      const resolvedId = extractGoogleDriveFileId(resolved.url);
       if (resolvedId) id = resolvedId;
-      else src = resolved;
+      else src = resolved.url;
+      resolvedSource = resolved.source || 'google';
     } catch (error) {
       console.error('npc-image resolve error:', error);
       return textResponse('Не удалось получить изображение НПС из Google', 502);
@@ -163,8 +168,14 @@ export default async function(request) {
 
       const headers = new Headers();
       headers.set('content-type', response.headers.get('content-type') || 'image/jpeg');
-      headers.set('cache-control', 'private, max-age=900, stale-while-revalidate=3600');
+      headers.set(
+        'cache-control',
+        npcId
+          ? 'private, no-cache, max-age=0, must-revalidate'
+          : 'private, max-age=900, stale-while-revalidate=3600'
+      );
       headers.set('x-content-type-options', 'nosniff');
+      if (resolvedSource) headers.set('x-npc-image-source', resolvedSource);
 
       const length = response.headers.get('content-length');
       if (length) headers.set('content-length', length);
