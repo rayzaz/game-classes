@@ -90,9 +90,14 @@ export function proxifyNpcImagesDeep(value) {
   if (
     /^npc-r\d+$/i.test(npcId) &&
     result.sheetImage === true &&
-    !String(result.imageUrl || '').trim() &&
-    !String(result.imageKey || '').trim()
+    !String(result.imageUrl || '').trim()
   ) {
+    /*
+      v40.5: Google Sheets — источник истины для портрета НПС.
+      Даже если у импортированной карточки сохранился старый imageKey,
+      реальная картинка из C-ячейки должна иметь приоритет. imageKey остаётся
+      только локальным fallback на случай, если Google временно не отдаст арт.
+    */
     result.imageUrl = `/.netlify/functions/npc-image?npcId=${encodeURIComponent(npcId)}`;
   }
 
