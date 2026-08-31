@@ -83,6 +83,106 @@ type AdminResponse = {
 
 const EMPTY_STATS: Stats = { slots: 0, named: 0, complete: 0, needsWork: 0, unnamed: 0 };
 
+const NPC_REQUIRED_FIELDS: Array<{ key: keyof Pick<AdminNpc, 'name' | 'race' | 'country' | 'age' | 'height' | 'magic' | 'grimoire' | 'character' | 'role' | 'gender'>; label: string }> = [
+  { key: 'name', label: 'Имя' },
+  { key: 'race', label: 'Раса' },
+  { key: 'country', label: 'Родина' },
+  { key: 'age', label: 'Возраст' },
+  { key: 'height', label: 'Рост' },
+  { key: 'magic', label: 'Магия' },
+  { key: 'grimoire', label: 'Гримуар' },
+  { key: 'character', label: 'Характер' },
+  { key: 'role', label: 'Роль' },
+  { key: 'gender', label: 'Пол' },
+];
+
+function npcLocalReviewState(value: unknown): 'missing' | 'review' | 'ok' {
+  const text = String(value ?? '').trim();
+  if (!text) return 'missing';
+  const compact = text.toLocaleLowerCase('ru').replace(/\s+/g, '');
+  return ['???', '??', '?', '[?]', 'х', 'x'].includes(compact) ? 'review' : 'ok';
+}
+
+function withLocalNpcQuality(npc: AdminNpc): AdminNpc {
+  const missingFields: MissingField[] = [];
+  const reviewFields: MissingField[] = [];
+  let completed = 0;
+
+  NPC_REQUIRED_FIELDS.forEach(field => {
+    const state = npcLocalReviewState(npc[field.key]);
+    if (state === 'missing') missingFields.push({ key: field.key, label: field.label });
+    else if (state === 'review') reviewFields.push({ key: field.key, label: field.label });
+    else completed += 1;
+  });
+
+  return {
+    ...npc,
+    missingFields,
+    reviewFields,
+    completionPercent: Math.round((completed / NPC_REQUIRED_FIELDS.length) * 100),
+  };
+}
+
+function statsFromNpcList(items: AdminNpc[]): Stats {
+  const named = items.filter(item => Boolean(item.name?.trim())).length;
+  const complete = items.filter(item => item.missingFields.length === 0 && item.reviewFields.length === 0).length;
+  return {
+    slots: items.length,
+    named,
+    complete,
+    needsWork: items.length - complete,
+    unnamed: items.length - named,
+  };
+}
+
+function expandRelationLocally(relation: NpcRelation, relationTypes: RelationType[]): NpcRelation[] {
+  const expanded: NpcRelation[] = [relation];
+  if (relation.targetKind !== 'npc') return expanded;
+
+  const reverseType = REVERSE_RELATION_TYPE[relation.type] || 'relative';
+  const reverseLabel = relation.reverseCustomLabel
+    || relationTypes.find(item => item.value === reverseType)?.label
+    || reverseType;
+
+  expanded.push({
+    ...relation,
+    id: `${relation.id}:reverse`,
+    sourceNpcId: relation.targetId,
+    sourceNpcName: relation.targetName,
+    type: reverseType,
+    typeLabel: reverseLabel,
+    targetKind: 'npc',
+    targetId: relation.sourceNpcId,
+    targetName: relation.sourceNpcName || relation.sourceNpcId,
+    customLabel: relation.reverseCustomLabel || '',
+    reverseCustomLabel: relation.customLabel || '',
+    reverseOf: relation.id,
+  });
+
+  return expanded;
+}
+
+function applySavedRelationToList(items: AdminNpc[], relation: NpcRelation, relationTypes: RelationType[]): AdminNpc[] {
+  const canonicalId = relation.id;
+  const expanded = expandRelationLocally(relation, relationTypes);
+
+  return items.map(npc => {
+    const additions = expanded.filter(item => item.sourceNpcId === npc.id);
+    const hadOld = (npc.relations || []).some(item => (item.reverseOf || item.id) === canonicalId);
+    if (!additions.length && !hadOld) return npc;
+
+    const relations = (npc.relations || []).filter(item => (item.reverseOf || item.id) !== canonicalId);
+    return { ...npc, relations: [...relations, ...additions] };
+  });
+}
+
+function removeSavedRelationFromList(items: AdminNpc[], relationId: string): AdminNpc[] {
+  return items.map(npc => ({
+    ...npc,
+    relations: (npc.relations || []).filter(item => (item.reverseOf || item.id) !== relationId),
+  }));
+}
+
 const REVERSE_RELATION_TYPE: Record<string, string> = {
   parent_of: 'child_of', mother: 'child_of', father: 'child_of',
   child_of: 'parent_of', son: 'parent_of', daughter: 'parent_of',
@@ -971,7 +1071,6 @@ export default function AdminNpcs() {
   const [raceOptions, setRaceOptions] = useState<string[]>([]);
   const [relationTypes, setRelationTypes] = useState<RelationType[]>([]);
   const [characters, setCharacters] = useState<CharacterOption[]>([]);
-  const [stats, setStats] = useState<Stats>(EMPTY_STATS);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [filter, setFilter] = useState<'all' | 'work' | 'unnamed' | 'complete'>(() => {
@@ -1005,7 +1104,6 @@ export default function AdminNpcs() {
       setRaceOptions(Array.isArray(result.raceOptions) ? result.raceOptions : []);
       setRelationTypes(Array.isArray(result.relationTypes) ? result.relationTypes : []);
       setCharacters(Array.isArray(result.characters) ? result.characters : []);
-      setStats(result.stats || EMPTY_STATS);
     } catch (err) {
       setError(readMessage(err));
     } finally {
@@ -1014,6 +1112,8 @@ export default function AdminNpcs() {
   }
 
   useEffect(() => { void load(); }, []);
+
+  const stats = useMemo(() => npcs.length ? statsFromNpcList(npcs) : EMPTY_STATS, [npcs]);
 
   const filtered = useMemo(() => {
     const needle = query.trim().toLocaleLowerCase('ru');
@@ -1028,6 +1128,37 @@ export default function AdminNpcs() {
   }, [npcs, filter, query]);
 
   const editing = npcs.find(npc => npc.id === editingId) || null;
+
+  function applyNpcLocal(nextNpc: AdminNpc) {
+    setNpcs(current => {
+      const prepared = withLocalNpcQuality(nextNpc);
+      const exists = current.some(item => item.id === prepared.id);
+      const next = exists
+        ? current.map(item => item.id === prepared.id ? prepared : item)
+        : [...current, prepared];
+      return next.slice().sort((left, right) => left.row - right.row);
+    });
+  }
+
+  function handleCreatedLocal(nextNpc: AdminNpc, savedRelations: NpcRelation[]) {
+    setCreating(false);
+    setNpcs(current => {
+      let next = current.filter(item => item.id !== nextNpc.id);
+      next.push(withLocalNpcQuality(nextNpc));
+      savedRelations.forEach(relationItem => {
+        next = applySavedRelationToList(next, relationItem, relationTypes);
+      });
+      return next.slice().sort((left, right) => left.row - right.row);
+    });
+  }
+
+  function handleRelationSavedLocal(relation: NpcRelation) {
+    setNpcs(current => applySavedRelationToList(current, relation, relationTypes));
+  }
+
+  function handleRelationDeletedLocal(relationId: string) {
+    setNpcs(current => removeSavedRelationFromList(current, relationId));
+  }
 
   return (
     <section className="admin-modern-section admin-npcs-section">
@@ -1112,7 +1243,7 @@ export default function AdminNpcs() {
           relationTypes={relationTypes}
           characters={characters}
           onClose={() => setCreating(false)}
-          onCreated={() => { setCreating(false); void load(); }}
+          onCreated={handleCreatedLocal}
         />,
         document.body
       ) : null}
@@ -1125,7 +1256,9 @@ export default function AdminNpcs() {
           relationTypes={relationTypes}
           characters={characters}
           onClose={() => setEditingId(null)}
-          onChanged={() => void load()}
+          onNpcChanged={applyNpcLocal}
+          onRelationSaved={handleRelationSavedLocal}
+          onRelationDeleted={handleRelationDeletedLocal}
         />,
         document.body
       ) : null}
@@ -1467,7 +1600,7 @@ function NpcCreateEditor({
   relationTypes: RelationType[];
   characters: CharacterOption[];
   onClose: () => void;
-  onCreated: () => void;
+  onCreated: (npc: AdminNpc, relations: NpcRelation[]) => void;
 }) {
   const [form, setForm] = useState({
     name: '',
@@ -1650,7 +1783,14 @@ function NpcCreateEditor({
       });
       const result: AdminResponse = await response.json();
       if (!response.ok || !result?.ok) throw new Error(result?.error || 'Не удалось создать НПС');
-      onCreated();
+      if (!result.npc) throw new Error('НПС создан, но сервер не вернул карточку для локального обновления. Нажмите «Обновить» один раз.');
+      const createdNpc = withLocalNpcQuality({
+        ...result.npc,
+        relations: Array.isArray(result.npc.relations) ? result.npc.relations : [],
+        note: result.npc.note || form.note || '',
+        sourceId: result.npc.sourceId || '',
+      } as AdminNpc);
+      onCreated(createdNpc, Array.isArray(result.relations) ? result.relations : []);
     } catch (err) {
       setMessage(readMessage(err));
     } finally {
@@ -1852,7 +1992,9 @@ function NpcEditor({
   relationTypes,
   characters,
   onClose,
-  onChanged,
+  onNpcChanged,
+  onRelationSaved,
+  onRelationDeleted,
 }: {
   npc: AdminNpc;
   npcs: AdminNpc[];
@@ -1860,7 +2002,9 @@ function NpcEditor({
   relationTypes: RelationType[];
   characters: CharacterOption[];
   onClose: () => void;
-  onChanged: () => void;
+  onNpcChanged: (npc: AdminNpc) => void;
+  onRelationSaved: (relation: NpcRelation) => void;
+  onRelationDeleted: (relationId: string) => void;
 }) {
   const [form, setForm] = useState({
     id: npc.id,
@@ -1917,9 +2061,15 @@ function NpcEditor({
   async function saveNpc() {
     setSaving(true); setMessage('');
     try {
-      await post({ action: 'update', npc: form });
-      setMessage('Сохранено в Google-таблицу.');
-      onChanged();
+      const result = await post({ action: 'update', npc: form });
+      const merged = withLocalNpcQuality({
+        ...npc,
+        ...form,
+        ...(result.npc || {}),
+        relations: npc.relations || [],
+      } as AdminNpc);
+      setMessage('Сохранено в Google-таблицу. Список обновлён без повторной загрузки.');
+      onNpcChanged(merged);
     } catch (err) { setMessage(readMessage(err)); }
     finally { setSaving(false); }
   }
@@ -1928,12 +2078,13 @@ function NpcEditor({
     if (!relation.targetId) { setMessage('Сначала выберите, с кем связан НПС.'); return; }
     setSaving(true); setMessage('');
     try {
-      await post({ action: 'relation-save', relation: { sourceNpcId: npc.id, ...relation } });
+      const result = await post({ action: 'relation-save', relation: { sourceNpcId: npc.id, ...relation } });
+      if (!result.relation) throw new Error('Связь сохранена, но сервер не вернул её для локального обновления. Нажмите «Обновить» один раз.');
       setRelation(current => ({ ...current, id: '', targetId: '', note: '', customLabel: '' }));
       setTargetQuery('');
       setTargetOpen(false);
-      setMessage('Связь сохранена.');
-      onChanged();
+      setMessage('Связь сохранена без перезагрузки списка.');
+      onRelationSaved(result.relation);
     } catch (err) { setMessage(readMessage(err)); }
     finally { setSaving(false); }
   }
@@ -1960,9 +2111,10 @@ function NpcEditor({
     if (!window.confirm(`Удалить связь «${item.typeLabel}: ${item.targetName}»?`)) return;
     setSaving(true); setMessage('');
     try {
-      await post({ action: 'relation-delete', relationId: item.reverseOf || item.id });
-      setMessage('Связь удалена.');
-      onChanged();
+      const canonicalId = item.reverseOf || item.id;
+      await post({ action: 'relation-delete', relationId: canonicalId });
+      setMessage('Связь удалена без перезагрузки списка.');
+      onRelationDeleted(canonicalId);
     } catch (err) { setMessage(readMessage(err)); }
     finally { setSaving(false); }
   }
