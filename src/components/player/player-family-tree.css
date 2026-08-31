@@ -987,3 +987,784 @@
     0 7px 20px rgba(0,0,0,.34),
     0 0 0 3px rgba(10, 12, 26, .64);
 }
+
+/* v40.9 — фокусное семейное древо для очень больших семей. */
+.family-focus-panel {
+  margin-top: 14px;
+  padding: 20px;
+  overflow: visible;
+}
+
+.family-focus-toolbar {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 18px;
+  padding-bottom: 18px;
+  border-bottom: 1px solid rgba(255,255,255,.07);
+}
+
+.family-focus-toolbar > div:first-child {
+  min-width: 0;
+  display: grid;
+  gap: 5px;
+}
+
+.family-focus-toolbar > div:first-child > span,
+.family-focus-section-label > span,
+.family-focus-branches span,
+.family-full-mode-head span {
+  color: rgba(225, 199, 255, .82);
+  font-size: 10px;
+  font-weight: 900;
+  letter-spacing: .16em;
+  text-transform: uppercase;
+}
+
+.family-focus-toolbar h2 {
+  margin: 0;
+  font-size: clamp(22px, 2.3vw, 34px);
+  line-height: 1.08;
+}
+
+.family-focus-toolbar p {
+  max-width: 760px;
+  margin: 0;
+  color: var(--family-text-soft);
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+.family-view-switch {
+  flex: 0 0 auto;
+  display: inline-flex;
+  gap: 4px;
+  padding: 4px;
+  border: 1px solid rgba(255,255,255,.08);
+  border-radius: 14px;
+  background: rgba(7, 9, 20, .58);
+}
+
+.family-view-switch button,
+.family-full-mode-head button,
+.family-focus-home,
+.family-focus-branches button {
+  min-height: 40px;
+  border: 1px solid rgba(255,255,255,.08);
+  border-radius: 11px;
+  background: rgba(255,255,255,.04);
+  color: #f4f1ff;
+  padding: 0 14px;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.family-view-switch button.is-active {
+  border-color: rgba(221, 182, 255, .38);
+  background: rgba(174, 113, 235, .17);
+  color: #fff;
+}
+
+.family-focus-stats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 14px 0 6px;
+}
+
+.family-focus-stats span {
+  padding: 7px 10px;
+  border-radius: 999px;
+  border: 1px solid rgba(255,255,255,.07);
+  background: rgba(255,255,255,.035);
+  color: var(--family-text-soft);
+  font-size: 11px;
+}
+
+.family-focus-stats b { color: #fff; }
+
+.family-focus-group {
+  padding: 16px 0 18px;
+  border-top: 1px solid rgba(255,255,255,.055);
+}
+
+.family-focus-group-head,
+.family-focus-section-label {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 10px;
+}
+
+.family-focus-group-head > div,
+.family-focus-section-label {
+  min-width: 0;
+}
+
+.family-focus-group-head span,
+.family-focus-section-label span {
+  display: block;
+  color: rgba(246, 234, 255, .92);
+  font-size: 11px;
+  font-weight: 900;
+  letter-spacing: .12em;
+  text-transform: uppercase;
+}
+
+.family-focus-group-head small,
+.family-focus-section-label small {
+  display: block;
+  margin-top: 4px;
+  color: var(--family-text-faint);
+  font-size: 11px;
+  line-height: 1.35;
+}
+
+.family-focus-group-head b {
+  min-width: 34px;
+  height: 28px;
+  display: grid;
+  place-items: center;
+  border-radius: 999px;
+  background: rgba(220, 185, 255, .1);
+  border: 1px solid rgba(220, 185, 255, .16);
+  color: rgba(240, 219, 255, .9);
+  font-size: 11px;
+}
+
+.family-focus-list,
+.family-focus-spouse-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 10px;
+}
+
+.family-focus-person {
+  position: relative;
+  min-width: 0;
+  min-height: 102px;
+  display: grid;
+  grid-template-columns: 62px minmax(0, 1fr) 20px;
+  gap: 11px;
+  align-items: center;
+  padding: 11px;
+  border: 1px solid rgba(255,255,255,.075);
+  border-radius: 17px;
+  background:
+    radial-gradient(circle at top right, rgba(126, 78, 205, .15), transparent 38%),
+    rgba(18, 22, 41, .9);
+  color: #f6f5ff;
+  text-align: left;
+  cursor: pointer;
+  transition: border-color .14s ease, transform .14s ease, background .14s ease;
+}
+
+.family-focus-person:hover,
+.family-focus-person:focus-visible {
+  outline: none;
+  border-color: rgba(226, 194, 255, .34);
+  transform: translateY(-1px);
+  background:
+    radial-gradient(circle at top right, rgba(142, 89, 228, .2), transparent 38%),
+    rgba(22, 27, 49, .96);
+}
+
+.family-focus-person.is-center {
+  min-height: 132px;
+  grid-template-columns: 82px minmax(0, 1fr);
+  border-color: rgba(244, 207, 146, .34);
+  background:
+    radial-gradient(circle at top right, rgba(231, 170, 100, .18), transparent 38%),
+    linear-gradient(180deg, rgba(50, 35, 60, .96), rgba(23, 18, 38, .98));
+}
+
+.family-focus-person.is-character:not(.is-center) {
+  border-color: rgba(244, 207, 146, .2);
+}
+
+.family-focus-photo {
+  width: 62px;
+  height: 78px;
+  border-radius: 13px;
+  overflow: hidden;
+  display: grid;
+  place-items: center;
+  border: 1px solid rgba(255,255,255,.08);
+  background: rgba(255,255,255,.04);
+}
+
+.family-focus-person.is-center .family-focus-photo {
+  width: 82px;
+  height: 104px;
+  border-radius: 16px;
+}
+
+.family-focus-photo img {
+  width: 100%;
+  height: 100%;
+  display: block;
+  object-fit: cover;
+}
+
+.family-focus-photo b {
+  font-size: 24px;
+  color: rgba(255,255,255,.5);
+}
+
+.family-focus-copy {
+  min-width: 0;
+  display: grid;
+  gap: 4px;
+}
+
+.family-focus-relation {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  justify-self: start;
+  color: rgba(230, 206, 249, .82);
+  font-size: 9px;
+  font-weight: 900;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+}
+
+.family-focus-copy strong {
+  font-size: 15px;
+  line-height: 1.14;
+  color: #fff;
+  overflow-wrap: anywhere;
+}
+
+.family-focus-person.is-center .family-focus-copy strong {
+  font-size: 20px;
+}
+
+.family-focus-copy small,
+.family-focus-copy em {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--family-text-faint);
+  font-size: 10px;
+  font-style: normal;
+}
+
+.family-focus-copy em { color: rgba(210, 215, 241, .64); }
+.family-focus-open { color: rgba(225, 197, 248, .55); font-size: 17px; }
+
+.family-focus-rings {
+  position: relative;
+  width: 22px;
+  height: 13px;
+  display: inline-block;
+}
+
+.family-focus-rings i {
+  position: absolute;
+  top: 1px;
+  width: 11px;
+  height: 11px;
+  border: 1.8px solid rgba(248, 210, 141, .95);
+  border-radius: 50%;
+}
+
+.family-focus-rings i:first-child { left: 1px; }
+.family-focus-rings i:last-child { right: 1px; }
+
+.family-focus-center-zone {
+  display: grid;
+  grid-template-columns: minmax(0, 1.8fr) minmax(280px, .75fr);
+  gap: 16px;
+  align-items: stretch;
+  padding: 18px 0;
+  border-top: 1px solid rgba(255,255,255,.055);
+  border-bottom: 1px solid rgba(255,255,255,.055);
+}
+
+.family-focus-spouse-block {
+  min-width: 0;
+  padding: 15px;
+  border: 1px solid rgba(238, 196, 121, .12);
+  border-radius: 18px;
+  background: rgba(238, 196, 121, .025);
+}
+
+.family-focus-center-card {
+  min-width: 0;
+  display: grid;
+  align-content: center;
+  gap: 8px;
+}
+
+.family-focus-home {
+  width: 100%;
+  color: rgba(239, 220, 255, .82);
+}
+
+.family-focus-more {
+  min-height: 102px;
+  display: grid;
+  place-items: center;
+  align-content: center;
+  gap: 3px;
+  border: 1px dashed rgba(219, 184, 255, .22);
+  border-radius: 17px;
+  background: rgba(126, 78, 205, .045);
+  color: rgba(235, 218, 250, .82);
+  cursor: pointer;
+}
+
+.family-focus-more strong { font-size: 22px; }
+.family-focus-more span { font-size: 10px; font-weight: 800; }
+.family-focus-more.is-collapse { border-style: solid; }
+
+.family-focus-empty {
+  margin: 0;
+  padding: 14px 16px;
+  border-radius: 14px;
+  border: 1px dashed rgba(255,255,255,.07);
+  color: var(--family-text-faint);
+  font-size: 11px;
+}
+
+.family-focus-branches {
+  margin-top: 4px;
+  padding: 14px 16px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+  border: 1px dashed rgba(206, 175, 242, .18);
+  border-radius: 17px;
+  background: rgba(121, 82, 172, .055);
+}
+
+.family-focus-branches > div { min-width: 0; display: grid; gap: 4px; }
+.family-focus-branches strong { font-size: 15px; }
+.family-focus-branches p { margin: 0; color: var(--family-text-faint); font-size: 11px; line-height: 1.4; }
+.family-focus-branches button { flex: 0 0 auto; }
+
+.family-full-mode-head {
+  margin: 14px 0 10px;
+  padding: 12px 14px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.family-full-mode-head > div { min-width: 0; display: grid; gap: 2px; }
+.family-full-mode-head strong { font-size: 14px; }
+.family-full-mode-head small { color: var(--family-text-faint); font-size: 10px; }
+
+@media (max-width: 900px) {
+  .family-focus-toolbar,
+  .family-focus-branches,
+  .family-full-mode-head { align-items: stretch; flex-direction: column; }
+  .family-view-switch { align-self: flex-start; }
+  .family-focus-center-zone { grid-template-columns: 1fr; }
+  .family-focus-center-card { order: -1; }
+}
+
+@media (max-width: 620px) {
+  .family-focus-panel { padding: 13px; }
+  .family-focus-list,
+  .family-focus-spouse-list { grid-template-columns: 1fr; }
+  .family-focus-stats { gap: 5px; }
+  .family-focus-stats span { font-size: 10px; }
+  .family-view-switch { width: 100%; }
+  .family-view-switch button { flex: 1 1 0; }
+  .family-focus-person { min-height: 96px; }
+}
+.family-focus-center-zone.is-no-spouses {
+  grid-template-columns: minmax(300px, 520px);
+  justify-content: center;
+}
+.family-focus-center-zone.is-no-spouses .family-focus-spouse-block { display: none; }
+
+/* v41 — compact genealogical branch tree */
+.family-branch-panel {
+  margin-top: 16px;
+  overflow: hidden;
+}
+
+.family-branch-head {
+  position: relative;
+  z-index: 3;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 22px;
+  padding: 22px 24px 18px;
+  border-bottom: 1px solid rgba(255,255,255,.07);
+  background: linear-gradient(180deg, rgba(24,27,47,.96), rgba(13,16,31,.9));
+}
+
+.family-branch-head > div:first-child {
+  min-width: 0;
+  display: grid;
+  gap: 4px;
+}
+
+.family-branch-head span {
+  color: var(--family-accent);
+  font-size: 11px;
+  font-weight: 900;
+  letter-spacing: .16em;
+}
+
+.family-branch-head h2 {
+  margin: 0;
+  font-size: clamp(22px,2.3vw,34px);
+  line-height: 1.05;
+}
+
+.family-branch-head p {
+  margin: 2px 0 0;
+  max-width: 760px;
+  color: var(--family-text-soft);
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+.family-branch-stage {
+  --branch-line: rgba(202,210,255,.48);
+  --branch-line-soft: rgba(202,210,255,.2);
+  --branch-gold: rgba(239,194,104,.88);
+  position: relative;
+  min-height: 740px;
+  padding: 42px 36px 34px;
+  background:
+    radial-gradient(circle at 50% 46%, rgba(112,82,177,.13), transparent 35%),
+    linear-gradient(rgba(255,255,255,.018) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255,255,255,.018) 1px, transparent 1px),
+    linear-gradient(180deg, rgba(9,12,25,.97), rgba(11,14,30,.94));
+  background-size: auto, 42px 42px, 42px 42px, auto;
+}
+
+.family-branch-caption {
+  display: inline-flex;
+  align-items: center;
+  min-height: 28px;
+  padding: 6px 11px;
+  border: 1px solid rgba(255,255,255,.08);
+  border-radius: 999px;
+  background: rgba(8,11,23,.82);
+  color: rgba(235,229,255,.72);
+  font-size: 10px;
+  font-weight: 900;
+  letter-spacing: .1em;
+  text-transform: uppercase;
+}
+
+.family-branch-parents,
+.family-branch-children {
+  position: relative;
+  z-index: 2;
+  display: grid;
+  justify-items: center;
+  gap: 14px;
+}
+
+.family-branch-row {
+  position: relative;
+  z-index: 2;
+  display: flex;
+  justify-content: center;
+  align-items: stretch;
+  gap: 18px;
+  flex-wrap: wrap;
+}
+
+.family-branch-row .family-focus-person {
+  width: 236px;
+  min-height: 108px;
+  grid-template-columns: 64px minmax(0,1fr) 22px;
+  padding: 11px;
+  border-radius: 18px;
+  background:
+    radial-gradient(circle at 100% 0%, rgba(108,79,184,.14), transparent 34%),
+    linear-gradient(180deg, rgba(30,34,59,.98), rgba(14,18,36,.98));
+}
+
+.family-branch-row .family-focus-photo {
+  width: 64px;
+  height: 82px;
+  border-radius: 13px;
+}
+
+.family-branch-row .family-focus-copy strong {
+  font-size: 15px;
+}
+
+.family-branch-row .family-focus-copy em {
+  display: none;
+}
+
+.family-branch-parent-junction {
+  position: relative;
+  height: 82px;
+  margin: 0 auto;
+  max-width: 1040px;
+}
+
+.family-branch-parent-junction::before {
+  content: '';
+  position: absolute;
+  left: 50%;
+  top: 0;
+  bottom: 0;
+  width: 2px;
+  transform: translateX(-50%);
+  background: linear-gradient(var(--branch-line), var(--branch-line-soft));
+}
+
+.family-branch-parent-junction::after {
+  content: '';
+  position: absolute;
+  left: 18%;
+  right: 18%;
+  top: 28px;
+  height: 2px;
+  background: linear-gradient(90deg, transparent, var(--branch-line), var(--branch-line), transparent);
+}
+
+.family-branch-generation {
+  position: relative;
+  z-index: 2;
+  display: grid;
+  grid-template-columns: minmax(260px,1fr) minmax(320px, 430px) minmax(50px,.18fr);
+  align-items: center;
+  gap: 28px;
+}
+
+.family-branch-generation.is-no-siblings {
+  grid-template-columns: 1fr minmax(320px,430px) 1fr;
+}
+
+.family-branch-siblings {
+  min-width: 0;
+  display: grid;
+  justify-items: end;
+  gap: 12px;
+}
+
+.family-branch-siblings .family-branch-row {
+  justify-content: flex-end;
+}
+
+.family-branch-center-column {
+  position: relative;
+  display: grid;
+  justify-items: center;
+  gap: 16px;
+}
+
+.family-branch-center-column::before {
+  content: '';
+  position: absolute;
+  top: -84px;
+  bottom: -88px;
+  left: 50%;
+  width: 2px;
+  transform: translateX(-50%);
+  background: linear-gradient(var(--branch-line-soft), var(--branch-line), var(--branch-line-soft));
+  z-index: -1;
+}
+
+.family-branch-center-node {
+  position: relative;
+  z-index: 3;
+  width: min(100%, 390px);
+}
+
+.family-branch-center-node .family-focus-person {
+  width: 100%;
+  min-height: 144px;
+  grid-template-columns: 86px minmax(0,1fr) 26px;
+  padding: 15px;
+  border-radius: 24px;
+  border-color: rgba(243,217,255,.38);
+  box-shadow: 0 18px 46px rgba(0,0,0,.35), 0 0 36px rgba(131,84,210,.16);
+}
+
+.family-branch-center-node .family-focus-photo {
+  width: 86px;
+  height: 110px;
+}
+
+.family-branch-center-node .family-focus-copy strong {
+  font-size: 21px;
+}
+
+.family-branch-unions {
+  width: min(100%, 760px);
+  display: grid;
+  justify-items: center;
+  gap: 9px;
+}
+
+.family-branch-union-line {
+  position: relative;
+  width: min(86%, 520px);
+  height: 24px;
+}
+
+.family-branch-union-line::before {
+  content: '';
+  position: absolute;
+  left: 4%;
+  right: 4%;
+  top: 11px;
+  height: 2px;
+  background: linear-gradient(90deg, transparent, var(--branch-gold), var(--branch-gold), transparent);
+  box-shadow: 0 0 12px rgba(234,185,84,.24);
+}
+
+.family-branch-rings {
+  position: absolute;
+  left: 50%;
+  top: 2px;
+  width: 34px;
+  height: 20px;
+  transform: translateX(-50%);
+}
+
+.family-branch-rings > i {
+  position: absolute;
+  top: 2px;
+  width: 15px;
+  height: 15px;
+  border: 2px solid #f0c76d;
+  border-radius: 50%;
+  box-shadow: 0 0 9px rgba(240,199,109,.34);
+}
+
+.family-branch-rings > i:first-child { left: 3px; }
+.family-branch-rings > i:last-child { right: 3px; }
+
+.family-branch-row.is-spouse-row .family-focus-person {
+  border-color: rgba(239,194,104,.22);
+}
+
+.family-branch-row.is-spouse-row .family-focus-rings {
+  display: none;
+}
+
+.family-branch-child-junction {
+  position: relative;
+  height: 88px;
+  margin: 0 auto;
+  max-width: 1220px;
+}
+
+.family-branch-child-junction::before {
+  content: '';
+  position: absolute;
+  left: 50%;
+  top: 0;
+  bottom: 0;
+  width: 2px;
+  transform: translateX(-50%);
+  background: linear-gradient(var(--branch-line), var(--branch-line-soft));
+}
+
+.family-branch-child-junction::after {
+  content: '';
+  position: absolute;
+  left: 9%;
+  right: 9%;
+  bottom: 24px;
+  height: 2px;
+  background: linear-gradient(90deg, transparent, var(--branch-line), var(--branch-line), transparent);
+}
+
+.family-branch-overflow {
+  width: 150px;
+  min-height: 108px;
+  display: grid;
+  place-items: center;
+  align-content: center;
+  gap: 2px;
+  padding: 12px;
+  border: 1px dashed rgba(201,190,255,.32);
+  border-radius: 18px;
+  background: rgba(18,21,42,.78);
+  color: #eeeaff;
+  cursor: pointer;
+}
+
+.family-branch-overflow:hover,
+.family-branch-overflow:focus-visible {
+  border-color: rgba(224,205,255,.64);
+  background: rgba(33,29,61,.9);
+  outline: none;
+}
+
+.family-branch-overflow-icon {
+  font-size: 22px;
+  color: var(--family-accent);
+}
+
+.family-branch-overflow strong { font-size: 20px; }
+.family-branch-overflow small { color: var(--family-text-soft); text-align: center; }
+
+.family-branch-empty-note {
+  color: var(--family-text-faint);
+  font-size: 12px;
+  padding: 10px 14px;
+  border: 1px dashed rgba(255,255,255,.08);
+  border-radius: 14px;
+}
+
+.family-branch-home {
+  min-height: 36px;
+  padding: 8px 12px;
+  border: 1px solid rgba(255,255,255,.09);
+  border-radius: 12px;
+  background: rgba(255,255,255,.04);
+  color: var(--family-text-soft);
+  cursor: pointer;
+}
+
+.family-branch-distant {
+  margin: 30px auto 0;
+  display: grid;
+  grid-template-columns: auto auto;
+  gap: 0 10px;
+  align-items: center;
+  padding: 12px 16px;
+  border: 1px dashed rgba(196,184,255,.2);
+  border-radius: 16px;
+  background: rgba(15,18,36,.72);
+  color: #eeeaff;
+  cursor: pointer;
+}
+
+.family-branch-distant > span {
+  grid-row: 1 / span 2;
+  font-size: 24px;
+  color: var(--family-accent);
+}
+
+.family-branch-distant strong { font-size: 13px; }
+.family-branch-distant small { color: var(--family-text-faint); }
+
+@media (max-width: 1180px) {
+  .family-branch-stage { overflow-x: auto; padding-left: 22px; padding-right: 22px; }
+  .family-branch-generation { min-width: 1000px; }
+  .family-branch-parents, .family-branch-children, .family-branch-parent-junction, .family-branch-child-junction { min-width: 1000px; }
+}
+
+@media (max-width: 760px) {
+  .family-branch-head { flex-direction: column; }
+  .family-branch-stage { padding-top: 28px; }
+  .family-branch-generation { min-width: 900px; }
+  .family-branch-parents, .family-branch-children, .family-branch-parent-junction, .family-branch-child-junction { min-width: 900px; }
+  .family-branch-row .family-focus-person { width: 210px; }
+}

@@ -1002,10 +1002,214 @@ function FamilyNodeCard({
   );
 }
 
+
+type FocusGroupKey = 'spouses' | 'siblings' | 'children' | 'parents';
+
+type FocusMember = {
+  node: GraphNode;
+  kinship: Kinship;
+};
+
+function FocusPersonCard({
+  member,
+  isCenter = false,
+  originalRoot = false,
+  onOpen,
+}: {
+  member: FocusMember;
+  isCenter?: boolean;
+  originalRoot?: boolean;
+  onOpen: () => void;
+}) {
+  const [broken, setBroken] = useState(false);
+  const src = nodeImage(member.node);
+
+  useEffect(() => setBroken(false), [src]);
+
+  const meta = member.node.kind === 'npc'
+    ? ([member.node.race, member.node.country].filter(Boolean).join(' · ') || 'НПС')
+    : (originalRoot ? 'Ваш игровой персонаж' : 'Игровой персонаж');
+
+  return (
+    <button
+      type="button"
+      className={`family-focus-person ${isCenter ? 'is-center' : ''} ${member.kinship.category === 'spouse' ? 'is-spouse' : ''} ${member.node.kind === 'character' ? 'is-character' : ''}`}
+      onClick={onOpen}
+      title={`Сделать центром ветки: ${member.node.name}`}
+    >
+      <span className="family-focus-photo">
+        {src && !broken ? <img src={src} alt="" onError={() => setBroken(true)} /> : <b>{member.node.name.trim().charAt(0).toUpperCase() || '?'}</b>}
+      </span>
+      <span className="family-focus-copy">
+        <span className="family-focus-relation">
+          {member.kinship.category === 'spouse' ? <i className="family-focus-rings" aria-hidden="true"><i /><i /></i> : null}
+          {isCenter ? (originalRoot ? 'Ваш персонаж' : 'Центр ветки') : member.kinship.label}
+        </span>
+        <strong>{member.node.name}</strong>
+        <small>{meta}</small>
+        {!isCenter && member.kinship.detail ? <em>{member.kinship.detail}</em> : null}
+      </span>
+      {!isCenter ? <span className="family-focus-open">→</span> : null}
+    </button>
+  );
+}
+
+function BranchOverflowNode({
+  count,
+  label,
+  expanded,
+  onToggle,
+}: {
+  count: number;
+  label: string;
+  expanded: boolean;
+  onToggle: () => void;
+}) {
+  return (
+    <button type="button" className={`family-branch-overflow ${expanded ? 'is-open' : ''}`} onClick={onToggle}>
+      <span className="family-branch-overflow-icon">⌁</span>
+      <strong>{expanded ? 'Свернуть' : `+ ${count}`}</strong>
+      <small>{label}</small>
+    </button>
+  );
+}
+
+function CompactTreeRow({
+  members,
+  limit,
+  expanded,
+  overflowLabel,
+  onToggle,
+  onOpen,
+  className = '',
+}: {
+  members: FocusMember[];
+  limit: number;
+  expanded: boolean;
+  overflowLabel: string;
+  onToggle: () => void;
+  onOpen: (id: string) => void;
+  className?: string;
+}) {
+  const shown = expanded ? members : members.slice(0, limit);
+  const hidden = Math.max(0, members.length - shown.length);
+  return (
+    <div className={`family-branch-row ${className}`}>
+      {shown.map(member => (
+        <FocusPersonCard key={member.node.id} member={member} onOpen={() => onOpen(member.node.id)} />
+      ))}
+      {hidden > 0 ? (
+        <BranchOverflowNode count={hidden} label={overflowLabel} expanded={false} onToggle={onToggle} />
+      ) : expanded && members.length > limit ? (
+        <BranchOverflowNode count={0} label={overflowLabel} expanded onToggle={onToggle} />
+      ) : null}
+    </div>
+  );
+}
+
+function CompactFamilyTree({
+  center,
+  groups,
+  expandedGroups,
+  onToggleGroup,
+  onOpen,
+  originalRootId,
+  originalRootName,
+  onReturnRoot,
+  onFullGraph,
+}: {
+  center: FocusMember;
+  groups: { parents: FocusMember[]; spouses: FocusMember[]; siblings: FocusMember[]; children: FocusMember[]; otherCount: number };
+  expandedGroups: Set<FocusGroupKey>;
+  onToggleGroup: (key: FocusGroupKey) => void;
+  onOpen: (id: string) => void;
+  originalRootId: string;
+  originalRootName: string;
+  onReturnRoot: () => void;
+  onFullGraph: () => void;
+}) {
+  const hasParents = groups.parents.length > 0;
+  const hasSiblings = groups.siblings.length > 0;
+  const hasSpouses = groups.spouses.length > 0;
+  const hasChildren = groups.children.length > 0;
+
+  return (
+    <section className="family-branch-panel family-card-surface">
+      <div className="family-branch-head">
+        <div>
+          <span>СЕМЕЙНОЕ ДРЕВО</span>
+          <h2>{center.node.name}</h2>
+          <p>Ветка показывает ближайшую семью как настоящее древо. Нажмите на любого человека, чтобы перестроить схему относительно него.</p>
+        </div>
+        <div className="family-view-switch" role="group" aria-label="Режим семейного древа">
+          <button type="button" className="is-active">Древо</button>
+          <button type="button" onClick={onFullGraph}>Полный граф</button>
+        </div>
+      </div>
+
+      <div className="family-branch-stage">
+        <div className={`family-branch-parents ${hasParents ? '' : 'is-empty'}`}>
+          <span className="family-branch-caption">Родители</span>
+          {hasParents ? (
+            <CompactTreeRow members={groups.parents} limit={4} expanded={expandedGroups.has('parents')} overflowLabel="ещё родители" onToggle={() => onToggleGroup('parents')} onOpen={onOpen} />
+          ) : <span className="family-branch-empty-note">Родители не внесены</span>}
+        </div>
+
+        <div className="family-branch-parent-junction" aria-hidden="true"><i /><i /></div>
+
+        <div className={`family-branch-generation ${hasSiblings ? '' : 'is-no-siblings'}`}>
+          <div className="family-branch-siblings">
+            <span className="family-branch-caption">Братья и сёстры</span>
+            {hasSiblings ? (
+              <CompactTreeRow members={groups.siblings} limit={4} expanded={expandedGroups.has('siblings')} overflowLabel="ещё братья / сёстры" onToggle={() => onToggleGroup('siblings')} onOpen={onOpen} />
+            ) : <span className="family-branch-empty-note">Нет внесённых</span>}
+          </div>
+
+          <div className="family-branch-center-column">
+            <div className="family-branch-center-node">
+              <FocusPersonCard member={center} isCenter originalRoot={center.node.id === originalRootId} onOpen={() => onOpen(center.node.id)} />
+            </div>
+
+            {hasSpouses ? (
+              <div className="family-branch-unions">
+                <span className="family-branch-caption">Супруги и партнёры</span>
+                <div className="family-branch-union-line" aria-hidden="true"><i className="family-branch-rings"><i /><i /></i></div>
+                <CompactTreeRow members={groups.spouses} limit={3} expanded={expandedGroups.has('spouses')} overflowLabel="ещё супруги" onToggle={() => onToggleGroup('spouses')} onOpen={onOpen} className="is-spouse-row" />
+              </div>
+            ) : null}
+
+            {center.node.id !== originalRootId ? (
+              <button type="button" className="family-branch-home" onClick={onReturnRoot}>↩ К {originalRootName}</button>
+            ) : null}
+          </div>
+        </div>
+
+        <div className="family-branch-child-junction" aria-hidden="true"><i /><i /></div>
+
+        <div className={`family-branch-children ${hasChildren ? '' : 'is-empty'}`}>
+          <span className="family-branch-caption">Дети</span>
+          {hasChildren ? (
+            <CompactTreeRow members={groups.children} limit={6} expanded={expandedGroups.has('children')} overflowLabel="ещё дети" onToggle={() => onToggleGroup('children')} onOpen={onOpen} />
+          ) : <span className="family-branch-empty-note">Дети не внесены</span>}
+        </div>
+
+        {groups.otherCount > 0 ? (
+          <button type="button" className="family-branch-distant" onClick={onFullGraph}>
+            <span>⌁</span>
+            <strong>Ещё {groups.otherCount} дальних родственников</strong>
+            <small>Открыть технический полный граф</small>
+          </button>
+        ) : null}
+      </div>
+    </section>
+  );
+}
+
 type StoredFamilyTreeView = {
   focusId?: string;
   selectedId?: string;
   zoom?: number;
+  mode?: 'focus' | 'full';
 };
 
 function familyTreeViewStorageKey(characterId: string, adminView: boolean) {
@@ -1048,6 +1252,8 @@ export default function CharacterFamilyTree({ characterId, adminView = false, th
       ? Math.min(1.15, Math.max(0.45, stored))
       : 0.82;
   });
+  const [treeMode, setTreeMode] = useState<'focus' | 'full'>(() => readStoredFamilyTreeView(characterId, adminView).mode === 'full' ? 'full' : 'focus');
+  const [expandedFocusGroups, setExpandedFocusGroups] = useState<Set<FocusGroupKey>>(() => new Set());
   const [viewport, setViewport] = useState({ left: 0, width: 1 });
   const [autoFitDone, setAutoFitDone] = useState(false);
   const treeScrollRef = useRef<HTMLDivElement | null>(null);
@@ -1114,8 +1320,9 @@ export default function CharacterFamilyTree({ characterId, adminView = false, th
       focusId,
       selectedId,
       zoom: treeZoom,
+      mode: treeMode,
     });
-  }, [characterId, adminView, focusId, selectedId, treeZoom]);
+  }, [characterId, adminView, focusId, selectedId, treeZoom, treeMode]);
 
   const familyModel = useMemo(() => data ? buildFamilyModel(data) : null, [data]);
 
@@ -1138,6 +1345,60 @@ export default function CharacterFamilyTree({ characterId, adminView = false, th
     });
     return result;
   }, [familyModel, focusId]);
+
+
+  const focusGroups = useMemo(() => {
+    const empty = { parents: [] as FocusMember[], spouses: [] as FocusMember[], siblings: [] as FocusMember[], children: [] as FocusMember[], otherCount: 0 };
+    if (!familyModel || !focusId) return empty;
+
+    const groups = { ...empty };
+    const visibleIds = new Set<string>([focusId]);
+
+    familyModel.nodeById.forEach((node, id) => {
+      if (id === focusId) return;
+      const kinship = familyModel.classify(focusId, id);
+      const member = { node, kinship };
+      if (kinship.category === 'parent') groups.parents.push(member);
+      else if (kinship.category === 'spouse') groups.spouses.push(member);
+      else if (kinship.category === 'sibling') groups.siblings.push(member);
+      else if (kinship.category === 'child') groups.children.push(member);
+    });
+
+    (['parents', 'spouses', 'siblings', 'children'] as FocusGroupKey[]).forEach(key => {
+      groups[key].sort((a, b) => {
+        if (a.kinship.rank !== b.kinship.rank) return a.kinship.rank - b.kinship.rank;
+        return a.node.name.localeCompare(b.node.name, 'ru');
+      });
+      groups[key].forEach(member => visibleIds.add(member.node.id));
+    });
+
+    groups.otherCount = Math.max(0, familyModel.nodeById.size - visibleIds.size);
+    return groups;
+  }, [familyModel, focusId]);
+
+  const focusCenterMember = useMemo<FocusMember | null>(() => {
+    if (!familyModel || !focusId) return null;
+    const node = familyModel.nodeById.get(focusId);
+    if (!node) return null;
+    return {
+      node,
+      kinship: { label: 'Центр ветки', detail: 'Текущая точка просмотра', category: 'self', rank: 0 },
+    };
+  }, [familyModel, focusId]);
+
+  function openFocusNode(id: string) {
+    setSelectedId(id);
+    if (focusId !== id) setFocusId(id);
+  }
+
+  function toggleFocusGroup(key: FocusGroupKey) {
+    setExpandedFocusGroups(current => {
+      const next = new Set(current);
+      if (next.has(key)) next.delete(key);
+      else next.add(key);
+      return next;
+    });
+  }
 
   const layout = useMemo(() => {
     if (!data?.root || !familyModel || !focusId) return null;
@@ -1279,6 +1540,7 @@ export default function CharacterFamilyTree({ characterId, adminView = false, th
 
   useEffect(() => {
     setAutoFitDone(false);
+    setExpandedFocusGroups(new Set());
   }, [characterId, focusId]);
 
   useEffect(() => {
@@ -1450,7 +1712,23 @@ export default function CharacterFamilyTree({ characterId, adminView = false, th
             <div><span>Других связей</span><strong>{data.stats?.otherConnections || 0}</strong></div>
           </section>
 
-          {layout && familyModel && layout.positioned.length > 1 ? (
+          {familyModel && focusCenterMember ? (
+            treeMode === 'focus' ? (
+              <CompactFamilyTree
+                center={focusCenterMember}
+                groups={focusGroups}
+                expandedGroups={expandedFocusGroups}
+                onToggleGroup={toggleFocusGroup}
+                onOpen={openFocusNode}
+                originalRootId={data.root.id}
+                originalRootName={data.root.name}
+                onReturnRoot={() => openFocusNode(data.root?.id || '')}
+                onFullGraph={() => setTreeMode('full')}
+              />
+            ) : layout ? (
+              <>
+                <div className="family-full-mode-head family-card-surface"><div><span>ПОЛНЫЙ ГРАФ</span><strong>Все доступные связи одновременно</strong><small>Для больших семей этот режим может быть очень широким.</small></div><button type="button" onClick={() => setTreeMode('focus')}>← Вернуться к древу</button></div>
+
             <section className="family-tree-panel family-card-surface">
               <div className="family-tree-nav">
                 <div className="family-tree-jumps" aria-label="Навигация по поколениям">
@@ -1612,12 +1890,12 @@ export default function CharacterFamilyTree({ characterId, adminView = false, th
                 </div>
               </div>
             </section>
+              </>
+            ) : (
+              <section className="family-empty family-card-surface"><span>✦</span><h2>Полный граф пока пуст</h2><p>Для выбранного центра нет дополнительных связей.</p></section>
+            )
           ) : (
-            <section className="family-empty family-card-surface">
-              <span>✦</span>
-              <h2>Семейные связи пока не внесены</h2>
-              <p>Когда администратор свяжет персонажа с НПС через родственные типы, ветви появятся здесь автоматически.</p>
-            </section>
+            <section className="family-empty family-card-surface"><span>✦</span><h2>Семейные связи пока не внесены</h2><p>Когда администратор свяжет персонажа с НПС через родственные типы, ветви появятся здесь автоматически.</p></section>
           )}
 
           {selectedNode ? (
