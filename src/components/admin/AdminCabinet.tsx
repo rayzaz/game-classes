@@ -15,9 +15,11 @@ import AdminEventerAccess from './AdminEventerAccess';
 import AdminAuditLog from './AdminAuditLog';
 import AdminCalendar from './AdminCalendar';
 import AdminNpcs from './AdminNpcs';
+import AdminSpells from './AdminSpells';
 
 import './admin.css';
 import './admin-npcs.css';
+import './admin-spells.css';
 
 
 type Props = {
@@ -33,72 +35,13 @@ type Props = {
 type AdminSection =
   | 'characters'
   | 'npcs'
+  | 'spells'
   | 'questionnaires'
   | 'events'
   | 'reports'
   | 'eventers'
   | 'calendar'
   | 'audit';
-
-
-const ADMIN_SECTION_STORAGE_KEY =
-  'gosmag.admin.section.v1';
-
-
-function readStoredAdminSection(): AdminSection {
-  if (typeof window === 'undefined') {
-    return 'characters';
-  }
-
-  try {
-    const value =
-      window.sessionStorage.getItem(
-        ADMIN_SECTION_STORAGE_KEY
-      );
-
-    const allowed: AdminSection[] = [
-      'characters',
-      'npcs',
-      'questionnaires',
-      'events',
-      'reports',
-      'eventers',
-      'calendar',
-      'audit',
-    ];
-
-    if (
-      value &&
-      allowed.includes(
-        value as AdminSection
-      )
-    ) {
-      return value as AdminSection;
-    }
-  } catch {
-    // Не критично.
-  }
-
-  return 'characters';
-}
-
-
-function writeStoredAdminSection(
-  section: AdminSection
-) {
-  if (typeof window === 'undefined') {
-    return;
-  }
-
-  try {
-    window.sessionStorage.setItem(
-      ADMIN_SECTION_STORAGE_KEY,
-      section
-    );
-  } catch {
-    // Не критично.
-  }
-}
 
 
 type SessionUser = {
@@ -136,6 +79,11 @@ const NAV_ITEMS:
       id: 'npcs',
       label: 'НПС',
       icon: '◉',
+    },
+    {
+      id: 'spells',
+      label: 'Заклинания',
+      icon: '✧',
     },
     {
       id: 'questionnaires',
@@ -180,18 +128,8 @@ export default function AdminCabinet({
     setSection
   ] =
     useState<AdminSection>(
-      () => readStoredAdminSection()
+      'characters'
     );
-
-  useEffect(
-    () => {
-      writeStoredAdminSection(
-        section
-      );
-    },
-    [section]
-  );
-
 
   const [
     characters,
@@ -556,6 +494,11 @@ export default function AdminCabinet({
             {section ===
             'npcs' ? (
               <AdminNpcs />
+            ) : null}
+
+            {section ===
+            'spells' ? (
+              <AdminSpells characters={characters} />
             ) : null}
 
             {section ===

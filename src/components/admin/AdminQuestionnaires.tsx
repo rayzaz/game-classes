@@ -10,6 +10,9 @@ import {
 } from '../../data/classes';
 
 import QuestionnaireGooglePreview from './GooglePreview';
+import QuestionnaireWizard, {
+  type QuestionnaireData,
+} from '../questionnaire/QuestionnaireWizard';
 
 
 /* ============================================================
@@ -106,6 +109,31 @@ const isTestQuestionnaire = (
 };
 
 
+function questionnaireNeedsSpellMigration(
+  data: Record<string, unknown> | null | undefined,
+) {
+  const spells = Array.isArray(data?.spells)
+    ? data!.spells as Array<Record<string, unknown>>
+    : [];
+
+  if (!spells.length) {
+    return false;
+  }
+
+  return spells.some((spell) => {
+    const schemaVersion = Number(spell?.schemaVersion || 0);
+
+    return (
+      schemaVersion < 1 ||
+      !String(spell?.form || '').trim() ||
+      !String(spell?.target || '').trim() ||
+      !String(spell?.durationMode || '').trim() ||
+      typeof spell?.requiresHit !== 'boolean'
+    );
+  });
+}
+
+
 type QuestionnaireNote = {
   id: string;
   questionnaireId: string;
@@ -151,6 +179,13 @@ type StatusResponse = {
     } | null;
   };
 
+  error?: string;
+};
+
+
+type UpdateQuestionnaireResponse = {
+  ok: boolean;
+  questionnaire?: QuestionnaireDetails;
   error?: string;
 };
 
@@ -1570,12 +1605,24 @@ function SpellCard({
 
   const name = firstText(spell, ['name', 'title']) || `Заклинание ${index + 1}`;
   const castTime = firstText(spell, ['castTime', 'cast', 'time']);
+  const form = firstText(spell, ['form']);
+  const target = firstText(spell, ['target']);
+  const rangeMeters = firstText(spell, ['rangeMeters']);
   const radius = firstText(spell, ['radius', 'range']);
-  const duration = firstText(spell, ['duration']);
+  const area = firstText(spell, ['area']);
+  const areaMeters = firstText(spell, ['areaMeters']);
+  const movementMeters = firstText(spell, ['movementMeters']);
+  const summonCount = firstText(spell, ['summonCount']);
+  const durationMode = firstText(spell, ['durationMode']);
+  const durationRounds = firstText(spell, ['durationRounds']);
+  const duration = durationMode === 'Ходы'
+    ? `${durationRounds || '—'} ход.`
+    : durationMode || firstText(spell, ['duration']);
   const effect = firstText(spell, ['effect', 'description']);
   const powerType = firstText(spell, ['powerType', 'type']);
   const power = firstText(spell, ['power', 'powerRoll', 'damage', 'healing']);
   const die = firstText(spell, ['powerDie']) || (power ? 'd20' : '');
+  const isCanonical = Number(spell.schemaVersion) >= 1 || Boolean(target || rangeMeters || area);
 
   return (
     <article
@@ -1622,7 +1669,7 @@ function SpellCard({
           </strong>
         </div>
 
-        {power ? (
+        {power && !isCanonical ? (
           <div
             style={{
               flex: '0 0 auto',
@@ -1673,8 +1720,14 @@ function SpellCard({
           marginBottom: effect ? 10 : 0,
         }}
       >
+        {powerType ? <InfoTile label="Тип" value={powerType} /> : null}
+        {form ? <InfoTile label="Форма" value={form} /> : null}
         {castTime ? <InfoTile label="Время каста" value={castTime} /> : null}
-        {radius ? <InfoTile label="Радиус" value={radius} /> : null}
+        {target ? <InfoTile label="Цель" value={target} /> : null}
+        {rangeMeters ? <InfoTile label="Дальность" value={`${rangeMeters} м`} /> : radius ? <InfoTile label="Радиус / дальность" value={radius} /> : null}
+        {area && area !== 'Одна цель' ? <InfoTile label="Область" value={`${area}${areaMeters ? ` · ${areaMeters} м` : ''}`} /> : null}
+        {movementMeters ? <InfoTile label="Перемещение" value={`${movementMeters} м`} /> : null}
+        {summonCount ? <InfoTile label="Количество призывов" value={summonCount} /> : null}
         {duration ? <InfoTile label="Длительность" value={duration} /> : null}
       </div>
 
@@ -2114,7 +2167,7 @@ function QuestionnaireDossier({
       <DossierSection
         icon="🎲"
         title={`Стартовые заклинания${spells.length ? ` · ${spells.length}` : ''}`}
-        subtitle="Сила эффекта закрепляется броском d20 из анкеты"
+        subtitle="Новые анкеты сразу используют единый формат боевого калькулятора"
       >
         {spells.length > 0 ? (
           <div
@@ -2306,6 +2359,42 @@ export default function AdminQuestionnaires() {
     useState(
       ''
     );
+
+
+  const [
+    questionnaireEditOpen,
+    setQuestionnaireEditOpen
+  ] = useState(false);
+
+  const [
+    questionnaireEditBusy,
+    setQuestionnaireEditBusy
+  ] = useState(false);
+
+  const [
+    questionnaireEditError,
+    setQuestionnaireEditError
+  ] = useState('');
+
+  const [
+    questionnaireEditMessage,
+    setQuestionnaireEditMessage
+  ] = useState('');
+
+  const [
+    questionnaireAccessBusy,
+    setQuestionnaireAccessBusy
+  ] = useState(false);
+
+  const [
+    questionnaireAccessError,
+    setQuestionnaireAccessError
+  ] = useState('');
+
+  const [
+    questionnaireAccessCode,
+    setQuestionnaireAccessCode
+  ] = useState('');
 
 
   /* =========================
@@ -2877,6 +2966,12 @@ export default function AdminQuestionnaires() {
         null
       );
 
+      setQuestionnaireEditOpen(false);
+      setQuestionnaireEditError('');
+      setQuestionnaireEditMessage('');
+      setQuestionnaireAccessError('');
+      setQuestionnaireAccessCode('');
+
 
       try {
 
@@ -2971,6 +3066,131 @@ export default function AdminQuestionnaires() {
         );
       }
     };
+
+
+  /* ============================================================
+     РЕДАКТИРОВАНИЕ / МИГРАЦИЯ АНКЕТЫ
+     ============================================================ */
+
+  const generateQuestionnaireAccess = async () => {
+    if (!selected || questionnaireAccessBusy) {
+      return;
+    }
+
+    const confirmed = window.confirm(
+      'Перевыпустить код доступа к этой анкете?\n\nСтарый код доступа перестанет работать. Это нужно для анкет, отправленных до появления сохранения статуса у игрока.',
+    );
+
+    if (!confirmed) return;
+
+    setQuestionnaireAccessBusy(true);
+    setQuestionnaireAccessError('');
+    setQuestionnaireAccessCode('');
+
+    try {
+      const response = await fetch(
+        '/.netlify/functions/admin-questionnaire-access',
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            key: selected.key,
+          }),
+        },
+      );
+
+      const result = await response.json().catch(() => null);
+
+      if (!response.ok || !result?.ok || !result?.access?.accessCode) {
+        throw new Error(
+          result?.error ||
+          'Не удалось получить код доступа',
+        );
+      }
+
+      setQuestionnaireAccessCode(String(result.access.accessCode));
+    } catch (error) {
+      setQuestionnaireAccessError(
+        error instanceof Error
+          ? error.message
+          : 'Не удалось получить код доступа',
+      );
+    } finally {
+      setQuestionnaireAccessBusy(false);
+    }
+  };
+
+
+  const saveQuestionnaireData = async (
+    data: QuestionnaireData,
+  ) => {
+    if (!selected || questionnaireEditBusy) {
+      return;
+    }
+
+    setQuestionnaireEditBusy(true);
+    setQuestionnaireEditError('');
+    setQuestionnaireEditMessage('');
+
+    try {
+      const response = await fetch(
+        '/.netlify/functions/admin-questionnaire-update',
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            key: selected.key,
+            data,
+          }),
+        },
+      );
+
+      let result: UpdateQuestionnaireResponse | null = null;
+
+      try {
+        result = await response.json();
+      } catch {
+        result = null;
+      }
+
+      if (!response.ok || !result?.ok || !result.questionnaire) {
+        throw new Error(
+          result?.error ||
+          'Не удалось сохранить исправленную анкету',
+        );
+      }
+
+      setSelected(result.questionnaire);
+      setQuestionnaireEditOpen(false);
+      setQuestionnaireEditMessage(
+        'Анкета сохранена в текущем формате. Старые заклинания, открытые через редактор, теперь записаны по новым правилам.',
+      );
+
+      setQuestionnaires((current) =>
+        current.map((item) =>
+          item.key === result!.questionnaire!.key
+            ? {
+                ...item,
+                updatedAt: result!.questionnaire!.updatedAt,
+                status: result!.questionnaire!.status,
+              }
+            : item,
+        ),
+      );
+    } catch (error) {
+      setQuestionnaireEditError(
+        error instanceof Error
+          ? error.message
+          : 'Не удалось сохранить исправленную анкету',
+      );
+    } finally {
+      setQuestionnaireEditBusy(false);
+    }
+  };
 
 
   /* ============================================================
@@ -4088,46 +4308,53 @@ export default function AdminQuestionnaires() {
                 </div>
 
 
-                <button
-                  type="button"
+                <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
+                  <button
+                    type="button"
+                    className="admin-button admin-button-primary"
+                    disabled={questionnaireEditBusy}
+                    onClick={() => {
+                      setQuestionnaireEditError('');
+                      setQuestionnaireEditMessage('');
+                      setQuestionnaireEditOpen(true);
+                    }}
+                  >
+                    ✎ Редактировать / обновить формат
+                  </button>
 
-                  className="admin-button"
+                  <button
+                    type="button"
+                    className="admin-button"
+                    disabled={questionnaireAccessBusy}
+                    onClick={() => {
+                      void generateQuestionnaireAccess();
+                    }}
+                    title="Для старых анкет, у которых игрок не получил сохранённый ключ статуса"
+                  >
+                    {questionnaireAccessBusy ? 'Готовлю код…' : '🔑 Выдать доступ игроку'}
+                  </button>
 
-                  onClick={
-                    () => {
-
-                      setSelected(
-                        null
-                      );
-
-                      setDetailError(
-                        ''
-                      );
-
-                      setStatusError(
-                        ''
-                      );
-
-                      setDeleteError(
-                        ''
-                      );
-
-                      setNotes(
-                        []
-                      );
-
-                      setNotesError(
-                        ''
-                      );
-
-                      setNoteText(
-                        ''
-                      );
-                    }
-                  }
-                >
-                  × Закрыть
-                </button>
+                  <button
+                    type="button"
+                    className="admin-button"
+                    onClick={() => {
+                      setSelected(null);
+                      setDetailError('');
+                      setStatusError('');
+                      setDeleteError('');
+                      setNotes([]);
+                      setNotesError('');
+                      setNoteText('');
+                      setQuestionnaireEditOpen(false);
+                      setQuestionnaireEditError('');
+                      setQuestionnaireEditMessage('');
+                      setQuestionnaireAccessError('');
+                      setQuestionnaireAccessCode('');
+                    }}
+                  >
+                    × Закрыть
+                  </button>
+                </div>
 
               </div>
 
@@ -4192,9 +4419,127 @@ export default function AdminQuestionnaires() {
 
                 </div>
 
+                <div>
+                  <span>Формат</span>
+                  <strong
+                    style={{
+                      color: questionnaireNeedsSpellMigration(selected.data)
+                        ? '#e7c27c'
+                        : undefined,
+                    }}
+                  >
+                    {questionnaireNeedsSpellMigration(selected.data)
+                      ? 'Нужно обновить'
+                      : 'Актуальный'}
+                  </strong>
+                </div>
+
               </div>
 
 
+              {questionnaireAccessError && (
+                <div className="admin-error-state" style={{ marginBottom: 16 }}>
+                  {questionnaireAccessError}
+                </div>
+              )}
+
+              {questionnaireAccessCode && (
+                <div
+                  style={{
+                    marginBottom: 16,
+                    padding: 14,
+                    border: '1px solid rgba(190,145,245,.28)',
+                    borderRadius: 14,
+                    background: 'rgba(135,85,190,.08)',
+                    display: 'grid',
+                    gap: 8,
+                  }}
+                >
+                  <strong>Код доступа для игрока</strong>
+                  <span style={{ color: 'var(--admin-muted-2)', fontSize: 11, lineHeight: 1.5 }}>
+                    Отправьте этот код игроку. В ГосМАГ → «Создать анкету» он сможет выбрать «Уже отправляли анкету?» и вставить код. После этого увидит статус и, если анкета на доработке, сможет её исправить.
+                  </span>
+                  <textarea
+                    readOnly
+                    value={questionnaireAccessCode}
+                    rows={3}
+                    onFocus={(event) => event.currentTarget.select()}
+                    style={{ width: '100%', resize: 'vertical', fontFamily: 'monospace', fontSize: 11 }}
+                  />
+                  <small style={{ color: '#e7c27c' }}>Важно: новый код заменил старый доступ к этой анкете.</small>
+                </div>
+              )}
+
+              {questionnaireEditMessage && (
+                <div className="admin-success-state" style={{ marginBottom: 16 }}>
+                  {questionnaireEditMessage}
+                </div>
+              )}
+
+              {questionnaireEditError && !questionnaireEditOpen && (
+                <div className="admin-error-state" style={{ marginBottom: 16 }}>
+                  {questionnaireEditError}
+                </div>
+              )}
+
+              {questionnaireEditOpen && (
+                <div
+                  style={{
+                    marginBottom: 20,
+                    padding: 16,
+                    border: '1px solid var(--admin-line-soft)',
+                    borderRadius: 16,
+                    background: 'rgba(255,255,255,.015)',
+                  }}
+                >
+                  <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12, marginBottom: 14, flexWrap: 'wrap' }}>
+                    <div>
+                      <div className="admin-eyebrow">РЕДАКТОР АНКЕТЫ</div>
+                      <strong>Старая анкета будет открыта в текущем формате</strong>
+                      <p style={{ margin: '6px 0 0', color: 'var(--admin-muted-2)', fontSize: 12, lineHeight: 1.55 }}>
+                        При открытии старые заклинания переводятся в новую структуру редактора. Ничего не меняется в Google-персонаже: здесь редактируется именно сохранённая заявка. Статус анкеты также не меняется автоматически.
+                      </p>
+                    </div>
+
+                    <button
+                      type="button"
+                      className="admin-button"
+                      disabled={questionnaireEditBusy}
+                      onClick={() => {
+                        setQuestionnaireEditOpen(false);
+                        setQuestionnaireEditError('');
+                      }}
+                    >
+                      Закрыть редактор
+                    </button>
+                  </div>
+
+                  {questionnaireEditError && (
+                    <div className="admin-error-state" style={{ marginBottom: 12 }}>
+                      {questionnaireEditError}
+                    </div>
+                  )}
+
+                  <QuestionnaireWizard
+                    assistant={{
+                      name: selected.assistant?.name || 'Администратор',
+                    }}
+                    classes={CLASSES}
+                    initial={selected.data as Partial<QuestionnaireData>}
+                    onCancel={() => {
+                      if (!questionnaireEditBusy) {
+                        setQuestionnaireEditOpen(false);
+                        setQuestionnaireEditError('');
+                      }
+                    }}
+                    onFinish={(data) => {
+                      void saveQuestionnaireData(data);
+                    }}
+                  />
+                </div>
+              )}
+
+              {!questionnaireEditOpen && (<>
               {/* ==============================================
                   РЕШЕНИЕ АДМИНА
                   ============================================== */}
@@ -5101,6 +5446,9 @@ export default function AdminQuestionnaires() {
               }
 
 
+              </>)}
+
+              {!questionnaireEditOpen && (<>
               {/* ==============================================
                   КРАСИВОЕ ЛИЧНОЕ ДЕЛО
                   ============================================== */}
@@ -5115,6 +5463,7 @@ export default function AdminQuestionnaires() {
                 questionnaireKey={selected.key}
                 questionnaireStatus={selected.status}
               />
+              </>)}
 
             </div>
 

@@ -4436,3 +4436,94 @@ body:has(.player-theme-default) {
   }
 
 }
+/* =========================
+   ГРИМУАР · ГОТОВНОСТЬ К БОЕВОМУ КАЛЬКУЛЯТОРУ
+   ========================= */
+.nero-spell-warning {
+    display: grid;
+    gap: 5px;
+    margin-bottom: 12px;
+    padding: 11px 12px;
+    border: 1px solid rgba(207, 151, 91, .28);
+    border-radius: 12px;
+    background: rgba(207, 151, 91, .055);
+}
+
+.nero-spell-warning strong {
+    color: #e2b17f;
+    font-size: 11px;
+}
+
+.nero-spell-warning span {
+    color: var(--nero-muted, #a9a9b2);
+    font-size: 10px;
+    line-height: 1.55;
+}
+
+.nero-spell-card-modern.needs-fix {
+    border-color: rgba(207, 151, 91, .30);
+}
+
+.nero-spell-status {
+    display: inline-flex;
+    align-items: center;
+    min-height: 24px;
+    padding: 4px 7px;
+    border-radius: 999px;
+    border: 1px solid rgba(255,255,255,.10);
+    font-size: 8px;
+    line-height: 1;
+    white-space: nowrap;
+}
+
+.nero-spell-status.warning {
+    color: #e4b37f;
+    border-color: rgba(207,151,91,.30);
+    background: rgba(207,151,91,.065);
+}
+
+.nero-spell-status.ready {
+    color: #9acaa8;
+    border-color: rgba(112,177,130,.27);
+    background: rgba(112,177,130,.06);
+}
+
+.nero-spell-meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 5px;
+    margin: 8px 0 9px;
+}
+
+.nero-spell-meta span {
+    padding: 4px 6px;
+    border-radius: 7px;
+    border: 1px solid rgba(255,255,255,.07);
+    background: rgba(255,255,255,.025);
+    color: var(--nero-muted, #a9a9b2);
+    font-size: 8px;
+}
+
+.nero-spell-calculation {
+    display: block;
+    margin-top: 9px;
+    color: var(--nero-muted, #8f9099);
+    font-size: 8px;
+    line-height: 1.45;
+}
+
+.nero-spell-issues {
+    display: grid;
+    gap: 4px;
+    margin-top: 9px;
+    padding: 8px 9px;
+    border-radius: 9px;
+    border: 1px solid rgba(207,151,91,.22);
+    background: rgba(207,151,91,.045);
+}
+
+.nero-spell-issues span {
+    color: #cda67f;
+    font-size: 8px;
+    line-height: 1.4;
+}

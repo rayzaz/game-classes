@@ -656,11 +656,20 @@ function spellSummary(
   const spell = payload.spells[index];
   if (!spell) return 'Пустой слот';
 
+  const duration = spell.durationMode === 'Ходы'
+    ? `${spell.durationRounds ?? 1} ход.`
+    : spell.durationMode;
+
+  const spatial: string[] = [spell.form || 'форма не указана', `цель ${spell.target || '—'}`];
+  if (spell.rangeMeters != null) spatial.push(`дальность ${spell.rangeMeters} м`);
+  if (spell.areaMeters != null) spatial.push(`${spell.area} ${spell.areaMeters} м`);
+  if (spell.movementMeters != null) spatial.push(`перемещение ${spell.movementMeters} м`);
+  if (spell.summonCount != null) spatial.push(`призыв ×${spell.summonCount}`);
+
   return compact(
-    `${spell.name}; ${spell.powerType || 'тип не указан'}: ${spell.power ?? '—'}/20; ` +
-    `каст ${spell.castTime || '—'}; радиус ${spell.radius || '—'}; ` +
-    `длительность ${spell.duration || '—'}`,
-    150,
+    `${spell.name}; ${spell.powerType || 'тип не указан'}; ` +
+    `каст ${spell.castTime || '—'}; ${spatial.join('; ')}; длительность ${duration || '—'}`,
+    210,
   );
 }
 
@@ -1258,15 +1267,44 @@ export default function QuestionnaireGooglePreview({
             .filter((character: DonorRegistryCharacter) => character.characterId && character.active)
         : [];
 
-      setDonorProgress({ done: 0, total: registryCharacters.length });
+      const targetClass =
+        selectedClassMatch ||
+        matchCanonicalClass(payload.combat.className) ||
+        matchCanonicalClass(payload.combat.classKey);
+
+      if (!targetClass) {
+        throw new Error(
+          `Не удалось определить класс анкеты «${payload.combat.className || payload.combat.classKey || 'не указан'}». Сначала исправьте класс анкеты.`,
+        );
+      }
+
+      // v42.2: для создания персонажа нам нужен донор ТОГО ЖЕ класса.
+      // Не открываем подряд все личные таблицы реестра: сначала дешёво
+      // отфильтровываем кандидатов по классу из реестра/ручного override,
+      // и только затем читаем полноценные личные дела этих кандидатов.
+      const registryCandidates = registryCharacters.filter((character) => {
+        const canonical =
+          getOverrideCanonicalClass(character.characterId) ||
+          matchCanonicalClass(character.className);
+
+        return canonical?.id === targetClass.id;
+      });
+
+      if (!registryCandidates.length) {
+        throw new Error(
+          `В активном реестре не найдено ни одного персонажа класса «${targetClass.name}». Нужен хотя бы один донор этого класса.`,
+        );
+      }
+
+      setDonorProgress({ done: 0, total: registryCandidates.length });
 
       const items = await runWithConcurrency(
-        registryCharacters,
+        registryCandidates,
         1,
         async (character, index): Promise<DonorCheckItem> => {
-          // Между персонажами оставляем паузу. На живой системе одно личное дело
-          // может собираться из нескольких связанных Google-таблиц.
-          if (index > 0) await sleep(700);
+          // Небольшая пауза защищает Apps Script от серии тяжёлых чтений,
+          // но после фильтрации это уже 1–несколько доноров, а не весь реестр.
+          if (index > 0) await sleep(250);
 
           const overrideCanonical = getOverrideCanonicalClass(character.characterId);
           const registryCanonical = overrideCanonical || matchCanonicalClass(character.className);
@@ -1804,13 +1842,17 @@ export default function QuestionnaireGooglePreview({
   );
 
 
-  const missingDonorClasses = donorCoverage.filter(
+  const relevantDonorCoverage = selectedClassMatch
+    ? donorCoverage.filter((item) => item.id === selectedClassMatch.id)
+    : donorCoverage;
+
+  const missingDonorClasses = relevantDonorCoverage.filter(
     (item) => item.donors.length === 0 && item.candidates.length === 0,
   );
-  const candidateOnlyClasses = donorCoverage.filter(
+  const candidateOnlyClasses = relevantDonorCoverage.filter(
     (item) => item.donors.length === 0 && item.candidates.length > 0,
   );
-  const verifiedDonorClasses = donorCoverage.filter((item) => item.donors.length > 0);
+  const verifiedDonorClasses = relevantDonorCoverage.filter((item) => item.donors.length > 0);
   const donorErrors = donorAudit?.items.filter((item) => !item.detailOk || item.error) || [];
 
   return (
@@ -2366,7 +2408,7 @@ export default function QuestionnaireGooglePreview({
                   🧬 Проверка персонажей-доноров
                 </strong>
                 <span style={{ color: 'var(--admin-muted-2)', fontSize: 10, lineHeight: 1.55, maxWidth: 760 }}>
-                  Проверяет все активные личные дела из живого реестра и сопоставляет их с 19 классами сайта. Это только чтение: таблицы и формулы не меняются.
+                  Сначала отбирает в живом реестре только персонажей того же класса, что и анкета, и проверяет уже только их личные дела. Для Танка больше не нужно открывать всех персонажей подряд.
                 </span>
               </div>
 
@@ -2388,8 +2430,8 @@ export default function QuestionnaireGooglePreview({
                 {donorBusy
                   ? `Проверяю ${donorProgress.done}/${donorProgress.total || '…'}`
                   : donorAudit
-                    ? 'Проверить заново'
-                    : 'Проверить всех доноров'}
+                    ? `Проверить заново: ${selectedClassMatch?.name || 'этот класс'}`
+                    : `Проверить доноров: ${selectedClassMatch?.name || 'этот класс'}`}
               </button>
             </div>
 
@@ -2406,7 +2448,7 @@ export default function QuestionnaireGooglePreview({
                   />
                 </div>
                 <small style={{ color: 'var(--admin-muted-2)', fontSize: 9 }}>
-                  Проверено персонажей: {donorProgress.done} из {donorProgress.total}. Запросы идут по одному и при временной ошибке повторяются, поэтому полная проверка может занять несколько минут.
+                  Проверено доноров нужного класса: {donorProgress.done} из {donorProgress.total}. Остальные классы не открываются.
                 </small>
               </div>
             )}
@@ -2432,7 +2474,7 @@ export default function QuestionnaireGooglePreview({
                   </div>
                   <div style={{ padding: 10, borderRadius: 10, background: 'rgba(85,190,125,.06)', border: '1px solid rgba(85,200,135,.16)' }}>
                     <small style={{ display: 'block', color: 'var(--admin-muted-2)', fontSize: 8 }}>ПОДТВЕРЖДЕНО</small>
-                    <strong style={{ color: '#77dda7', fontSize: 12 }}>{verifiedDonorClasses.length} / {donorCoverage.length}</strong>
+                    <strong style={{ color: '#77dda7', fontSize: 12 }}>{verifiedDonorClasses.length} / {relevantDonorCoverage.length}</strong>
                   </div>
                   <div style={{ padding: 10, borderRadius: 10, background: candidateOnlyClasses.length ? 'rgba(105,135,215,.07)' : 'rgba(85,190,125,.06)', border: candidateOnlyClasses.length ? '1px solid rgba(115,150,225,.18)' : '1px solid rgba(85,200,135,.16)' }}>
                     <small style={{ display: 'block', color: 'var(--admin-muted-2)', fontSize: 8 }}>КАНДИДАТЫ</small>
@@ -2479,10 +2521,10 @@ export default function QuestionnaireGooglePreview({
 
                 <div style={{ display: 'grid', gap: 6 }}>
                   <small style={{ color: 'var(--admin-muted-2)', fontSize: 9, fontWeight: 800 }}>
-                    Покрытие всех классов
+                    Проверенный класс
                   </small>
 
-                  {donorCoverage.map((gameClass) => (
+                  {relevantDonorCoverage.map((gameClass) => (
                     <div
                       key={gameClass.id}
                       style={{
@@ -2624,7 +2666,7 @@ export default function QuestionnaireGooglePreview({
 
             {!donorAudit && (
               <div style={{ padding: '10px 12px', borderRadius: 10, color: '#d8b36c', background: 'rgba(205,145,55,.06)', border: '1px solid rgba(220,160,65,.16)', fontSize: 10, lineHeight: 1.55 }}>
-                Сначала нажмите «Проверить всех доноров». Dry-run должен опираться на реально существующую рабочую анкету того же класса.
+                Сначала нажмите «Проверить доноров» для класса этой анкеты. Dry-run должен опираться на реально существующую рабочую анкету того же класса.
               </div>
             )}
 

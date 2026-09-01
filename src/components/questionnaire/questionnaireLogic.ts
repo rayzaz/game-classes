@@ -31,7 +31,8 @@ export type SpellPowerType =
   | 'Дебафф'
   | 'Контроль'
   | 'Призыв'
-  | 'Ресурс';
+  | 'Ресурс'
+  | 'Без расчёта';
 
 const ELEMENT_ORDER: ElementId[] = [
   'water',
@@ -511,6 +512,6 @@ export function getClassScores(selected: ElementId[], magicInspiration: string) 
 }
 
 export function getSpellTypes(classKey: string | null): SpellPowerType[] {
-  if (!classKey) return FALLBACK_SPELL_TYPES;
-  return CLASS_SPELL_TYPES[classKey] ?? FALLBACK_SPELL_TYPES;
+  const base = classKey ? (CLASS_SPELL_TYPES[classKey] ?? FALLBACK_SPELL_TYPES) : FALLBACK_SPELL_TYPES;
+  return base.includes('Без расчёта') ? [...base] : [...base, 'Без расчёта'];
 }

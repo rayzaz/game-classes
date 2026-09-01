@@ -1,6 +1,6 @@
 import React, { useEffect, useState, } from 'react';
 import PlayerEvents from './player/PlayerEvents';
-import CharacterFamilyTree from './player/CharacterFamilyTree';
+import { spellCalculationLabel, spellDurationLabel, spellSpatialLabels, type CanonicalSpell } from '../lib/spellSchema';
 import './player/player-character-themes.css';
 
 const PLAYER_CABINET_API = '/.netlify/functions/character-data';
@@ -12,51 +12,6 @@ type Props = {
     adminView?: boolean;
     initialView?: 'cabinet' | 'events';
 };
-
-type PlayerCabinetView = 'cabinet' | 'events' | 'family';
-
-function playerCabinetViewStorageKey(characterId: string, adminView: boolean) {
-    return `gosmag.player.view.v1:${adminView ? 'admin' : 'self'}:${characterId}`;
-}
-
-function readStoredPlayerCabinetView(
-    characterId: string,
-    adminView: boolean,
-    fallback: 'cabinet' | 'events'
-): PlayerCabinetView {
-    if (typeof window === 'undefined' || !characterId) return fallback;
-
-    try {
-        const value = window.sessionStorage.getItem(
-            playerCabinetViewStorageKey(characterId, adminView)
-        );
-
-        if (value === 'cabinet' || value === 'events' || value === 'family') {
-            return value;
-        }
-    } catch {
-        // Не критично: кабинет продолжит работать без sessionStorage.
-    }
-
-    return fallback;
-}
-
-function writeStoredPlayerCabinetView(
-    characterId: string,
-    adminView: boolean,
-    view: PlayerCabinetView
-) {
-    if (typeof window === 'undefined' || !characterId) return;
-
-    try {
-        window.sessionStorage.setItem(
-            playerCabinetViewStorageKey(characterId, adminView),
-            view
-        );
-    } catch {
-        // Не критично.
-    }
-}
 
 type ClassSkill = {
     name: string;
@@ -71,9 +26,13 @@ type SpecialSkill = {
     description: string;
 };
 
-type PersonalSpell = {
+type PersonalSpell = Partial<CanonicalSpell> & {
+    slotIndex?: number;
     name: string;
     description: string;
+    valid?: boolean;
+    legacy?: boolean;
+    issues?: Array<{ field: string; message: string }>;
 };
 
 type BattleStats = {
@@ -1311,48 +1270,12 @@ export default function PlayerCabinet({
         view,
         setView,
     ] =
-        useState<PlayerCabinetView>(
-            () =>
-                readStoredPlayerCabinetView(
-                    characterId,
-                    adminView,
-                    initialView
-                )
+        useState<
+            'cabinet' |
+            'events'
+        >(
+            initialView
         );
-
-
-    useEffect(
-        () => {
-            setView(
-                readStoredPlayerCabinetView(
-                    characterId,
-                    adminView,
-                    initialView
-                )
-            );
-        },
-        [
-            characterId,
-            adminView,
-            initialView,
-        ]
-    );
-
-
-    useEffect(
-        () => {
-            writeStoredPlayerCabinetView(
-                characterId,
-                adminView,
-                view
-            );
-        },
-        [
-            characterId,
-            adminView,
-            view,
-        ]
-    );
 
 
     useEffect(
@@ -1473,21 +1396,6 @@ export default function PlayerCabinet({
     }
 
 
-    if (
-        view ===
-        'family'
-    ) {
-        return (
-            <CharacterFamilyTree
-                characterId={characterId}
-                adminView={adminView}
-                themeClass={characterThemeClass}
-                onBack={() => setView('cabinet')}
-            />
-        );
-    }
-
-
     /* =========================
        ЗАГРУЗКА
        ========================= */
@@ -1577,6 +1485,12 @@ export default function PlayerCabinet({
     const spells =
         data.spells ??
         [];
+
+    const invalidSpells =
+        spells.filter(
+            spell =>
+                spell.valid === false
+        );
 
     const pchk:
         PchkData =
@@ -1751,15 +1665,6 @@ export default function PlayerCabinet({
                             ? '✦ Ивенты персонажа'
                             : '✦ Ивенты'
                     }
-                </button>
-
-
-                <button
-                    className="nero-button"
-                    type="button"
-                    onClick={() => setView('family')}
-                >
-                    ♧ Семейное древо
                 </button>
 
 
@@ -2601,54 +2506,67 @@ export default function PlayerCabinet({
                 />
 
 
+                {invalidSpells.length > 0 ? (
+                    <div className="nero-spell-warning">
+                        <strong>⚠ Гримуар нужно подготовить к боевому калькулятору</strong>
+                        <span>
+                            {invalidSpells.length} {invalidSpells.length === 1 ? 'заклинание хранится' : 'заклинания хранятся'} в старом или неполном формате. Само заклинание не пропало — администратору нужно один раз подтвердить его боевые параметры.
+                        </span>
+                    </div>
+                ) : null}
+
                 {
                     spells.length >
                         0
                         ? (
                             <div className="nero-skill-grid">
+                                {spells.map((spell, index) => {
+                                    const canonical =
+                                        Number(spell.schemaVersion) === 2 &&
+                                        Boolean(spell.powerType && spell.form && spell.target && spell.durationMode);
 
-                                {
-                                    spells.map(
-                                        (
-                                            spell,
-                                            index
-                                        ) => (
-                                            <article
-                                                className="nero-skill-card nero-spell-card-modern"
+                                    return (
+                                        <article
+                                            className={`nero-skill-card nero-spell-card-modern ${spell.valid === false ? 'needs-fix' : ''}`}
+                                            key={`${spell.name}-${index}`}
+                                        >
+                                            <div className="nero-skill-top">
+                                                <span>✦ Заклинание</span>
+                                                {spell.valid === false ? (
+                                                    <b className="nero-spell-status warning">Нужно исправить</b>
+                                                ) : canonical ? (
+                                                    <b className="nero-spell-status ready">Готово к бою</b>
+                                                ) : null}
+                                            </div>
 
-                                                key={
-                                                    `${spell.name}-${index}`
-                                                }
-                                            >
+                                            <h3>{spell.name}</h3>
 
-                                                <div className="nero-skill-top">
-
-                                                    <span>
-                                                        ✦ Заклинание
-                                                    </span>
-
+                                            {canonical ? (
+                                                <div className="nero-spell-meta">
+                                                    <span>{spell.powerType}</span>
+                                                    {spellSpatialLabels(spell as CanonicalSpell).map((label) => <span key={label}>{label}</span>)}
+                                                    <span>{spellDurationLabel(spell as CanonicalSpell)}</span>
                                                 </div>
+                                            ) : null}
 
+                                            <p>{spell.description || spell.effect || 'Описание не указано.'}</p>
 
-                                                <h3>
-                                                    {
-                                                        spell.name
-                                                    }
-                                                </h3>
+                                            {canonical ? (
+                                                <small className="nero-spell-calculation">
+                                                    {spellCalculationLabel(spell as CanonicalSpell)} · мана по классу
+                                                </small>
+                                            ) : null}
 
-
-                                                <p>
-                                                    {
-                                                        spell.description ||
-                                                        'Описание не указано.'
-                                                    }
-                                                </p>
-
-                                            </article>
-                                        )
-                                    )
-                                }
-
+                                            {spell.valid === false && Array.isArray(spell.issues) && spell.issues.length > 0 ? (
+                                                <div className="nero-spell-issues">
+                                                    {spell.issues.slice(0, 3).map((issue) => (
+                                                        <span key={`${issue.field}-${issue.message}`}>{issue.message}</span>
+                                                    ))}
+                                                </div>
+                                            ) : null}
+                                        </article>
+                                    );
+                                })}
                             </div>
                         )
                         : (

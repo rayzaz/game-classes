@@ -915,6 +915,38 @@ function validatePayload(
   }
 
 
+  const allowedCastTimes = [
+    '1 действие',
+    '1 реакция',
+    '1 круг подготовки',
+    '2 круга подготовки',
+    '3 круга подготовки',
+  ];
+
+  const allowedTargets = [
+    'На себя',
+    '1 враг',
+    '1 союзник',
+    'Любая 1 цель',
+    'Несколько целей',
+    'Точка / область',
+  ];
+
+  const allowedAreas = [
+    'Одна цель',
+    'Круг',
+    'Конус',
+    'Линия',
+    'Вокруг себя',
+  ];
+
+  const allowedDurations = [
+    'Мгновенно',
+    'Ходы',
+    'До конца боя',
+    'До снятия',
+  ];
+
   spells.forEach(
     (
       rawSpell,
@@ -925,11 +957,19 @@ function validatePayload(
           rawSpell
         );
 
-      const power =
-        Number(
-          spell.power
-        );
+      const prefix =
+        `Заклинание ${index + 1}:`;
 
+      if (
+        Number(
+          spell.schemaVersion
+        ) !== 1 ||
+        spell.legacy === true
+      ) {
+        blockers.push(
+          `${prefix} старый формат. Откройте анкету и подтвердите параметры заклинания.`
+        );
+      }
 
       if (
         !cleanText(
@@ -937,10 +977,9 @@ function validatePayload(
         )
       ) {
         blockers.push(
-          `Заклинание ${index + 1}: нет названия.`
+          `${prefix} нет названия.`
         );
       }
-
 
       if (
         !cleanText(
@@ -948,22 +987,137 @@ function validatePayload(
         )
       ) {
         blockers.push(
-          `Заклинание ${index + 1}: не указан тип силы.`
+          `${prefix} не указан тип.`
         );
       }
 
-
       if (
-        !Number.isInteger(
-          power
-        ) ||
-        power <
-          1 ||
-        power >
-          20
+        !allowedCastTimes.includes(
+          cleanText(
+            spell.castTime
+          )
+        )
       ) {
         blockers.push(
-          `Заклинание ${index + 1}: результат d20 должен быть от 1 до 20.`
+          `${prefix} не выбрано стандартное время каста.`
+        );
+      }
+
+      if (
+        !allowedTargets.includes(
+          cleanText(
+            spell.target
+          )
+        )
+      ) {
+        blockers.push(
+          `${prefix} не выбрана цель.`
+        );
+      }
+
+      const rangeMeters =
+        Number(
+          spell.rangeMeters
+        );
+
+      if (
+        cleanText(
+          spell.target
+        ) !==
+          'На себя' &&
+        (
+          !Number.isFinite(
+            rangeMeters
+          ) ||
+          rangeMeters <
+            0
+        )
+      ) {
+        blockers.push(
+          `${prefix} не указана дальность в метрах.`
+        );
+      }
+
+      const area =
+        cleanText(
+          spell.area
+        );
+
+      if (
+        !allowedAreas.includes(
+          area
+        )
+      ) {
+        blockers.push(
+          `${prefix} не выбрана область.`
+        );
+      }
+
+      const areaMeters =
+        Number(
+          spell.areaMeters
+        );
+
+      if (
+        area &&
+        area !==
+          'Одна цель' &&
+        (
+          !Number.isFinite(
+            areaMeters
+          ) ||
+          areaMeters <=
+            0
+        )
+      ) {
+        blockers.push(
+          `${prefix} для области нужен размер в метрах.`
+        );
+      }
+
+      const durationMode =
+        cleanText(
+          spell.durationMode
+        );
+
+      if (
+        !allowedDurations.includes(
+          durationMode
+        )
+      ) {
+        blockers.push(
+          `${prefix} не выбрана длительность.`
+        );
+      }
+
+      const durationRounds =
+        Number(
+          spell.durationRounds
+        );
+
+      if (
+        durationMode ===
+          'Ходы' &&
+        (
+          !Number.isInteger(
+            durationRounds
+          ) ||
+          durationRounds <
+            1
+        )
+      ) {
+        blockers.push(
+          `${prefix} укажите количество ходов.`
+        );
+      }
+
+      if (
+        !cleanText(
+          spell.effect
+        )
+      ) {
+        blockers.push(
+          `${prefix} не описан эффект.`
         );
       }
     }

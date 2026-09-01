@@ -8,6 +8,35 @@ import {
   type ElementId,
   type SpellPowerType,
 } from './questionnaireLogic';
+import {
+  SPELL_AREAS,
+  SPELL_CAST_TIMES,
+  SPELL_DURATION_MODES,
+  SPELL_FORMS,
+  SPELL_TARGETS,
+  defaultSpellRequiresHit,
+  inferSpellForm,
+  spellSpatialLabels,
+  spellTargetOptions,
+  spellUsesArea,
+  spellUsesMovement,
+  spellUsesRange,
+  spellUsesSummonCount,
+  makeCanonicalSpell,
+  normalizeCanonicalSpell,
+  validateCanonicalSpell,
+  type CanonicalSpell,
+} from '../../lib/spellSchema';
+import {
+  clearStoredQuestionnaireClaim,
+  decodeQuestionnaireAccessCode,
+  getStoredQuestionnaireClaim,
+  loadOwnQuestionnaire,
+  resubmitQuestionnaire,
+  saveQuestionnaireClaim,
+  type OwnQuestionnaire,
+  type QuestionnaireClaim,
+} from '../../services/questionnaireSubmit';
 import './questionnaire.css';
 
 export type GameClass = {
@@ -31,15 +60,8 @@ export type GameClass = {
   placeholder?: boolean;
 };
 
-export type Spell = {
-  name: string;
-  castTime: string;
-  radius: string;
-  effect: string;
-  duration: string;
+export type Spell = Omit<CanonicalSpell, 'powerType'> & {
   powerType: SpellPowerType;
-  power: number | null;
-  powerDie: 'd20';
 };
 
 export type WeightCategory =
@@ -233,16 +255,50 @@ function secureRoll(max: number) {
 }
 
 function makeSpell(powerType: SpellPowerType = 'Урон'): Spell {
-  return {
-    name: '',
-    castTime: '',
-    radius: '',
-    effect: '',
-    duration: '',
+  return makeCanonicalSpell(powerType) as Spell;
+}
+
+function legacySpellToCanonical(spell: Partial<Spell> & Record<string, unknown>): Spell {
+  if (Number(spell.schemaVersion) >= 1 && 'target' in spell) {
+    return normalizeCanonicalSpell(spell, String(spell.powerType || 'Урон')) as Spell;
+  }
+
+  const powerType = String(spell.powerType || 'Урон') as SpellPowerType;
+  const rawRadius = String((spell as Record<string, unknown>).radius || '').trim();
+  const rangeMatch = rawRadius.replace(',', '.').match(/\d+(?:\.\d+)?/);
+  const rawDuration = String((spell as Record<string, unknown>).duration || '').trim().toLowerCase();
+  const durationMatch = rawDuration.match(/(\d+)\s*ход/);
+
+  return normalizeCanonicalSpell({
+    ...makeCanonicalSpell(powerType),
+    name: String(spell.name || ''),
     powerType,
-    power: null,
-    powerDie: 'd20',
-  };
+    form: inferSpellForm(`${String(spell.name || '')} ${String(spell.effect || '')} ${rawRadius}`, powerType),
+    castTime: String(spell.castTime || '').trim().match(/реакц/i)
+      ? '1 реакция'
+      : String(spell.castTime || '').trim().match(/2\s*(?:ход|круг)/i)
+        ? '2 круга подготовки'
+        : String(spell.castTime || '').trim().match(/3\s*(?:ход|круг)/i)
+          ? '3 круга подготовки'
+          : '1 действие',
+    target: defaultSpellRequiresHit(powerType) ? '1 враг' : '1 союзник',
+    rangeMeters: rangeMatch ? Number(rangeMatch[0]) : 9,
+    area: 'Одна цель',
+    areaMeters: null,
+    durationMode: /разов|мгнов/.test(rawDuration)
+      ? 'Мгновенно'
+      : durationMatch
+        ? 'Ходы'
+        : powerType === 'Урон' || powerType === 'Лечение'
+          ? 'Мгновенно'
+          : 'Ходы',
+    durationRounds: durationMatch ? Number(durationMatch[1]) : 1,
+    effect: String(spell.effect || ''),
+    powerScale: 100,
+    requiresHit: defaultSpellRequiresHit(powerType),
+    manaMode: 'class',
+    manaScale: 100,
+  }, powerType) as Spell;
 }
 
 function normalizeWeightCategory(value: unknown): WeightCategory {
@@ -291,9 +347,9 @@ function normalizeInitial(initial?: Partial<QuestionnaireData>): QuestionnaireDa
     eyes: initial?.eyes ?? '',
     marks: initial?.marks ?? '',
 
-    hasGrimoire: true,
-    plannedAge: null,
-    noviceNote: 'Персонаж может вступать в рыцари с 14 лет. Новичок — это уровень опыта в ордене, а не возраст. Гримуар к этому моменту уже получен.',
+    hasGrimoire: initial?.hasGrimoire ?? true,
+    plannedAge: initial?.plannedAge ?? null,
+    noviceNote: initial?.noviceNote ?? 'Персонаж может вступать в рыцари с 14 лет. Новичок — это уровень опыта в ордене, а не возраст. Гримуар к этому моменту уже получен.',
     magicName: initial?.magicName ?? '',
     magicInspiration: initial?.magicInspiration ?? '',
     magicDescription: initial?.magicDescription ?? '',
@@ -308,14 +364,10 @@ function normalizeInitial(initial?: Partial<QuestionnaireData>): QuestionnaireDa
 
     spells:
       Array.isArray(initial?.spells) && initial!.spells!.length > 0
-        ? initial!.spells!.map((spell) => ({
-            ...makeSpell(spell.powerType ?? 'Урон'),
-            ...spell,
-            powerDie: 'd20',
-          }))
+        ? initial!.spells!.map((spell) => legacySpellToCanonical(spell as Partial<Spell> & Record<string, unknown>))
         : [makeSpell()],
 
-    combatNotes: 'Сила стартового заклинания определяется одноразовым броском d20 в анкете: выпавшее число становится значением урона, лечения, защиты, баффа, дебаффа и т.п. в зависимости от типа способности.',
+    combatNotes: initial?.combatNotes ?? 'Заклинания хранятся в едином формате боевого калькулятора. Попадание бросается во время боя через d20, сила числового эффекта — через d100 и показатель выбранного типа способности.',
 
     photo: initial?.photo ?? null,
     grimoirePhoto: initial?.grimoirePhoto ?? null,
@@ -401,12 +453,75 @@ export default function QuestionnaireWizard({
   const [photoError, setPhotoError] = useState<string | null>(null);
   const [grimoireBusy, setGrimoireBusy] = useState(false);
   const [grimoireError, setGrimoireError] = useState<string | null>(null);
-  const [rollBusy, setRollBusy] = useState<number | null>(null);
+
+  const [ownClaim, setOwnClaim] = useState<QuestionnaireClaim | null>(() =>
+    initial ? null : getStoredQuestionnaireClaim(),
+  );
+  const [ownQuestionnaire, setOwnQuestionnaire] = useState<OwnQuestionnaire | null>(null);
+  const [ownLoading, setOwnLoading] = useState(Boolean(!initial && ownClaim));
+  const [ownError, setOwnError] = useState('');
+  const [editingRevision, setEditingRevision] = useState(false);
+  const [revisionBusy, setRevisionBusy] = useState(false);
+  const [accessCode, setAccessCode] = useState('');
+  const [accessCodeError, setAccessCodeError] = useState('');
+
+  function attachAccessCode() {
+    const claim = decodeQuestionnaireAccessCode(accessCode);
+
+    if (!claim) {
+      setAccessCodeError('Код не распознан. Скопируйте его целиком из сообщения администрации.');
+      return;
+    }
+
+    saveQuestionnaireClaim(claim);
+    setOwnClaim(claim);
+    setOwnQuestionnaire(null);
+    setOwnError('');
+    setAccessCodeError('');
+    setAccessCode('');
+  }
+
+  const refreshOwnQuestionnaire = React.useCallback(async () => {
+    if (initial || !ownClaim) {
+      setOwnLoading(false);
+      return;
+    }
+
+    setOwnLoading(true);
+    setOwnError('');
+
+    try {
+      const questionnaire = await loadOwnQuestionnaire(ownClaim);
+      setOwnQuestionnaire(questionnaire);
+    } catch (error) {
+      const typed = error as Error & { status?: number };
+
+      // 403/404 означают, что сохранённая локальная ссылка больше не пригодна.
+      // На временной серверной ошибке ключ не удаляем.
+      if (typed.status === 403 || typed.status === 404) {
+        clearStoredQuestionnaireClaim();
+        setOwnClaim(null);
+        setOwnQuestionnaire(null);
+      } else {
+        setOwnError(typed.message || 'Не удалось проверить статус анкеты');
+      }
+    } finally {
+      setOwnLoading(false);
+    }
+  }, [initial, ownClaim]);
+
+  useEffect(() => {
+    if (!initial && ownClaim) {
+      void refreshOwnQuestionnaire();
+    } else {
+      setOwnLoading(false);
+    }
+  }, [initial, ownClaim, refreshOwnQuestionnaire]);
 
   useEffect(() => {
     // Редактирование уже отправленной анкеты не сохраняем в локальный черновик:
     // её исходные данные уже находятся на сервере.
-    if (initial) return;
+    if (initial || editingRevision) return;
 
     const timer = window.setTimeout(() => {
       const draft: StoredQuestionnaireDraft = {
@@ -427,7 +542,7 @@ export default function QuestionnaireWizard({
     }, 350);
 
     return () => window.clearTimeout(timer);
-  }, [data, initial, step, universalRoll]);
+  }, [data, editingRevision, initial, step, universalRoll]);
 
   const usableClasses = useMemo(
     () => classes.filter((klass) => !klass.placeholder && toKey(klass) !== 'placeholder'),
@@ -487,17 +602,7 @@ export default function QuestionnaireWizard({
   const valid5 =
     data.spells.length >= 1 &&
     data.spells.length <= 3 &&
-    data.spells.every(
-      (spell) =>
-        spell.name.trim() &&
-        spell.castTime.trim() &&
-        spell.radius.trim() &&
-        spell.effect.trim() &&
-        spell.duration.trim() &&
-        Number.isInteger(spell.power) &&
-        Number(spell.power) >= 1 &&
-        Number(spell.power) <= 20,
-    );
+    data.spells.every((spell) => validateCanonicalSpell(spell).length === 0);
 
   const canContinue = [valid1, valid2, valid3, valid4, valid5, true][step - 1] ?? false;
 
@@ -592,29 +697,18 @@ export default function QuestionnaireWizard({
       return {
         ...prev,
         classKey: key,
-        spells: prev.spells.map((spell) => ({
-          ...spell,
-          powerType: allowedTypes.includes(spell.powerType) ? spell.powerType : allowedTypes[0],
-          power: null,
-        })),
+        spells: prev.spells.map((spell) => {
+          const powerType = allowedTypes.includes(spell.powerType) ? spell.powerType : allowedTypes[0];
+          return {
+            ...spell,
+            powerType,
+            requiresHit: defaultSpellRequiresHit(powerType),
+          };
+        }),
       };
     });
   }
 
-  async function rollSpell(index: number) {
-    const spell = data.spells[index];
-    if (!spell || spell.power != null || rollBusy != null) return;
-
-    setRollBusy(index);
-    try {
-      const value = secureRoll(20);
-      updateSpell(index, { power: value, powerDie: 'd20' });
-    } catch (error) {
-      alert(error instanceof Error ? error.message : 'Не удалось бросить d20.');
-    } finally {
-      setRollBusy(null);
-    }
-  }
 
   async function onPickPhoto(event: React.ChangeEvent<HTMLInputElement>) {
     const file = event.target.files?.[0] ?? null;
@@ -671,21 +765,177 @@ export default function QuestionnaireWizard({
     setData(normalizeInitial());
   }
 
-  function submit() {
+  async function submit() {
     if (!(valid1 && valid2 && valid3 && valid4 && valid5)) return;
-    onFinish?.(
-      {
-        ...data,
-        universalRoll,
-      },
-      pickedClass,
+
+    const finishedData = {
+      ...data,
+      universalRoll,
+    };
+
+    if (editingRevision && ownClaim) {
+      if (revisionBusy) return;
+      setRevisionBusy(true);
+      setOwnError('');
+
+      try {
+        const updated = await resubmitQuestionnaire(ownClaim, finishedData);
+        setOwnQuestionnaire(updated);
+        setEditingRevision(false);
+        clearQuestionnaireDraft();
+        setStep(1);
+      } catch (error) {
+        setOwnError(
+          error instanceof Error
+            ? error.message
+            : 'Не удалось отправить исправления',
+        );
+      } finally {
+        setRevisionBusy(false);
+      }
+
+      return;
+    }
+
+    onFinish?.(finishedData, pickedClass);
+  }
+
+  function beginRevisionEdit() {
+    if (!ownQuestionnaire || ownQuestionnaire.status !== 'revision') return;
+
+    const migrated = normalizeInitial(
+      ownQuestionnaire.data as Partial<QuestionnaireData>,
     );
+
+    setData(migrated);
+    setUniversalRoll(
+      Number.isInteger((ownQuestionnaire.data as any)?.universalRoll)
+        ? Number((ownQuestionnaire.data as any).universalRoll)
+        : null,
+    );
+    setStep(1);
+    setClassMessage(null);
+    setOwnError('');
+    setEditingRevision(true);
+  }
+
+  function forgetCompletedQuestionnaire() {
+    clearStoredQuestionnaireClaim();
+    setOwnClaim(null);
+    setOwnQuestionnaire(null);
+    setOwnError('');
+    setEditingRevision(false);
+    discardDraft();
   }
 
   const topScore = recommendedClasses[0]?.score ?? 0;
 
+  if (!initial && ownLoading && !editingRevision) {
+    return (
+      <div className="qf-shell">
+        <div className="qf-head">
+          <div>
+            <div className="qf-kicker">ГосМАГ · регистрационное дело</div>
+            <h2>Проверяем статус анкеты…</h2>
+            <p>Открываем уже отправленное дело, чтобы не создавать дубликат.</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (!initial && ownQuestionnaire && !editingRevision) {
+    const status = String(ownQuestionnaire.status || 'new');
+    const title =
+      status === 'revision'
+        ? 'Анкету нужно исправить'
+        : status === 'approved'
+          ? 'Анкета одобрена'
+          : status === 'rejected'
+            ? 'Анкета отклонена'
+            : status === 'review'
+              ? 'Анкета на рассмотрении'
+              : 'Анкета отправлена';
+
+    const description =
+      status === 'revision'
+        ? 'Администрация вернула анкету на доработку. Исправьте замечания и отправьте это же дело повторно.'
+        : status === 'approved'
+          ? 'Проверка завершена. Дело принято администрацией.'
+          : status === 'rejected'
+            ? 'Администрация завершила рассмотрение этой анкеты.'
+            : 'Анкета уже находится у администрации. Здесь всегда можно проверить её актуальный статус.';
+
+    return (
+      <div className="qf-shell">
+        <div className="qf-head">
+          <div>
+            <div className="qf-kicker">ГосМАГ · статус регистрационного дела</div>
+            <h2>{title}</h2>
+            <p>{description}</p>
+          </div>
+          <div className="qf-progress-number" style={{ width: 'auto', padding: '0 12px' }}>
+            {ownQuestionnaire.name || 'Анкета'}
+          </div>
+        </div>
+
+        {ownQuestionnaire.applicantFeedback?.text && (
+          <div className="qf-info" style={{ marginTop: 14 }}>
+            <strong>Комментарий администрации</strong>
+            <div style={{ marginTop: 7, whiteSpace: 'pre-wrap' }}>
+              {ownQuestionnaire.applicantFeedback.text}
+            </div>
+            <small style={{ display: 'block', marginTop: 7, opacity: .72 }}>
+              {ownQuestionnaire.applicantFeedback.adminName || 'Администрация'}
+            </small>
+          </div>
+        )}
+
+        {ownError && (
+          <div className="qf-info" style={{ marginTop: 12 }}>
+            {ownError}
+          </div>
+        )}
+
+        <div className="qf-actions" style={{ marginTop: 18, flexWrap: 'wrap' }}>
+          {status === 'revision' && (
+            <button type="button" className="qf-button primary" onClick={beginRevisionEdit}>
+              Исправить анкету
+            </button>
+          )}
+
+          <button
+            type="button"
+            className="qf-button"
+            onClick={() => void refreshOwnQuestionnaire()}
+          >
+            ↻ Обновить статус
+          </button>
+
+          {(status === 'approved' || status === 'rejected') && (
+            <button type="button" className="qf-button" onClick={forgetCompletedQuestionnaire}>
+              Создать другую анкету
+            </button>
+          )}
+
+          {onCancel && (
+            <button type="button" className="qf-button" onClick={onCancel}>
+              ← Назад
+            </button>
+          )}
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="qf-shell">
+      {editingRevision && (
+        <div className="qf-info success" style={{ marginBottom: 12 }}>
+          <strong>Режим исправления анкеты.</strong> Старые заклинания при открытии автоматически приведены к текущему формату. После сохранения анкета вернётся в статус «На рассмотрении».
+          {ownError ? <div style={{ marginTop: 7 }}>{ownError}</div> : null}
+        </div>
+      )}
       <div className="qf-head">
         <div>
           <div className="qf-kicker">ГосМАГ · регистрационное дело</div>
@@ -699,7 +949,34 @@ export default function QuestionnaireWizard({
         <span style={{ width: `${progress}%` }} />
       </div>
 
-      {!initial && (
+      {!initial && !editingRevision && !ownClaim && (
+        <details className="qf-info" style={{ marginTop: 12 }}>
+          <summary style={{ cursor: 'pointer', fontWeight: 800 }}>
+            Уже отправляли анкету раньше? Открыть её по коду
+          </summary>
+          <div style={{ display: 'grid', gap: 8, marginTop: 10 }}>
+            <span>Это нужно только для старых анкет, отправленных до сохранения статуса в браузере. Код может выдать администратор.</span>
+            <input
+              type="text"
+              value={accessCode}
+              onChange={(event) => {
+                setAccessCode(event.target.value);
+                setAccessCodeError('');
+              }}
+              placeholder="Вставьте код доступа к анкете"
+              style={{ width: '100%' }}
+            />
+            {accessCodeError ? <span style={{ color: '#e4a0aa' }}>{accessCodeError}</span> : null}
+            <div>
+              <button type="button" className="qf-button" onClick={attachAccessCode}>
+                Открыть мою анкету
+              </button>
+            </div>
+          </div>
+        </details>
+      )}
+
+      {!initial && !editingRevision && (
         <div className={`qf-info ${draftRestored ? 'success' : ''}`} style={{ marginTop: 12 }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }}>
             <span>
@@ -999,44 +1276,197 @@ export default function QuestionnaireWizard({
           <section className="qf-section">
             <div className="qf-section-title">
               <span>05</span>
-              <div><h3>Стартовые заклинания</h3><p>От 1 до 3. Сила каждого определяется одним броском d20.</p></div>
+              <div><h3>Стартовые заклинания</h3><p>От 1 до 3. Каждое заклинание сразу заполняется в формате будущего боевого калькулятора.</p></div>
             </div>
 
-            <div className="qf-info">🎲 Выпавшее число становится силой выбранного эффекта: уроном, лечением, защитой, баффом, дебаффом и т. д. Перебрасывать результат внутри анкеты нельзя.</div>
+            <div className="qf-info">🎲 Фиксированного броска силы в анкете больше нет. Во время боя приложение само бросит d20 на попадание и d100 на силу эффекта, а расход маны рассчитает по классу.</div>
 
             <div className="qf-spell-list">
-              {data.spells.map((spell, index) => (
-                <article className="qf-spell" key={index}>
-                  <div className="qf-spell-head">
-                    <div><span>Заклинание</span><b>#{index + 1}</b></div>
-                    {data.spells.length > 1 && <button type="button" className="qf-icon-button danger" onClick={() => removeSpell(index)}>Удалить</button>}
-                  </div>
+              {data.spells.map((spell, index) => {
+                const spellIssues = validateCanonicalSpell(spell);
+                const targetOptions = spellTargetOptions(spell.form);
+                const rangeNeeded = spellUsesRange(spell);
+                const areaNeeded = spellUsesArea(spell);
+                const movementNeeded = spellUsesMovement(spell);
+                const summonCountNeeded = spellUsesSummonCount(spell);
+                const durationNeedsRounds = spell.durationMode === 'Ходы';
 
-                  <div className="qf-grid two">
-                    <label className="qf-field wide"><span>Название</span><input value={spell.name} onChange={(e) => updateSpell(index, { name: e.target.value })} placeholder="Например: Воздушное лезвие" /></label>
-                    <label className="qf-field"><span>Время каста</span><input value={spell.castTime} onChange={(e) => updateSpell(index, { castTime: e.target.value })} placeholder="1 ход" /></label>
-                    <label className="qf-field"><span>Радиус / дальность</span><input value={spell.radius} onChange={(e) => updateSpell(index, { radius: e.target.value })} placeholder="10 м вперёд" /></label>
-                    <label className="qf-field"><span>Длительность</span><input value={spell.duration} onChange={(e) => updateSpell(index, { duration: e.target.value })} placeholder="разовое / 2 хода" /></label>
-                    <label className="qf-field"><span>Тип силы</span>
-                      <select value={spell.powerType} onChange={(e) => updateSpell(index, { powerType: e.target.value as SpellPowerType, power: null })}>
-                        {spellTypes.map((type) => <option key={type} value={type}>{type}</option>)}
-                      </select>
-                    </label>
-                    <label className="qf-field wide"><span>Эффект</span><textarea rows={3} value={spell.effect} onChange={(e) => updateSpell(index, { effect: e.target.value })} placeholder="Что именно делает заклинание: ожог, лечение, щит, замедление…" /></label>
-                  </div>
-
-                  <div className={`qf-roll-box ${spell.power != null ? 'is-rolled' : ''}`}>
-                    <div>
-                      <small>Сила · d20</small>
-                      <b>{spell.power == null ? '—' : spell.power}</b>
-                      <span>{spell.power == null ? `Будет определена для эффекта «${spell.powerType}»` : `${spell.powerType}: ${spell.power}`}</span>
+                return (
+                  <article className={`qf-spell ${spellIssues.length ? 'has-issues' : 'is-valid'}`} key={index}>
+                    <div className="qf-spell-head">
+                      <div><span>Заклинание</span><b>#{index + 1}</b></div>
+                      <div className="qf-spell-head-actions">
+                        <span className={`qf-spell-state ${spellIssues.length ? 'warning' : 'ready'}`}>
+                          {spellIssues.length ? `Нужно заполнить: ${spellIssues.length}` : 'Готово для боя'}
+                        </span>
+                        {data.spells.length > 1 && <button type="button" className="qf-icon-button danger" onClick={() => removeSpell(index)}>Удалить</button>}
+                      </div>
                     </div>
-                    <button type="button" disabled={spell.power != null || rollBusy != null} onClick={() => rollSpell(index)}>
-                      {rollBusy === index ? 'Бросаю…' : spell.power == null ? '🎲 Бросить d20' : '✓ Результат закреплён'}
-                    </button>
-                  </div>
-                </article>
-              ))}
+
+                    <div className="qf-grid two">
+                      <label className="qf-field wide"><span>Название</span><input value={spell.name} onChange={(e) => updateSpell(index, { name: e.target.value })} placeholder="Например: Воздушное лезвие" /></label>
+
+                      <label className="qf-field"><span>Боевой тип</span>
+                        <select
+                          value={spell.powerType}
+                          onChange={(e) => {
+                            const powerType = e.target.value as SpellPowerType;
+                            updateSpell(index, normalizeCanonicalSpell({ ...spell, powerType, requiresHit: defaultSpellRequiresHit(powerType) }, powerType) as Spell);
+                          }}
+                        >
+                          {spellTypes.map((type) => <option key={type} value={type}>{type}</option>)}
+                        </select>
+                      </label>
+
+                      <label className="qf-field"><span>Как работает заклинание</span>
+                        <select
+                          value={spell.form}
+                          onChange={(e) => {
+                            const form = e.target.value as Spell['form'];
+                            updateSpell(index, normalizeCanonicalSpell({ ...spell, form }, spell.powerType) as Spell);
+                          }}
+                        >
+                          {SPELL_FORMS.map((value) => <option key={value} value={value}>{value}</option>)}
+                        </select>
+                      </label>
+
+                      <label className="qf-field"><span>Время каста</span>
+                        <select value={spell.castTime} onChange={(e) => updateSpell(index, { castTime: e.target.value as Spell['castTime'] })}>
+                          {SPELL_CAST_TIMES.map((value) => <option key={value} value={value}>{value}</option>)}
+                        </select>
+                      </label>
+
+                      <label className="qf-field"><span>Цель</span>
+                        <select
+                          value={spell.target}
+                          onChange={(e) => {
+                            const target = e.target.value as Spell['target'];
+                            updateSpell(index, normalizeCanonicalSpell({ ...spell, target }, spell.powerType) as Spell);
+                          }}
+                        >
+                          {targetOptions.map((value) => <option key={value} value={value}>{value}</option>)}
+                        </select>
+                      </label>
+
+                      {rangeNeeded ? (
+                        <label className="qf-field"><span>Дальность применения, м</span>
+                          <input
+                            type="number"
+                            min="0"
+                            step="0.5"
+                            value={spell.rangeMeters ?? ''}
+                            onChange={(e) => updateSpell(index, { rangeMeters: e.target.value === '' ? null : Number(e.target.value) })}
+                            placeholder="9"
+                          />
+                        </label>
+                      ) : null}
+
+                      {(spell.form === 'Область' || spell.form === 'Аура' || spell.form === 'Создание / барьер') ? (
+                        <label className="qf-field"><span>Форма области</span>
+                          <select value={spell.area} onChange={(e) => {
+                            const area = e.target.value as Spell['area'];
+                            updateSpell(index, normalizeCanonicalSpell({ ...spell, area }, spell.powerType) as Spell);
+                          }}>
+                            {SPELL_AREAS.map((value) => <option key={value} value={value}>{value}</option>)}
+                          </select>
+                        </label>
+                      ) : null}
+
+                      {areaNeeded ? (
+                        <label className="qf-field"><span>Размер области, м</span>
+                          <input
+                            type="number"
+                            min="0.5"
+                            step="0.5"
+                            value={spell.areaMeters ?? ''}
+                            onChange={(e) => updateSpell(index, { areaMeters: e.target.value === '' ? null : Number(e.target.value) })}
+                            placeholder="3"
+                          />
+                        </label>
+                      ) : null}
+
+                      {movementNeeded ? (
+                        <label className="qf-field"><span>Дистанция перемещения, м</span>
+                          <input
+                            type="number"
+                            min="0.5"
+                            step="0.5"
+                            value={spell.movementMeters ?? ''}
+                            onChange={(e) => updateSpell(index, { movementMeters: e.target.value === '' ? null : Number(e.target.value) })}
+                            placeholder="9"
+                          />
+                        </label>
+                      ) : null}
+
+                      {summonCountNeeded ? (
+                        <label className="qf-field"><span>Количество существ</span>
+                          <input
+                            type="number"
+                            min="1"
+                            max="99"
+                            step="1"
+                            value={spell.summonCount ?? 1}
+                            onChange={(e) => updateSpell(index, { summonCount: Math.max(1, Number(e.target.value || 1)) })}
+                          />
+                        </label>
+                      ) : null}
+
+                      <label className="qf-field"><span>Длительность</span>
+                        <select value={spell.durationMode} onChange={(e) => {
+                          const durationMode = e.target.value as Spell['durationMode'];
+                          updateSpell(index, {
+                            durationMode,
+                            durationRounds: durationMode === 'Ходы' ? spell.durationRounds || 1 : null,
+                          });
+                        }}>
+                          {SPELL_DURATION_MODES.map((value) => <option key={value} value={value}>{value}</option>)}
+                        </select>
+                      </label>
+
+                      {durationNeedsRounds ? (
+                        <label className="qf-field"><span>Сколько ходов</span>
+                          <input
+                            type="number"
+                            min="1"
+                            max="99"
+                            step="1"
+                            value={spell.durationRounds ?? 1}
+                            onChange={(e) => updateSpell(index, { durationRounds: Math.max(1, Number(e.target.value || 1)) })}
+                          />
+                        </label>
+                      ) : null}
+
+                      {spell.target !== 'На себя' ? (
+                        <div className="qf-field qf-check-field">
+                          <span>Попадание</span>
+                          <label className="qf-inline-check">
+                            <input
+                              type="checkbox"
+                              checked={spell.requiresHit}
+                              onChange={(e) => updateSpell(index, { requiresHit: e.target.checked })}
+                            />
+                            <span>Нужен d20 против сложности цели</span>
+                          </label>
+                        </div>
+                      ) : null}
+
+                      <label className="qf-field wide"><span>Эффект</span><textarea rows={4} value={spell.effect} onChange={(e) => updateSpell(index, { effect: e.target.value })} placeholder="Что именно делает это заклинание. Для трансформации — во что превращает и что меняется; для перемещения — как переносит; для призыва — кого призывает." /></label>
+                    </div>
+
+                    <div className="qf-spell-system-row">
+                      <span><b>Структура:</b> {spellSpatialLabels(spell).join(' · ')}</span>
+                      <span><b>Сила:</b> 100% базового эффекта класса</span>
+                      <span><b>Мана:</b> стандартный расход класса</span>
+                    </div>
+
+                    {spellIssues.length > 0 ? (
+                      <div className="qf-spell-issues">
+                        {spellIssues.map((issue) => <span key={`${issue.field}-${issue.message}`}>{issue.message}</span>)}
+                      </div>
+                    ) : null}
+                  </article>
+                );
+              })}
             </div>
 
             <button type="button" className="qf-add-spell" disabled={data.spells.length >= 3} onClick={addSpell}>+ Добавить заклинание</button>
@@ -1060,7 +1490,7 @@ export default function QuestionnaireWizard({
               <div className="qf-review-card"><div><b>Внешность и системные параметры</b><button type="button" onClick={() => goTo(2)}>Изменить</button></div><p>Рост: {data.height || '—'} см · Вес: {data.weight || '—'} кг</p><span>Весовая категория: {data.weightCategory}</span><span>Телосложение: {data.body}</span></div>
               <div className="qf-review-card"><div><b>Магия</b><button type="button" onClick={() => goTo(3)}>Изменить</button></div><h4>{data.magicName || '—'}</h4><p>{data.elementKeys.map(getElementLabel).join(' + ') || '—'}</p><span>Вдохновитель: {data.magicInspiration || '—'}</span><span>{data.magicDescription || '—'}</span>{data.grimoirePhoto?.dataUrl && <img src={data.grimoirePhoto.dataUrl} alt="Гримуар" style={{ width: 64, height: 96, objectFit: 'contain', marginTop: 10, borderRadius: 12 }} />}</div>
               <div className="qf-review-card qf-review-class"><div><b>Класс</b><button type="button" onClick={() => goTo(4)}>Изменить</button></div>{pickedClass ? <div className="qf-review-class-main"><span className="qf-review-class-icon"><img src={classIcon(pickedClass)} alt="" /></span><div><h4>{pickedClass.name}</h4><p>{pickedClass.role || pickedClass.who || '—'}</p></div></div> : <h4>—</h4>}</div>
-              <div className="qf-review-card wide"><div><b>Заклинания</b><button type="button" onClick={() => goTo(5)}>Изменить</button></div><div className="qf-review-spells">{data.spells.map((spell, index) => <div key={index}><b>{index + 1}. {spell.name}</b><span>{spell.powerType}: {spell.power ?? '—'} · d20</span><p>{spell.effect}</p></div>)}</div></div>
+              <div className="qf-review-card wide"><div><b>Заклинания</b><button type="button" onClick={() => goTo(5)}>Изменить</button></div><div className="qf-review-spells">{data.spells.map((spell, index) => <div key={index}><b>{index + 1}. {spell.name}</b><span>{spell.powerType} · {spellSpatialLabels(spell).join(' · ')}</span><p>{spell.effect}</p></div>)}</div></div>
             </div>
 
             <div className="qf-info success">Анкета отправится в существующую админку. Google-таблицы на этом этапе не изменяются.</div>
@@ -1074,7 +1504,7 @@ export default function QuestionnaireWizard({
           {step === 2 && 'Укажите рост, вес, волосы и глаза. Особые приметы и портрет можно оставить пустыми.'}
           {step === 3 && 'Выберите 1–4 природы, выберите магию-вдохновитель (или «Своя идея»), укажите название и коротко опишите магию.'}
           {step === 4 && 'Выберите боевой класс.'}
-          {step === 5 && 'У каждого заклинания заполните все поля и один раз бросьте d20.'}
+          {step === 5 && 'Поля зависят от способа применения: например, трансформации не требуют дальности, а перемещение требует дистанцию перемещения.'}
         </div>
       )}
 
@@ -1083,7 +1513,18 @@ export default function QuestionnaireWizard({
         {step < TOTAL_STEPS ? (
           <button type="button" className="qf-button primary" disabled={!canContinue} onClick={() => goTo(step + 1)}>Далее →</button>
         ) : (
-          <button type="button" className="qf-button primary send" onClick={submit}>Отправить анкету</button>
+          <button
+            type="button"
+            className="qf-button primary send"
+            onClick={() => void submit()}
+            disabled={editingRevision && revisionBusy}
+          >
+            {editingRevision
+              ? revisionBusy
+                ? 'Отправляем исправления…'
+                : 'Отправить исправления'
+              : 'Отправить анкету'}
+          </button>
         )}
       </div>
     </div>

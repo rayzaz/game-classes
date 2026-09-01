@@ -1,19 +1,21 @@
 import { CLASSES } from '../../data/classes';
+import {
+  defaultSpellRequiresHit,
+  inferSpellForm,
+  makeCanonicalSpell,
+  normalizeCanonicalSpell,
+  validateCanonicalSpell,
+  type CanonicalSpell,
+} from '../../lib/spellSchema';
 
-export type TransferSpell = {
+export type TransferSpell = CanonicalSpell & {
   index: number;
-  name: string;
-  castTime: string;
-  radius: string;
-  effect: string;
-  duration: string;
-  powerType: string;
-  power: number | null;
-  powerDie: 'd20';
+  legacy: boolean;
 };
 
+
 export type QuestionnaireTransferPayload = {
-  version: 2;
+  version: 3;
 
   character: {
     name: string;
@@ -128,20 +130,71 @@ function getClassName(classKey: string) {
 
 function normalizeSpell(value: unknown, index: number): TransferSpell {
   const spell = asRecord(value);
+  const powerType = asString(spell.powerType) || 'Урон';
+  const canonicalSource = Number(spell.schemaVersion) >= 1 && Boolean(asString(spell.target));
 
-  const rawPower = spell.power ?? spell.powerRoll;
-  const power = asInteger(rawPower);
+  if (canonicalSource) {
+    const normalized = normalizeCanonicalSpell({
+      ...spell,
+      name: asString(spell.name),
+      powerType,
+      effect: asString(spell.effect || spell.description),
+    }, powerType);
+
+    return {
+      index: index + 1,
+      legacy: Number(spell.schemaVersion) !== 2,
+      ...normalized,
+    };
+  }
+
+  const radiusText = asString(spell.radius);
+  const radiusNumber = numberFromText(radiusText);
+  const durationText = asString(spell.duration).toLowerCase();
+  const durationNumber = numberFromText(durationText);
+  const castText = asString(spell.castTime).toLowerCase();
+
+  const normalized = normalizeCanonicalSpell({
+    ...makeCanonicalSpell(powerType),
+    name: asString(spell.name),
+    powerType,
+    form: inferSpellForm(`${asString(spell.name)} ${asString(spell.effect || spell.description)} ${radiusText}`, powerType),
+    castTime: castText.includes('реакц')
+      ? '1 реакция'
+      : /3\s*(?:ход|круг)/.test(castText)
+        ? '3 круга подготовки'
+        : /2\s*(?:ход|круг)/.test(castText)
+          ? '2 круга подготовки'
+          : /(?:круг|ход)/.test(castText) && !castText.includes('1')
+            ? '1 круг подготовки'
+            : '1 действие',
+    target: defaultSpellRequiresHit(powerType) ? '1 враг' : '1 союзник',
+    rangeMeters: radiusNumber ?? 9,
+    area: 'Одна цель',
+    areaMeters: null,
+    durationMode: /мгнов|разов/.test(durationText)
+      ? 'Мгновенно'
+      : /до\s+конца\s+боя/.test(durationText)
+        ? 'До конца боя'
+        : /до\s+снят/.test(durationText)
+          ? 'До снятия'
+          : durationNumber !== null
+            ? 'Ходы'
+            : powerType === 'Урон' || powerType === 'Лечение'
+              ? 'Мгновенно'
+              : 'Ходы',
+    durationRounds: durationNumber ?? 1,
+    effect: asString(spell.effect || spell.description),
+    powerScale: 100,
+    requiresHit: defaultSpellRequiresHit(powerType),
+    manaMode: 'class',
+    manaScale: 100,
+  }, powerType);
 
   return {
     index: index + 1,
-    name: asString(spell.name),
-    castTime: asString(spell.castTime),
-    radius: asString(spell.radius),
-    effect: asString(spell.effect),
-    duration: asString(spell.duration),
-    powerType: asString(spell.powerType),
-    power,
-    powerDie: 'd20',
+    legacy: true,
+    ...normalized,
   };
 }
 
@@ -164,7 +217,7 @@ export function buildQuestionnaireTransfer(
     : [];
 
   return {
-    version: 2,
+    version: 3,
 
     character: {
       name:
@@ -333,36 +386,21 @@ export function validateQuestionnaireTransfer(
   payload.spells.forEach((spell) => {
     const prefix = `spells.${spell.index}`;
 
-    if (!spell.name) {
-      issues.push({ field: `${prefix}.name`, message: 'Нет названия заклинания.' });
-    }
-
-    if (!spell.castTime) {
-      issues.push({ field: `${prefix}.castTime`, message: 'Не указано время каста.' });
-    }
-
-    if (!spell.radius) {
-      issues.push({ field: `${prefix}.radius`, message: 'Не указан радиус.' });
-    }
-
-    if (!spell.effect) {
-      issues.push({ field: `${prefix}.effect`, message: 'Не указан эффект.' });
-    }
-
-    if (!spell.duration) {
-      issues.push({ field: `${prefix}.duration`, message: 'Не указана длительность.' });
-    }
-
-    if (!spell.powerType) {
-      issues.push({ field: `${prefix}.powerType`, message: 'Не выбран тип силы.' });
-    }
-
-    if (spell.power === null || spell.power < 1 || spell.power > 20) {
+    if (spell.legacy) {
       issues.push({
-        field: `${prefix}.power`,
-        message: 'Результат d20 должен быть числом от 1 до 20.',
+        field: `${prefix}.legacy`,
+        message: 'Заклинание сохранено в старом формате. Откройте анкету и подтвердите способ применения и только те параметры, которые ему действительно нужны.',
       });
     }
+
+    const spellIssues = validateCanonicalSpell(spell);
+
+    spellIssues.forEach((issue) => {
+      issues.push({
+        field: `${prefix}.${issue.field}`,
+        message: issue.message,
+      });
+    });
   });
 
   return issues;
