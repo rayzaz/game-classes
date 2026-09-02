@@ -14,6 +14,11 @@ import QuestionnaireWizard, {
   type QuestionnaireData,
 } from '../questionnaire/QuestionnaireWizard';
 
+import {
+  SPELL_SCHEMA_VERSION,
+  normalizeCanonicalSpell,
+} from '../../lib/spellSchema';
+
 
 /* ============================================================
    ТИПЫ
@@ -124,7 +129,7 @@ function questionnaireNeedsSpellMigration(
     const schemaVersion = Number(spell?.schemaVersion || 0);
 
     return (
-      schemaVersion < 1 ||
+      schemaVersion !== SPELL_SCHEMA_VERSION ||
       !String(spell?.form || '').trim() ||
       !String(spell?.target || '').trim() ||
       !String(spell?.durationMode || '').trim() ||
@@ -1622,7 +1627,9 @@ function SpellCard({
   const powerType = firstText(spell, ['powerType', 'type']);
   const power = firstText(spell, ['power', 'powerRoll', 'damage', 'healing']);
   const die = firstText(spell, ['powerDie']) || (power ? 'd20' : '');
-  const isCanonical = Number(spell.schemaVersion) >= 1 || Boolean(target || rangeMeters || area);
+  const spellSchemaVersion = Number(spell.schemaVersion || 0);
+  const isCurrentSchema = spellSchemaVersion === SPELL_SCHEMA_VERSION;
+  const isCanonical = spellSchemaVersion >= 1 || Boolean(target || rangeMeters || area);
 
   return (
     <article
@@ -1667,6 +1674,25 @@ function SpellCard({
           >
             {name}
           </strong>
+
+          <span
+            style={{
+              display: 'inline-flex',
+              marginTop: 6,
+              padding: '3px 7px',
+              borderRadius: 999,
+              fontSize: 9,
+              fontWeight: 800,
+              letterSpacing: '.04em',
+              color: isCurrentSchema ? '#7fe0a7' : '#efb36a',
+              border: `1px solid ${isCurrentSchema ? 'rgba(90,210,145,.24)' : 'rgba(230,175,80,.28)'}`,
+              background: isCurrentSchema ? 'rgba(90,210,145,.08)' : 'rgba(230,175,80,.08)',
+            }}
+          >
+            {isCurrentSchema
+              ? `Формат v${SPELL_SCHEMA_VERSION} · готово`
+              : `Формат v${spellSchemaVersion || 0} · нужно сохранить заново`}
+          </span>
         </div>
 
         {power && !isCanonical ? (
@@ -3135,6 +3161,22 @@ export default function AdminQuestionnaires() {
     setQuestionnaireEditMessage('');
 
     try {
+      // Даже если старая анкета уже визуально выглядит как новая,
+      // при сохранении принудительно переписываем каждое заклинание
+      // в текущую версию схемы. Иначе Google Preview может видеть
+      // schemaVersion=1 и блокировать запись как «старый формат».
+      const normalizedData: QuestionnaireData = {
+        ...data,
+        spells: Array.isArray(data.spells)
+          ? data.spells.map((spell) =>
+              normalizeCanonicalSpell(
+                spell as unknown as Record<string, unknown>,
+                String(spell.powerType || 'Урон'),
+              ) as QuestionnaireData['spells'][number],
+            )
+          : [],
+      };
+
       const response = await fetch(
         '/.netlify/functions/admin-questionnaire-update',
         {
@@ -3144,7 +3186,7 @@ export default function AdminQuestionnaires() {
           },
           body: JSON.stringify({
             key: selected.key,
-            data,
+            data: normalizedData,
           }),
         },
       );
@@ -3167,7 +3209,7 @@ export default function AdminQuestionnaires() {
       setSelected(result.questionnaire);
       setQuestionnaireEditOpen(false);
       setQuestionnaireEditMessage(
-        'Анкета сохранена в текущем формате. Старые заклинания, открытые через редактор, теперь записаны по новым правилам.',
+        'Анкета сохранена в текущем формате. Все заклинания принудительно записаны в актуальной версии боевой схемы.',
       );
 
       setQuestionnaires((current) =>

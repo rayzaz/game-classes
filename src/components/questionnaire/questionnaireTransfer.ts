@@ -1,5 +1,6 @@
 import { CLASSES } from '../../data/classes';
 import {
+  SPELL_SCHEMA_VERSION,
   defaultSpellRequiresHit,
   inferSpellForm,
   makeCanonicalSpell,
@@ -11,6 +12,7 @@ import {
 export type TransferSpell = CanonicalSpell & {
   index: number;
   legacy: boolean;
+  sourceSchemaVersion: number;
 };
 
 
@@ -143,7 +145,8 @@ function normalizeSpell(value: unknown, index: number): TransferSpell {
 
     return {
       index: index + 1,
-      legacy: Number(spell.schemaVersion) !== 2,
+      legacy: Number(spell.schemaVersion) !== SPELL_SCHEMA_VERSION,
+      sourceSchemaVersion: Number(spell.schemaVersion || 0),
       ...normalized,
     };
   }
@@ -194,6 +197,7 @@ function normalizeSpell(value: unknown, index: number): TransferSpell {
   return {
     index: index + 1,
     legacy: true,
+    sourceSchemaVersion: Number(spell.schemaVersion || 0),
     ...normalized,
   };
 }
@@ -389,7 +393,7 @@ export function validateQuestionnaireTransfer(
     if (spell.legacy) {
       issues.push({
         field: `${prefix}.legacy`,
-        message: 'Заклинание сохранено в старом формате. Откройте анкету и подтвердите способ применения и только те параметры, которые ему действительно нужны.',
+        message: `Заклинание записано в формате v${spell.sourceSchemaVersion || 0}, а сейчас нужен v${SPELL_SCHEMA_VERSION}. Карточка в предпросмотре уже нормализована для показа, но исходную анкету нужно открыть в редакторе и сохранить заново.`,
       });
     }
 
