@@ -846,3 +846,136 @@
   font-size: 8px;
   line-height: 1.4;
 }
+
+/* =========================
+   ЗАКЛИНАНИЯ · ПОМОЩНИК И БАЗОВАЯ СИЛА v3
+   ========================= */
+.qf-field-title {
+  display: flex !important;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  width: 100%;
+}
+.qf-field-title > span {
+  color: inherit;
+  font: inherit;
+  letter-spacing: inherit;
+  text-transform: inherit;
+}
+.qf-help-button,
+.qf-inline-help {
+  display: inline-grid;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  min-width: 22px;
+  padding: 0;
+  border: 1px solid var(--qf-line-strong);
+  border-radius: 999px;
+  color: var(--qf-accent-2);
+  background: color-mix(in srgb, var(--qf-accent) 8%, var(--qf-panel));
+  cursor: pointer;
+  font: 850 11px/1 inherit;
+}
+.qf-inline-help {
+  width: 18px;
+  height: 18px;
+  min-width: 18px;
+  margin-left: 5px;
+  vertical-align: middle;
+  font-size: 9px;
+}
+.qf-assistant-guide,
+.qf-assistant-tip {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 11px 12px;
+  border: 1px solid color-mix(in srgb, var(--qf-accent) 25%, var(--qf-line));
+  border-radius: 13px;
+  background: color-mix(in srgb, var(--qf-accent) 5%, var(--qf-panel));
+}
+.qf-assistant-guide {
+  flex-direction: column;
+  gap: 4px;
+  color: var(--qf-muted);
+  font-size: 9px;
+  line-height: 1.5;
+}
+.qf-assistant-guide b,
+.qf-assistant-tip b { color: var(--qf-accent-2); }
+.qf-assistant-tip { justify-content: space-between; }
+.qf-assistant-tip > div { display: grid; gap: 4px; min-width: 0; }
+.qf-assistant-tip span { color: var(--qf-muted); font-size: 9px; line-height: 1.55; }
+.qf-assistant-tip > button {
+  width: 28px;
+  height: 28px;
+  flex: 0 0 28px;
+  border: 1px solid var(--qf-line);
+  border-radius: 9px;
+  color: var(--qf-muted);
+  background: transparent;
+  cursor: pointer;
+  font: 800 14px/1 inherit;
+}
+.qf-master-rule-note,
+.qf-no-power-note {
+  min-width: 0;
+  padding: 10px 11px;
+  border: 1px solid var(--qf-line);
+  border-radius: 10px;
+  background: rgba(255,255,255,.014);
+  color: var(--qf-muted);
+  font-size: 8px;
+  line-height: 1.45;
+}
+.qf-master-rule-note { display: grid; gap: 3px; align-content: center; }
+.qf-master-rule-note b { color: var(--qf-text); }
+.qf-no-power-note.wide,
+.qf-roll-box.wide { grid-column: 1 / -1; }
+.qf-admin-power-field {
+  display: grid;
+  gap: 5px;
+  min-width: 130px;
+}
+.qf-admin-power-field > span {
+  color: var(--qf-faint);
+  font-size: 7px;
+  font-weight: 800;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+}
+.qf-admin-power-field input {
+  width: 100%;
+  min-height: 39px;
+  padding: 0 10px;
+  border: 1px solid var(--qf-line-strong);
+  border-radius: 10px;
+  color: var(--qf-text);
+  background: var(--qf-panel-strong);
+  font: inherit;
+}
+
+@media (max-width: 680px) {
+  .qf-assistant-tip { align-items: stretch; }
+  .qf-master-rule-note { grid-column: 1 / -1; }
+  .qf-admin-power-field { width: 100%; }
+}
+
+.qf-admin-power-actions {
+  display: flex;
+  align-items: end;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.qf-admin-power-actions > button {
+  min-height: 39px;
+  padding: 0 12px;
+  border: 1px solid var(--qf-line-strong);
+  border-radius: 10px;
+  color: var(--qf-text);
+  background: color-mix(in srgb, var(--qf-accent) 12%, var(--qf-panel-strong));
+  cursor: pointer;
+  font: 800 9px/1 inherit;
+}

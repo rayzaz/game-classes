@@ -128,12 +128,17 @@ function questionnaireNeedsSpellMigration(
   return spells.some((spell) => {
     const schemaVersion = Number(spell?.schemaVersion || 0);
 
+    const powerType = String(spell?.powerType || '').trim();
+    const basePower = Number(spell?.basePower);
+    const needsFixedPower = powerType !== 'Без расчёта';
+
     return (
       schemaVersion !== SPELL_SCHEMA_VERSION ||
       !String(spell?.form || '').trim() ||
       !String(spell?.target || '').trim() ||
       !String(spell?.durationMode || '').trim() ||
-      typeof spell?.requiresHit !== 'boolean'
+      typeof spell?.requiresHit !== 'boolean' ||
+      (needsFixedPower && (!Number.isInteger(basePower) || basePower < 1 || basePower > 20))
     );
   });
 }
@@ -1625,11 +1630,13 @@ function SpellCard({
     : durationMode || firstText(spell, ['duration']);
   const effect = firstText(spell, ['effect', 'description']);
   const powerType = firstText(spell, ['powerType', 'type']);
-  const power = firstText(spell, ['power', 'powerRoll', 'damage', 'healing']);
+  const power = firstText(spell, ['basePower', 'power', 'powerRoll', 'damage', 'healing']);
   const die = firstText(spell, ['powerDie']) || (power ? 'd20' : '');
   const spellSchemaVersion = Number(spell.schemaVersion || 0);
   const isCurrentSchema = spellSchemaVersion === SPELL_SCHEMA_VERSION;
   const isCanonical = spellSchemaVersion >= 1 || Boolean(target || rangeMeters || area);
+  const hitReviewed = spell.hitReviewed === true || target === 'На себя';
+  const requiresHit = spell.requiresHit === true;
 
   return (
     <article
@@ -1695,7 +1702,7 @@ function SpellCard({
           </span>
         </div>
 
-        {power && !isCanonical ? (
+        {power ? (
           <div
             style={{
               flex: '0 0 auto',
@@ -1714,7 +1721,7 @@ function SpellCard({
                 fontSize: 9,
               }}
             >
-              {powerType || 'Сила'} · {die}
+              {isCanonical ? 'Базовая сила' : (powerType || 'Сила')} · {die}
             </span>
             <b
               style={{
@@ -1755,6 +1762,12 @@ function SpellCard({
         {movementMeters ? <InfoTile label="Перемещение" value={`${movementMeters} м`} /> : null}
         {summonCount ? <InfoTile label="Количество призывов" value={summonCount} /> : null}
         {duration ? <InfoTile label="Длительность" value={duration} /> : null}
+        {isCurrentSchema && target !== 'На себя' ? (
+          <InfoTile
+            label="Попадание"
+            value={hitReviewed ? (requiresHit ? 'D20 против сложности' : 'Проверка не нужна') : '⚠ Не проверено мастером'}
+          />
+        ) : null}
       </div>
 
       {effect ? (
@@ -3164,7 +3177,7 @@ export default function AdminQuestionnaires() {
       // Даже если старая анкета уже визуально выглядит как новая,
       // при сохранении принудительно переписываем каждое заклинание
       // в текущую версию схемы. Иначе Google Preview может видеть
-      // schemaVersion=1 и блокировать запись как «старый формат».
+      // schemaVersion текущего формата и блокировать запись как «старый формат».
       const normalizedData: QuestionnaireData = {
         ...data,
         spells: Array.isArray(data.spells)
@@ -4568,6 +4581,7 @@ export default function AdminQuestionnaires() {
                     }}
                     classes={CLASSES}
                     initial={selected.data as Partial<QuestionnaireData>}
+                    adminMode
                     onCancel={() => {
                       if (!questionnaireEditBusy) {
                         setQuestionnaireEditOpen(false);

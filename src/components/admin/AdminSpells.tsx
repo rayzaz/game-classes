@@ -13,6 +13,7 @@ import {
   spellUsesMovement,
   spellUsesRange,
   spellUsesSummonCount,
+  spellUsesFixedPower,
   normalizeCanonicalSpell,
   spellAreaLabel,
   spellCalculationLabel,
@@ -125,7 +126,7 @@ function SpellEditor({
     normalizeCanonicalSpell(initial, initial.powerType || fallbackType),
   );
 
-  const issues = validateCanonicalSpell(draft);
+  const issues = validateCanonicalSpell(draft, { requireMasterReview: true });
   const targetOptions = spellTargetOptions(draft.form);
   const rangeNeeded = spellUsesRange(draft);
   const areaNeeded = spellUsesArea(draft);
@@ -169,7 +170,7 @@ function SpellEditor({
             value={draft.powerType}
             onChange={(event) => {
               const powerType = event.target.value;
-              normalizePatch({ powerType, requiresHit: defaultSpellRequiresHit(powerType) });
+              normalizePatch({ powerType, requiresHit: defaultSpellRequiresHit(powerType), hitReviewed: draft.target === 'На себя' });
             }}
           >
             {allowedTypes.map((type) => <option key={type} value={type}>{type}</option>)}
@@ -193,7 +194,7 @@ function SpellEditor({
 
         <label>
           <span>Цель</span>
-          <select value={draft.target} onChange={(event) => normalizePatch({ target: event.target.value as SpellTarget })}>
+          <select value={draft.target} onChange={(event) => normalizePatch({ target: event.target.value as SpellTarget, hitReviewed: event.target.value === 'На себя' })}>
             {targetOptions.map((value) => <option key={value} value={value}>{value}</option>)}
           </select>
         </label>
@@ -287,17 +288,38 @@ function SpellEditor({
           </label>
         ) : null}
 
+        {spellUsesFixedPower(draft.powerType) ? (
+          <label>
+            <span>Базовая сила · d20</span>
+            <input
+              type="number"
+              min="1"
+              max="20"
+              step="1"
+              value={draft.basePower ?? ''}
+              onChange={(event) => patch({ basePower: event.target.value === '' ? null : Math.max(1, Math.min(20, Number(event.target.value))) })}
+              placeholder="1–20"
+            />
+          </label>
+        ) : null}
+
         {draft.target !== 'На себя' ? (
-          <label className="admin-spell-checkbox">
-            <span>Попадание</span>
-            <div>
-              <input
-                type="checkbox"
-                checked={draft.requiresHit}
-                onChange={(event) => patch({ requiresHit: event.target.checked })}
-              />
-              <b>Нужен d20 против сложности цели</b>
-            </div>
+          <label>
+            <span>Правило попадания · мастер</span>
+            <select
+              value={!draft.hitReviewed ? 'pending' : draft.requiresHit ? 'required' : 'none'}
+              onChange={(event) => {
+                const value = event.target.value;
+                patch({
+                  hitReviewed: value !== 'pending',
+                  requiresHit: value === 'required',
+                });
+              }}
+            >
+              <option value="pending">Не проверено</option>
+              <option value="required">Нужен d20 против сложности цели</option>
+              <option value="none">Проверка попадания не нужна</option>
+            </select>
           </label>
         ) : null}
 
@@ -316,6 +338,7 @@ function SpellEditor({
         <span><b>Структура:</b> {spellSpatialLabels(draft).join(' · ')}</span>
         <span><b>Расчёт:</b> {spellCalculationLabel(draft)}</span>
         <span><b>Мана:</b> стандартный расход класса</span>
+        <span><b>База:</b> {draft.basePower == null ? (spellUsesFixedPower(draft.powerType) ? 'не задана' : 'не требуется') : `${draft.basePower} (d20)`}</span>
         <span><b>Крит:</b> числовой эффект ×2</span>
       </div>
 

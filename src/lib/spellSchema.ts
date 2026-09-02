@@ -1,4 +1,4 @@
-export const SPELL_SCHEMA_VERSION = 2 as const;
+export const SPELL_SCHEMA_VERSION = 3 as const;
 
 export const SPELL_CAST_TIMES = [
   '1 действие',
@@ -65,8 +65,11 @@ export type CanonicalSpell = {
   durationMode: SpellDurationMode;
   durationRounds: number | null;
   effect: string;
+  basePower: number | null;
+  powerDie: 'd20';
   powerScale: number;
   requiresHit: boolean;
+  hitReviewed: boolean;
   manaMode: 'class';
   manaScale: number;
 };
@@ -81,6 +84,18 @@ const OFFENSIVE_TYPES = new Set([
   'Дебафф',
   'Контроль',
 ]);
+
+
+export function spellUsesFixedPower(powerType: string) {
+  return String(powerType || '').trim() !== 'Без расчёта';
+}
+
+export function normalizeBasePower(value: unknown) {
+  if (value === null || value === undefined || value === '') return null;
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed)) return null;
+  return Math.max(1, Math.min(20, Math.round(parsed)));
+}
 
 export function defaultSpellRequiresHit(powerType: string) {
   return OFFENSIVE_TYPES.has(String(powerType || '').trim());
@@ -173,8 +188,11 @@ export function makeCanonicalSpell(powerType = 'Урон'): CanonicalSpell {
     durationMode: powerType === 'Урон' || powerType === 'Лечение' ? 'Мгновенно' : 'Ходы',
     durationRounds: powerType === 'Урон' || powerType === 'Лечение' ? null : 1,
     effect: '',
+    basePower: null,
+    powerDie: 'd20',
     powerScale: 100,
     requiresHit: defaultSpellRequiresHit(powerType),
+    hitReviewed: target === 'На себя',
     manaMode: 'class',
     manaScale: 100,
   };
@@ -252,6 +270,10 @@ export function normalizeCanonicalSpell(
     ? false
     : defaultSpellRequiresHit(powerType);
 
+  // Даже для «Без расчёта» не стираем уже выпавший d20: если игрок
+  // вернётся к числовому типу, он не сможет получить бесплатный переброс.
+  const basePower = normalizeBasePower(raw.basePower ?? raw.power ?? raw.powerRoll);
+
   return {
     schemaVersion: SPELL_SCHEMA_VERSION,
     name: String(raw.name || '').trim(),
@@ -267,16 +289,22 @@ export function normalizeCanonicalSpell(
     durationMode,
     durationRounds,
     effect: String(raw.effect || '').trim(),
+    basePower,
+    powerDie: 'd20',
     powerScale: normalizePercent(raw.powerScale, 100),
     requiresHit: typeof raw.requiresHit === 'boolean'
       ? (target === 'На себя' ? false : raw.requiresHit)
       : defaultRequiresHit,
+    hitReviewed: target === 'На себя' ? true : raw.hitReviewed === true,
     manaMode: 'class',
     manaScale: normalizePercent(raw.manaScale, 100),
   };
 }
 
-export function validateCanonicalSpell(spell: CanonicalSpell): SpellValidationIssue[] {
+export function validateCanonicalSpell(
+  spell: CanonicalSpell,
+  options: { requireMasterReview?: boolean } = {},
+): SpellValidationIssue[] {
   const issues: SpellValidationIssue[] = [];
 
   if (!spell.name.trim()) issues.push({ field: 'name', message: 'Нет названия.' });
@@ -310,6 +338,12 @@ export function validateCanonicalSpell(spell: CanonicalSpell): SpellValidationIs
     issues.push({ field: 'durationRounds', message: 'Укажите количество ходов.' });
   }
   if (!spell.effect.trim()) issues.push({ field: 'effect', message: 'Не описан эффект заклинания.' });
+  if (spellUsesFixedPower(spell.powerType) && (spell.basePower === null || spell.basePower < 1 || spell.basePower > 20)) {
+    issues.push({ field: 'basePower', message: 'Нужно один раз бросить d20 и закрепить базовую силу заклинания.' });
+  }
+  if (options.requireMasterReview && spell.target !== 'На себя' && !spell.hitReviewed) {
+    issues.push({ field: 'hitReviewed', message: 'Мастер должен подтвердить, требуется ли d20 против сложности цели.' });
+  }
   if (!Number.isFinite(spell.powerScale) || spell.powerScale < 1) issues.push({ field: 'powerScale', message: 'Некорректная сила эффекта.' });
   if (!Number.isFinite(spell.manaScale) || spell.manaScale < 1) issues.push({ field: 'manaScale', message: 'Некорректный расход маны.' });
 
@@ -338,7 +372,7 @@ export function spellSpatialLabels(spell: CanonicalSpell) {
   return labels;
 }
 
-export function spellCalculationLabel(spell: Pick<CanonicalSpell, 'powerType' | 'powerScale' | 'form'>) {
+export function spellCalculationLabel(spell: Pick<CanonicalSpell, 'powerType' | 'powerScale' | 'form' | 'basePower'>) {
   const statByType: Record<string, string> = {
     Урон: 'Атака',
     Лечение: 'Лечение',
@@ -350,9 +384,11 @@ export function spellCalculationLabel(spell: Pick<CanonicalSpell, 'powerType' | 
     Контроль: 'Контроль',
   };
 
-  if (spell.powerType === 'Без расчёта') return 'Без D100 · применяется собственная механика заклинания';
+  if (spell.powerType === 'Без расчёта') return 'Без фиксированной числовой силы · применяется собственная механика заклинания';
   const stat = statByType[spell.powerType] || spell.powerType || 'эффект';
-  const base = `D100 × ${stat}${spell.powerScale === 100 ? '' : ` × ${spell.powerScale}%`}`;
+  const fixed = spell.basePower == null ? 'd20 ещё не закреплён' : `${spell.basePower} базовой силы`;
+  const levelPart = `${stat} от уровня${spell.powerScale === 100 ? '' : ` × ${spell.powerScale}%`}`;
+  const base = `${fixed} + ${levelPart}`;
   if (spell.form === 'Трансформация') return `Трансформация · ${base}`;
   if (spell.form === 'Перемещение') return `Перемещение · ${base}`;
   if (spell.form === 'Призыв') return `Призыв · ${base}`;

@@ -1,6 +1,6 @@
 import React, { useEffect, useState, } from 'react';
 import PlayerEvents from './player/PlayerEvents';
-import { spellCalculationLabel, spellDurationLabel, spellSpatialLabels, type CanonicalSpell } from '../lib/spellSchema';
+import { SPELL_SCHEMA_VERSION, spellCalculationLabel, spellDurationLabel, spellSpatialLabels, type CanonicalSpell } from '../lib/spellSchema';
 import './player/player-character-themes.css';
 
 const PLAYER_CABINET_API = '/.netlify/functions/character-data';
@@ -2522,7 +2522,7 @@ export default function PlayerCabinet({
                             <div className="nero-skill-grid">
                                 {spells.map((spell, index) => {
                                     const canonical =
-                                        Number(spell.schemaVersion) === 2 &&
+                                        Number(spell.schemaVersion) === SPELL_SCHEMA_VERSION &&
                                         Boolean(spell.powerType && spell.form && spell.target && spell.durationMode);
 
                                     return (

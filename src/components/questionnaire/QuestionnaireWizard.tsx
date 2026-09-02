@@ -22,7 +22,9 @@ import {
   spellUsesMovement,
   spellUsesRange,
   spellUsesSummonCount,
+  spellUsesFixedPower,
   makeCanonicalSpell,
+  normalizeBasePower,
   normalizeCanonicalSpell,
   validateCanonicalSpell,
   type CanonicalSpell,
@@ -137,6 +139,7 @@ type Props = {
   onCancel?: () => void;
   onFinish?: (data: QuestionnaireData, pickedClass?: GameClass | null) => void;
   initial?: Partial<QuestionnaireData>;
+  adminMode?: boolean;
 };
 
 const SUITS = ['Клевер', 'Алмаз', 'Пики', 'Червы'] as const;
@@ -294,6 +297,8 @@ function legacySpellToCanonical(spell: Partial<Spell> & Record<string, unknown>)
           : 'Ходы',
     durationRounds: durationMatch ? Number(durationMatch[1]) : 1,
     effect: String(spell.effect || ''),
+    basePower: normalizeBasePower((spell as Record<string, unknown>).basePower ?? (spell as Record<string, unknown>).power ?? (spell as Record<string, unknown>).powerRoll ?? null),
+    powerDie: 'd20',
     powerScale: 100,
     requiresHit: defaultSpellRequiresHit(powerType),
     manaMode: 'class',
@@ -367,7 +372,7 @@ function normalizeInitial(initial?: Partial<QuestionnaireData>): QuestionnaireDa
         ? initial!.spells!.map((spell) => legacySpellToCanonical(spell as Partial<Spell> & Record<string, unknown>))
         : [makeSpell()],
 
-    combatNotes: initial?.combatNotes ?? 'Заклинания хранятся в едином формате боевого калькулятора. Попадание бросается во время боя через d20, сила числового эффекта — через d100 и показатель выбранного типа способности.',
+    combatNotes: initial?.combatNotes ?? 'Заклинания хранятся в едином формате боевого калькулятора. Одноразовый d20 закрепляет базовую силу заклинания; в бою она прибавляется к эффекту от уровня и класса. Правило проверки попадания подтверждает мастер.',
 
     photo: initial?.photo ?? null,
     grimoirePhoto: initial?.grimoirePhoto ?? null,
@@ -424,12 +429,79 @@ function scoreLabel(score: number, topScore: number) {
   return 'Можно попробовать';
 }
 
+
+type SpellHelpKey =
+  | 'powerType'
+  | 'form'
+  | 'castTime'
+  | 'target'
+  | 'range'
+  | 'area'
+  | 'areaSize'
+  | 'movement'
+  | 'summon'
+  | 'duration'
+  | 'power'
+  | 'hit'
+  | 'effect';
+
+function spellHelpText(key: SpellHelpKey, spell: Spell) {
+  switch (key) {
+    case 'powerType':
+      return 'Боевой тип говорит калькулятору, какой параметр персонажа будет усиливать заклинание: атаку, лечение, защиту, бафф и так далее. Если у заклинания нет числовой силы, выберите «Без расчёта».';
+    case 'form':
+      return 'Это способ применения, а не описание магии. Направленное летит в цель, область ставится в точку, аура работает вокруг вас, трансформация меняет форму, перемещение переносит, призыв создаёт существ, барьер создаёт объект или защитную конструкцию.';
+    case 'castTime':
+      return '«1 действие» означает, что заклинание занимает основное действие хода. Реакция используется вне обычного действия, а подготовка на несколько кругов означает, что эффект появляется только после указанного времени.';
+    case 'target':
+      return 'Выберите, кого или что игрок сможет указать при применении. Для стены обычно подходит «Точка / область», для лечения — союзник, для трансформации чаще всего «На себя».';
+    case 'range':
+      return 'Максимальное расстояние от персонажа до цели или точки появления заклинания. Это не размер самого эффекта. Все расстояния теперь указываются в метрах.';
+    case 'area':
+      return 'Форма области нужна только там, где эффект занимает пространство: круг, конус, линия или зона вокруг персонажа.';
+    case 'areaSize':
+      return 'Это физический размер области. Например, «Линия · 5 м» — стена или луч длиной 5 метров. Дальность применения при этом указывается отдельно.';
+    case 'movement':
+      return 'Укажите, на какое максимальное расстояние заклинание переносит цель. Это параметр телепорта, рывка и других перемещений.';
+    case 'summon':
+      return 'Сколько существ появляется одним применением заклинания. Их характеристики позже будут считаться отдельной боевой механикой.';
+    case 'duration':
+      return 'Мгновенное заклинание срабатывает сразу и заканчивается. «Ходы» — эффект держится заданное число ходов. «До конца боя» и «До снятия» работают, пока не наступит соответствующее условие.';
+    case 'power':
+      return spell.powerType === 'Без расчёта'
+        ? 'Для этого типа фиксированная числовая сила не нужна.'
+        : 'Этот d20 бросается только один раз при создании заклинания. Выпавшее число навсегда становится его базовой силой и в бою прибавляется к эффекту, который персонаж получает от уровня и класса. Переброса у игрока нет.';
+    case 'hit':
+      return 'Это мастерское правило. Оно определяет, нужно ли во время боя бросать d20 против сложности цели перед применением заклинания. Игрок сам этот параметр не назначает.';
+    case 'effect':
+      return 'Опишите, что именно происходит при успешном применении. Не дублируйте сюда дальность, длительность и размер области — для них уже есть отдельные поля.';
+    default:
+      return '';
+  }
+}
+
+function SpellFieldTitle({
+  children,
+  onHelp,
+}: {
+  children: React.ReactNode;
+  onHelp: () => void;
+}) {
+  return (
+    <span className="qf-field-title">
+      <span>{children}</span>
+      <button type="button" className="qf-help-button" onClick={onHelp} aria-label={`Подсказка: ${String(children)}`}>?</button>
+    </span>
+  );
+}
+
 export default function QuestionnaireWizard({
   assistant = { name: 'Помощник' },
   classes,
   onCancel,
   onFinish,
   initial,
+  adminMode = false,
 }: Props) {
   const restoredDraftRef = useRef<StoredQuestionnaireDraft | null>(
     initial ? null : loadQuestionnaireDraft(),
@@ -453,6 +525,8 @@ export default function QuestionnaireWizard({
   const [photoError, setPhotoError] = useState<string | null>(null);
   const [grimoireBusy, setGrimoireBusy] = useState(false);
   const [grimoireError, setGrimoireError] = useState<string | null>(null);
+  const [rollBusy, setRollBusy] = useState<number | null>(null);
+  const [spellHelp, setSpellHelp] = useState<{ index: number; key: SpellHelpKey } | null>(null);
 
   const [ownClaim, setOwnClaim] = useState<QuestionnaireClaim | null>(() =>
     initial ? null : getStoredQuestionnaireClaim(),
@@ -602,7 +676,7 @@ export default function QuestionnaireWizard({
   const valid5 =
     data.spells.length >= 1 &&
     data.spells.length <= 3 &&
-    data.spells.every((spell) => validateCanonicalSpell(spell).length === 0);
+    data.spells.every((spell) => validateCanonicalSpell(spell, { requireMasterReview: adminMode }).length === 0);
 
   const canContinue = [valid1, valid2, valid3, valid4, valid5, true][step - 1] ?? false;
 
@@ -674,6 +748,23 @@ export default function QuestionnaireWizard({
     });
   }
 
+  function rollSpellPower(index: number) {
+    const spell = data.spells[index];
+    if (!spell || !spellUsesFixedPower(spell.powerType) || spell.basePower != null || rollBusy != null) return;
+
+    setRollBusy(index);
+    try {
+      const value = secureRoll(20);
+      updateSpell(index, { basePower: value, powerDie: 'd20' });
+    } finally {
+      setRollBusy(null);
+    }
+  }
+
+  function showSpellHelp(index: number, key: SpellHelpKey) {
+    setSpellHelp((current) => current?.index === index && current.key === key ? null : { index, key });
+  }
+
   function selectClass(klass: GameClass) {
     const key = toKey(klass);
 
@@ -703,6 +794,7 @@ export default function QuestionnaireWizard({
             ...spell,
             powerType,
             requiresHit: defaultSpellRequiresHit(powerType),
+            hitReviewed: spell.target === 'На себя',
           };
         }),
       };
@@ -1279,11 +1371,12 @@ export default function QuestionnaireWizard({
               <div><h3>Стартовые заклинания</h3><p>От 1 до 3. Каждое заклинание сразу заполняется в формате будущего боевого калькулятора.</p></div>
             </div>
 
-            <div className="qf-info">🎲 Фиксированного броска силы в анкете больше нет. Во время боя приложение само бросит d20 на попадание и d100 на силу эффекта, а расход маны рассчитает по классу.</div>
+            <div className="qf-info">🎲 У числового заклинания снова есть одноразовый d20 базовой силы. Результат закрепляется навсегда и позже прибавляется к эффекту от уровня/класса. Проверку попадания назначает мастер после отправки анкеты.</div>
+            <div className="qf-assistant-guide"><b>✦ {assistant.name}</b><span>Если непонятно, что выбрать, нажмите <strong>?</strong> рядом с названием поля — я объясню, что оно означает и что подходит для разных видов заклинаний.</span></div>
 
             <div className="qf-spell-list">
               {data.spells.map((spell, index) => {
-                const spellIssues = validateCanonicalSpell(spell);
+                const spellIssues = validateCanonicalSpell(spell, { requireMasterReview: adminMode });
                 const targetOptions = spellTargetOptions(spell.form);
                 const rangeNeeded = spellUsesRange(spell);
                 const areaNeeded = spellUsesArea(spell);
@@ -1303,45 +1396,52 @@ export default function QuestionnaireWizard({
                       </div>
                     </div>
 
+                    {spellHelp?.index === index ? (
+                      <div className="qf-assistant-tip">
+                        <div><b>✦ {assistant.name}</b><span>{spellHelpText(spellHelp.key, spell)}</span></div>
+                        <button type="button" onClick={() => setSpellHelp(null)} aria-label="Закрыть подсказку">×</button>
+                      </div>
+                    ) : null}
+
                     <div className="qf-grid two">
                       <label className="qf-field wide"><span>Название</span><input value={spell.name} onChange={(e) => updateSpell(index, { name: e.target.value })} placeholder="Например: Воздушное лезвие" /></label>
 
-                      <label className="qf-field"><span>Боевой тип</span>
+                      <label className="qf-field"><SpellFieldTitle onHelp={() => showSpellHelp(index, 'powerType')}>Боевой тип</SpellFieldTitle>
                         <select
                           value={spell.powerType}
                           onChange={(e) => {
                             const powerType = e.target.value as SpellPowerType;
-                            updateSpell(index, normalizeCanonicalSpell({ ...spell, powerType, requiresHit: defaultSpellRequiresHit(powerType) }, powerType) as Spell);
+                            updateSpell(index, normalizeCanonicalSpell({ ...spell, powerType, requiresHit: defaultSpellRequiresHit(powerType), hitReviewed: spell.target === 'На себя' }, powerType) as Spell);
                           }}
                         >
                           {spellTypes.map((type) => <option key={type} value={type}>{type}</option>)}
                         </select>
                       </label>
 
-                      <label className="qf-field"><span>Как работает заклинание</span>
+                      <label className="qf-field"><SpellFieldTitle onHelp={() => showSpellHelp(index, 'form')}>Как работает заклинание</SpellFieldTitle>
                         <select
                           value={spell.form}
                           onChange={(e) => {
                             const form = e.target.value as Spell['form'];
-                            updateSpell(index, normalizeCanonicalSpell({ ...spell, form }, spell.powerType) as Spell);
+                            updateSpell(index, normalizeCanonicalSpell({ ...spell, form, hitReviewed: false }, spell.powerType) as Spell);
                           }}
                         >
                           {SPELL_FORMS.map((value) => <option key={value} value={value}>{value}</option>)}
                         </select>
                       </label>
 
-                      <label className="qf-field"><span>Время каста</span>
+                      <label className="qf-field"><SpellFieldTitle onHelp={() => showSpellHelp(index, 'castTime')}>Время каста</SpellFieldTitle>
                         <select value={spell.castTime} onChange={(e) => updateSpell(index, { castTime: e.target.value as Spell['castTime'] })}>
                           {SPELL_CAST_TIMES.map((value) => <option key={value} value={value}>{value}</option>)}
                         </select>
                       </label>
 
-                      <label className="qf-field"><span>Цель</span>
+                      <label className="qf-field"><SpellFieldTitle onHelp={() => showSpellHelp(index, 'target')}>Цель</SpellFieldTitle>
                         <select
                           value={spell.target}
                           onChange={(e) => {
                             const target = e.target.value as Spell['target'];
-                            updateSpell(index, normalizeCanonicalSpell({ ...spell, target }, spell.powerType) as Spell);
+                            updateSpell(index, normalizeCanonicalSpell({ ...spell, target, hitReviewed: target === 'На себя' }, spell.powerType) as Spell);
                           }}
                         >
                           {targetOptions.map((value) => <option key={value} value={value}>{value}</option>)}
@@ -1349,7 +1449,7 @@ export default function QuestionnaireWizard({
                       </label>
 
                       {rangeNeeded ? (
-                        <label className="qf-field"><span>Дальность применения, м</span>
+                        <label className="qf-field"><SpellFieldTitle onHelp={() => showSpellHelp(index, 'range')}>Дальность применения, м</SpellFieldTitle>
                           <input
                             type="number"
                             min="0"
@@ -1362,7 +1462,7 @@ export default function QuestionnaireWizard({
                       ) : null}
 
                       {(spell.form === 'Область' || spell.form === 'Аура' || spell.form === 'Создание / барьер') ? (
-                        <label className="qf-field"><span>Форма области</span>
+                        <label className="qf-field"><SpellFieldTitle onHelp={() => showSpellHelp(index, 'area')}>Форма области</SpellFieldTitle>
                           <select value={spell.area} onChange={(e) => {
                             const area = e.target.value as Spell['area'];
                             updateSpell(index, normalizeCanonicalSpell({ ...spell, area }, spell.powerType) as Spell);
@@ -1373,7 +1473,7 @@ export default function QuestionnaireWizard({
                       ) : null}
 
                       {areaNeeded ? (
-                        <label className="qf-field"><span>Размер области, м</span>
+                        <label className="qf-field"><SpellFieldTitle onHelp={() => showSpellHelp(index, 'areaSize')}>Размер области, м</SpellFieldTitle>
                           <input
                             type="number"
                             min="0.5"
@@ -1386,7 +1486,7 @@ export default function QuestionnaireWizard({
                       ) : null}
 
                       {movementNeeded ? (
-                        <label className="qf-field"><span>Дистанция перемещения, м</span>
+                        <label className="qf-field"><SpellFieldTitle onHelp={() => showSpellHelp(index, 'movement')}>Дистанция перемещения, м</SpellFieldTitle>
                           <input
                             type="number"
                             min="0.5"
@@ -1399,7 +1499,7 @@ export default function QuestionnaireWizard({
                       ) : null}
 
                       {summonCountNeeded ? (
-                        <label className="qf-field"><span>Количество существ</span>
+                        <label className="qf-field"><SpellFieldTitle onHelp={() => showSpellHelp(index, 'summon')}>Количество существ</SpellFieldTitle>
                           <input
                             type="number"
                             min="1"
@@ -1411,7 +1511,7 @@ export default function QuestionnaireWizard({
                         </label>
                       ) : null}
 
-                      <label className="qf-field"><span>Длительность</span>
+                      <label className="qf-field"><SpellFieldTitle onHelp={() => showSpellHelp(index, 'duration')}>Длительность</SpellFieldTitle>
                         <select value={spell.durationMode} onChange={(e) => {
                           const durationMode = e.target.value as Spell['durationMode'];
                           updateSpell(index, {
@@ -1424,7 +1524,7 @@ export default function QuestionnaireWizard({
                       </label>
 
                       {durationNeedsRounds ? (
-                        <label className="qf-field"><span>Сколько ходов</span>
+                        <label className="qf-field"><SpellFieldTitle onHelp={() => showSpellHelp(index, 'duration')}>Сколько ходов</SpellFieldTitle>
                           <input
                             type="number"
                             min="1"
@@ -1436,26 +1536,72 @@ export default function QuestionnaireWizard({
                         </label>
                       ) : null}
 
-                      {spell.target !== 'На себя' ? (
-                        <div className="qf-field qf-check-field">
-                          <span>Попадание</span>
-                          <label className="qf-inline-check">
-                            <input
-                              type="checkbox"
-                              checked={spell.requiresHit}
-                              onChange={(e) => updateSpell(index, { requiresHit: e.target.checked })}
-                            />
-                            <span>Нужен d20 против сложности цели</span>
-                          </label>
+                      {adminMode && spell.target !== 'На себя' ? (
+                        <label className="qf-field">
+                          <SpellFieldTitle onHelp={() => showSpellHelp(index, 'hit')}>Правило попадания · мастер</SpellFieldTitle>
+                          <select
+                            value={!spell.hitReviewed ? 'pending' : spell.requiresHit ? 'required' : 'none'}
+                            onChange={(e) => {
+                              const value = e.target.value;
+                              updateSpell(index, {
+                                hitReviewed: value !== 'pending',
+                                requiresHit: value === 'required',
+                              });
+                            }}
+                          >
+                            <option value="pending">Не проверено мастером</option>
+                            <option value="required">Нужен d20 против сложности цели</option>
+                            <option value="none">Проверка попадания не нужна</option>
+                          </select>
+                        </label>
+                      ) : spell.target !== 'На себя' ? (
+                        <div className="qf-master-rule-note">
+                          <b>🎯 Попадание назначит мастер</b>
+                          <span>Вам не нужно решать, будет ли это заклинание требовать d20 против сложности цели. Мастер подтвердит правило при проверке анкеты.</span>
                         </div>
                       ) : null}
 
-                      <label className="qf-field wide"><span>Эффект</span><textarea rows={4} value={spell.effect} onChange={(e) => updateSpell(index, { effect: e.target.value })} placeholder="Что именно делает это заклинание. Для трансформации — во что превращает и что меняется; для перемещения — как переносит; для призыва — кого призывает." /></label>
+                      {spellUsesFixedPower(spell.powerType) ? (
+                        <div className={`qf-roll-box wide ${spell.basePower != null ? 'is-rolled' : ''}`}>
+                          <div>
+                            <small>Базовая сила · d20 <button type="button" className="qf-inline-help" onClick={() => showSpellHelp(index, 'power')}>?</button></small>
+                            <b>{spell.basePower == null ? '—' : spell.basePower}</b>
+                            <span>{spell.basePower == null ? `Один бросок для эффекта «${spell.powerType}»` : `${spell.powerType}: +${spell.basePower} к эффекту от уровня`}</span>
+                          </div>
+                          {adminMode ? (
+                            <div className="qf-admin-power-actions">
+                              <label className="qf-admin-power-field">
+                                <span>Админ · значение</span>
+                                <input
+                                  type="number"
+                                  min="1"
+                                  max="20"
+                                  value={spell.basePower ?? ''}
+                                  onChange={(e) => updateSpell(index, { basePower: e.target.value === '' ? null : Math.max(1, Math.min(20, Number(e.target.value))) })}
+                                  placeholder="1–20"
+                                />
+                              </label>
+                              {spell.basePower == null ? (
+                                <button type="button" onClick={() => updateSpell(index, { basePower: secureRoll(20), powerDie: 'd20' })}>🎲 Бросить</button>
+                              ) : null}
+                            </div>
+                          ) : (
+                            <button type="button" disabled={spell.basePower != null || rollBusy != null} onClick={() => rollSpellPower(index)}>
+                              {rollBusy === index ? 'Бросаю…' : spell.basePower == null ? '🎲 Бросить d20' : '✓ Результат закреплён'}
+                            </button>
+                          )}
+                        </div>
+                      ) : (
+                        <div className="qf-no-power-note wide">Числовая базовая сила этому заклинанию не нужна: выбран тип «Без расчёта».</div>
+                      )}
+
+                      <label className="qf-field wide"><SpellFieldTitle onHelp={() => showSpellHelp(index, 'effect')}>Эффект</SpellFieldTitle><textarea rows={4} value={spell.effect} onChange={(e) => updateSpell(index, { effect: e.target.value })} placeholder="Что именно делает это заклинание. Для трансформации — во что превращает и что меняется; для перемещения — как переносит; для призыва — кого призывает." /></label>
                     </div>
 
                     <div className="qf-spell-system-row">
                       <span><b>Структура:</b> {spellSpatialLabels(spell).join(' · ')}</span>
-                      <span><b>Сила:</b> 100% базового эффекта класса</span>
+                      <span><b>База:</b> {spell.basePower == null ? (spellUsesFixedPower(spell.powerType) ? 'нужен d20' : 'не требуется') : `${spell.basePower} (d20)`}</span>
+                      <span><b>Расчёт:</b> фиксированная база + эффект от уровня/класса</span>
                       <span><b>Мана:</b> стандартный расход класса</span>
                     </div>
 
@@ -1490,7 +1636,7 @@ export default function QuestionnaireWizard({
               <div className="qf-review-card"><div><b>Внешность и системные параметры</b><button type="button" onClick={() => goTo(2)}>Изменить</button></div><p>Рост: {data.height || '—'} см · Вес: {data.weight || '—'} кг</p><span>Весовая категория: {data.weightCategory}</span><span>Телосложение: {data.body}</span></div>
               <div className="qf-review-card"><div><b>Магия</b><button type="button" onClick={() => goTo(3)}>Изменить</button></div><h4>{data.magicName || '—'}</h4><p>{data.elementKeys.map(getElementLabel).join(' + ') || '—'}</p><span>Вдохновитель: {data.magicInspiration || '—'}</span><span>{data.magicDescription || '—'}</span>{data.grimoirePhoto?.dataUrl && <img src={data.grimoirePhoto.dataUrl} alt="Гримуар" style={{ width: 64, height: 96, objectFit: 'contain', marginTop: 10, borderRadius: 12 }} />}</div>
               <div className="qf-review-card qf-review-class"><div><b>Класс</b><button type="button" onClick={() => goTo(4)}>Изменить</button></div>{pickedClass ? <div className="qf-review-class-main"><span className="qf-review-class-icon"><img src={classIcon(pickedClass)} alt="" /></span><div><h4>{pickedClass.name}</h4><p>{pickedClass.role || pickedClass.who || '—'}</p></div></div> : <h4>—</h4>}</div>
-              <div className="qf-review-card wide"><div><b>Заклинания</b><button type="button" onClick={() => goTo(5)}>Изменить</button></div><div className="qf-review-spells">{data.spells.map((spell, index) => <div key={index}><b>{index + 1}. {spell.name}</b><span>{spell.powerType} · {spellSpatialLabels(spell).join(' · ')}</span><p>{spell.effect}</p></div>)}</div></div>
+              <div className="qf-review-card wide"><div><b>Заклинания</b><button type="button" onClick={() => goTo(5)}>Изменить</button></div><div className="qf-review-spells">{data.spells.map((spell, index) => <div key={index}><b>{index + 1}. {spell.name}</b><span>{spell.powerType} · {spellSpatialLabels(spell).join(' · ')}{spell.basePower != null ? ` · база ${spell.basePower}/20` : ''}</span><p>{spell.effect}</p></div>)}</div></div>
             </div>
 
             <div className="qf-info success">Анкета отправится в существующую админку. Google-таблицы на этом этапе не изменяются.</div>
@@ -1504,7 +1650,7 @@ export default function QuestionnaireWizard({
           {step === 2 && 'Укажите рост, вес, волосы и глаза. Особые приметы и портрет можно оставить пустыми.'}
           {step === 3 && 'Выберите 1–4 природы, выберите магию-вдохновитель (или «Своя идея»), укажите название и коротко опишите магию.'}
           {step === 4 && 'Выберите боевой класс.'}
-          {step === 5 && 'Поля зависят от способа применения: например, трансформации не требуют дальности, а перемещение требует дистанцию перемещения.'}
+          {step === 5 && 'Заполните параметры заклинаний и для каждого числового эффекта один раз закрепите d20 базовой силы. Проверку попадания назначает мастер.'}
         </div>
       )}
 

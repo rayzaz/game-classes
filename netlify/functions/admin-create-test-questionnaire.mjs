@@ -178,45 +178,55 @@ function buildTestData(
 
     spells: [
       {
-        name:
-          'Кусь за штанину',
-        castTime:
-          '1 действие',
-        radius:
-          'ближний бой',
-        effect:
-          'Пёс резко сокращает дистанцию по следу маны и наносит точечную атаку выбранной цели.',
-        duration:
-          'мгновенно',
-        powerType:
-          'Урон',
-        power:
-          12,
-        powerDie:
-          'd20',
+        schemaVersion: 3,
+        name: 'Кусь за штанину',
+        powerType: 'Урон',
+        form: 'Направленное',
+        castTime: '1 действие',
+        target: '1 враг',
+        rangeMeters: 1.5,
+        area: 'Одна цель',
+        areaMeters: null,
+        movementMeters: null,
+        summonCount: null,
+        durationMode: 'Мгновенно',
+        durationRounds: null,
+        effect: 'Пёс резко сокращает дистанцию по следу маны и наносит точечную атаку выбранной цели.',
+        basePower: 12,
+        powerDie: 'd20',
+        powerScale: 100,
+        requiresHit: true,
+        hitReviewed: true,
+        manaMode: 'class',
+        manaScale: 100,
       },
       {
-        name:
-          'След взят',
-        castTime:
-          '1 действие',
-        radius:
-          '30 м',
-        effect:
-          'Помечает заметный магический след цели, облегчая Псу Тестовичу её поиск и последующее преследование.',
-        duration:
-          '3 раунда',
-        powerType:
-          'Контроль',
-        power:
-          12,
-        powerDie:
-          'd20',
+        schemaVersion: 3,
+        name: 'След взят',
+        powerType: 'Контроль',
+        form: 'Направленное',
+        castTime: '1 действие',
+        target: '1 враг',
+        rangeMeters: 30,
+        area: 'Одна цель',
+        areaMeters: null,
+        movementMeters: null,
+        summonCount: null,
+        durationMode: 'Ходы',
+        durationRounds: 3,
+        effect: 'Помечает заметный магический след цели, облегчая Псу Тестовичу её поиск и последующее преследование.',
+        basePower: 12,
+        powerDie: 'd20',
+        powerScale: 100,
+        requiresHit: true,
+        hitReviewed: true,
+        manaMode: 'class',
+        manaScale: 100,
       },
     ],
 
     combatNotes:
-      'Системная тестовая анкета. d20 заранее зафиксирован на 12, чтобы одинаковые тесты давали одинаковый результат.',
+      'Системная тестовая анкета. Базовая сила d20 заранее зафиксирована на 12, а мастерские правила попадания подтверждены.',
 
     photo:
       portrait,

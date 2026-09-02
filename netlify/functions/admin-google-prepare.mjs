@@ -947,178 +947,146 @@ function validatePayload(
     'До снятия',
   ];
 
+  const allowedForms = [
+    'Направленное',
+    'На себя',
+    'Область',
+    'Аура',
+    'Трансформация',
+    'Перемещение',
+    'Призыв',
+    'Создание / барьер',
+    'Особое',
+  ];
+
+  const targetsByForm = {
+    'На себя': ['На себя'],
+    'Аура': ['На себя'],
+    'Трансформация': ['На себя', '1 союзник', 'Любая 1 цель'],
+    'Перемещение': ['На себя', '1 союзник', '1 враг', 'Любая 1 цель'],
+    'Призыв': ['Точка / область', 'На себя'],
+    'Область': ['Точка / область', 'На себя'],
+    'Создание / барьер': ['На себя', '1 союзник', 'Любая 1 цель', 'Точка / область'],
+    'Особое': allowedTargets,
+    'Направленное': ['1 враг', '1 союзник', 'Любая 1 цель', 'Несколько целей'],
+  };
+
   spells.forEach(
     (
       rawSpell,
       index
     ) => {
-      const spell =
-        asRecord(
-          rawSpell
-        );
-
-      const prefix =
-        `Заклинание ${index + 1}:`;
+      const spell = asRecord(rawSpell);
+      const prefix = `Заклинание ${index + 1}:`;
+      const powerType = cleanText(spell.powerType);
+      const form = cleanText(spell.form);
+      const target = cleanText(spell.target);
+      const area = cleanText(spell.area);
 
       if (
-        Number(
-          spell.schemaVersion
-        ) !== 1 ||
+        Number(spell.schemaVersion) !== 3 ||
         spell.legacy === true
       ) {
         blockers.push(
-          `${prefix} старый формат. Откройте анкету и подтвердите параметры заклинания.`
+          `${prefix} старый формат. Откройте анкету и сохраните заклинание в текущей версии.`
         );
       }
 
-      if (
-        !cleanText(
-          spell.name
-        )
-      ) {
-        blockers.push(
-          `${prefix} нет названия.`
-        );
+      if (!cleanText(spell.name)) {
+        blockers.push(`${prefix} нет названия.`);
       }
 
-      if (
-        !cleanText(
-          spell.powerType
-        )
-      ) {
-        blockers.push(
-          `${prefix} не указан тип.`
-        );
+      if (!powerType) {
+        blockers.push(`${prefix} не указан тип.`);
       }
 
-      if (
-        !allowedCastTimes.includes(
-          cleanText(
-            spell.castTime
-          )
-        )
-      ) {
-        blockers.push(
-          `${prefix} не выбрано стандартное время каста.`
-        );
+      if (!allowedForms.includes(form)) {
+        blockers.push(`${prefix} не выбран способ применения.`);
       }
 
-      if (
-        !allowedTargets.includes(
-          cleanText(
-            spell.target
-          )
-        )
-      ) {
-        blockers.push(
-          `${prefix} не выбрана цель.`
-        );
+      if (!allowedCastTimes.includes(cleanText(spell.castTime))) {
+        blockers.push(`${prefix} не выбрано стандартное время каста.`);
       }
 
-      const rangeMeters =
-        Number(
-          spell.rangeMeters
-        );
-
-      if (
-        cleanText(
-          spell.target
-        ) !==
-          'На себя' &&
-        (
-          !Number.isFinite(
-            rangeMeters
-          ) ||
-          rangeMeters <
-            0
-        )
-      ) {
-        blockers.push(
-          `${prefix} не указана дальность в метрах.`
-        );
+      if (!allowedTargets.includes(target)) {
+        blockers.push(`${prefix} не выбрана цель.`);
+      } else if (allowedForms.includes(form)) {
+        const allowedForForm = targetsByForm[form] || allowedTargets;
+        if (!allowedForForm.includes(target)) {
+          blockers.push(`${prefix} выбранная цель не подходит способу применения «${form}».`);
+        }
       }
 
-      const area =
-        cleanText(
-          spell.area
-        );
+      const rangeMeters = Number(spell.rangeMeters);
+      const needsRange = target !== 'На себя' && !['На себя', 'Аура', 'Особое'].includes(form);
 
       if (
-        !allowedAreas.includes(
-          area
-        )
+        needsRange &&
+        (!Number.isFinite(rangeMeters) || rangeMeters < 0)
       ) {
-        blockers.push(
-          `${prefix} не выбрана область.`
-        );
+        blockers.push(`${prefix} не указана дальность в метрах.`);
       }
 
-      const areaMeters =
-        Number(
-          spell.areaMeters
-        );
-
-      if (
-        area &&
-        area !==
-          'Одна цель' &&
-        (
-          !Number.isFinite(
-            areaMeters
-          ) ||
-          areaMeters <=
-            0
-        )
-      ) {
-        blockers.push(
-          `${prefix} для области нужен размер в метрах.`
-        );
+      if (!allowedAreas.includes(area)) {
+        blockers.push(`${prefix} не выбрана область.`);
       }
 
-      const durationMode =
-        cleanText(
-          spell.durationMode
-        );
+      const areaMeters = Number(spell.areaMeters);
+      const needsArea = form === 'Область' || form === 'Аура' || (form === 'Создание / барьер' && area !== 'Одна цель');
 
       if (
-        !allowedDurations.includes(
-          durationMode
-        )
+        needsArea &&
+        (!Number.isFinite(areaMeters) || areaMeters <= 0)
       ) {
-        blockers.push(
-          `${prefix} не выбрана длительность.`
-        );
+        blockers.push(`${prefix} для области нужен размер в метрах.`);
       }
 
-      const durationRounds =
-        Number(
-          spell.durationRounds
-        );
-
-      if (
-        durationMode ===
-          'Ходы' &&
-        (
-          !Number.isInteger(
-            durationRounds
-          ) ||
-          durationRounds <
-            1
-        )
-      ) {
-        blockers.push(
-          `${prefix} укажите количество ходов.`
-        );
+      if (form === 'Перемещение') {
+        const movementMeters = Number(spell.movementMeters);
+        if (!Number.isFinite(movementMeters) || movementMeters <= 0) {
+          blockers.push(`${prefix} укажите дистанцию перемещения в метрах.`);
+        }
       }
 
+      if (form === 'Призыв') {
+        const summonCount = Number(spell.summonCount);
+        if (!Number.isInteger(summonCount) || summonCount < 1) {
+          blockers.push(`${prefix} укажите количество призываемых существ.`);
+        }
+      }
+
+      const durationMode = cleanText(spell.durationMode);
+
+      if (!allowedDurations.includes(durationMode)) {
+        blockers.push(`${prefix} не выбрана длительность.`);
+      }
+
+      const durationRounds = Number(spell.durationRounds);
+
       if (
-        !cleanText(
-          spell.effect
-        )
+        durationMode === 'Ходы' &&
+        (!Number.isInteger(durationRounds) || durationRounds < 1)
       ) {
-        blockers.push(
-          `${prefix} не описан эффект.`
-        );
+        blockers.push(`${prefix} укажите количество ходов.`);
+      }
+
+      if (!cleanText(spell.effect)) {
+        blockers.push(`${prefix} не описан эффект.`);
+      }
+
+      if (powerType !== 'Без расчёта') {
+        const basePower = Number(spell.basePower);
+        if (!Number.isInteger(basePower) || basePower < 1 || basePower > 20) {
+          blockers.push(`${prefix} не закреплена базовая сила d20 (1–20).`);
+        }
+      }
+
+      if (target !== 'На себя' && spell.hitReviewed !== true) {
+        blockers.push(`${prefix} мастер не подтвердил правило попадания.`);
+      }
+
+      if (typeof spell.requiresHit !== 'boolean') {
+        blockers.push(`${prefix} правило попадания сохранено некорректно.`);
       }
     }
   );
