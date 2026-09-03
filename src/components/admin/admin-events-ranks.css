@@ -128,6 +128,20 @@
   object-position: left center;
 }
 
+.admin-event-rank-zero {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  flex: 0 0 30px;
+  border: 1px solid rgba(214, 183, 83, 0.62);
+  border-radius: 50%;
+  color: #d6b753;
+  font-weight: 800;
+  line-height: 1;
+}
+
 .admin-event-rank strong {
   min-width: 0;
   overflow-wrap: anywhere;

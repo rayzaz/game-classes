@@ -4232,6 +4232,19 @@ body:has(.player-theme-default) {
     #e6ddf0 !important;
 }
 
+.player-event-rank-zero {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  flex: 0 0 28px;
+  border: 1px solid currentColor;
+  border-radius: 50%;
+  font-weight: 800;
+  line-height: 1;
+}
+
 
 .player-theme-default
 .player-event-level {

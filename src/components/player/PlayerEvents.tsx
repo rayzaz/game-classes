@@ -349,13 +349,18 @@ function RankView({
 
   return (
     <div className="player-event-rank">
-
-      <img
-        src={
-          rank.image
-        }
-        alt=""
-      />
+      {rank.image ? (
+        <img
+          src={
+            rank.image
+          }
+          alt=""
+        />
+      ) : (
+        <span className="player-event-rank-zero" aria-hidden="true">
+          0
+        </span>
+      )}
 
       <span>
         {

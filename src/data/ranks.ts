@@ -1,4 +1,5 @@
 export type KnightRankTier =
+  | 'career'
   | 'junior'
   | 'middle'
   | 'senior'
@@ -9,11 +10,12 @@ export type KnightRank = {
   label: string;
   order: number;
   tier: KnightRankTier;
-  step: 1 | 2 | 3 | 4 | 5;
+  step: 0 | 1 | 2 | 3 | 4 | 5;
   image: string;
 };
 
 const TIER_LABELS: Record<KnightRankTier, string> = {
+  career: 'Нулевой карьерный ранг',
   junior: 'Младший',
   middle: 'Средний',
   senior: 'Старший',
@@ -27,8 +29,18 @@ const TIER_ORDER: KnightRankTier[] = [
   'great',
 ];
 
-export const KNIGHT_RANKS: KnightRank[] =
-  TIER_ORDER.flatMap((tier, tierIndex) =>
+export const ZERO_CAREER_RANK: KnightRank = {
+  id: 'career-0',
+  label: 'Нулевой карьерный ранг',
+  order: 0,
+  tier: 'career',
+  step: 0,
+  image: '',
+};
+
+export const KNIGHT_RANKS: KnightRank[] = [
+  ZERO_CAREER_RANK,
+  ...TIER_ORDER.flatMap((tier, tierIndex) =>
     ([1, 2, 3, 4, 5] as const).map(step => ({
       id: `${tier}-${step}`,
       label: `${TIER_LABELS[tier]} рыцарь-чародей ${step}`,
@@ -37,7 +49,8 @@ export const KNIGHT_RANKS: KnightRank[] =
       step,
       image: `/game/ranks/${tier}-${step}.png`,
     }))
-  );
+  ),
+];
 
 function normalizeRank(value: string) {
   return String(value || '')
@@ -52,6 +65,15 @@ export function getKnightRank(
   value: string
 ): KnightRank | null {
   const target = normalizeRank(value);
+
+  if (
+    target === '0' ||
+    target === 'карьерный ранг 0' ||
+    target === 'нулевой карьерный ранг' ||
+    target === 'без ранга'
+  ) {
+    return ZERO_CAREER_RANK;
+  }
 
   return (
     KNIGHT_RANKS.find(

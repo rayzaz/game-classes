@@ -22,6 +22,21 @@ export function getKnightRank(value) {
   const normalized =
     normalizeRank(value);
 
+  if (
+    normalized === '0' ||
+    normalized === 'карьерный ранг 0' ||
+    normalized === 'нулевой карьерный ранг' ||
+    normalized === 'без ранга'
+  ) {
+    return {
+      id: 'career-0',
+      label: 'Нулевой карьерный ранг',
+      tier: 'career',
+      step: 0,
+      order: 0,
+    };
+  }
+
   const match =
     normalized.match(
       /^(младший|средний|старший|великий)\s+рыцарь-чародей\s+([1-5])$/
@@ -278,9 +293,15 @@ export function getEventEligibility(
     );
 
 
+  /*
+    Пустой рыцарский ранг означает карьерный ранг 0:
+    персонаж ещё не получил первый ранг, но может участвовать
+    в специально созданных для этого ивентах.
+  */
   const playerRank =
     getKnightRank(
-      playerRankText
+      playerRankText ||
+      'Нулевой карьерный ранг'
     );
 
 

@@ -3025,12 +3025,18 @@ export default function AdminEvents() {
                 </span>
 
                 <div className="admin-event-rank">
-                  <img
-                    src={
-                      selectedRank.image
-                    }
-                    alt=""
-                  />
+                  {selectedRank.image ? (
+                    <img
+                      src={
+                        selectedRank.image
+                      }
+                      alt=""
+                    />
+                  ) : (
+                    <span className="admin-event-rank-zero" aria-hidden="true">
+                      0
+                    </span>
+                  )}
 
                   <strong>
                     {selectedRank.label}
@@ -3537,13 +3543,17 @@ export default function AdminEvents() {
                     </span>
 
                     <div className="admin-event-rank">
-                      {eventRank ? (
+                      {eventRank?.image ? (
                         <img
                           src={
                             eventRank.image
                           }
                           alt=""
                         />
+                      ) : eventRank ? (
+                        <span className="admin-event-rank-zero" aria-hidden="true">
+                          0
+                        </span>
                       ) : null}
 
                       <strong>
