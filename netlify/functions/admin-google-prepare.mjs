@@ -1412,9 +1412,27 @@ export default async function (
       );
 
 
-    const coreBlockers =
+    const payloadBlockers =
       validatePayload(
         payload
+      );
+
+
+    const masterDecisionBlockers =
+      payloadBlockers.filter(
+        item =>
+          /мастер не подтвердил правило попадания/i.test(
+            String(item || '')
+          )
+      );
+
+
+    const coreBlockers =
+      payloadBlockers.filter(
+        item =>
+          !/мастер не подтвердил правило попадания/i.test(
+            String(item || '')
+          )
       );
 
 
@@ -1466,15 +1484,32 @@ export default async function (
       makeCheck(
         'payload-valid',
 
-        'Данные анкеты готовы',
+        'Поля игрока и базовая сила d20',
 
         coreBlockers.length ===
           0,
 
         coreBlockers.length ===
           0
-          ? 'Обязательные данные и броски d20 проходят серверную проверку.'
-          : `${coreBlockers.length} проблем в структурированных данных.`
+          ? 'Все данные, которые обязан заполнить игрок, сохранены корректно.'
+          : `${coreBlockers.length} ошибок в полях игрока или структуре заклинаний.`
+      )
+    );
+
+
+    checks.push(
+      makeCheck(
+        'spell-master-review',
+
+        'Мастерские решения по заклинаниям',
+
+        masterDecisionBlockers.length ===
+          0,
+
+        masterDecisionBlockers.length ===
+          0
+          ? 'Для всех заклинаний подтверждено правило попадания.'
+          : `${masterDecisionBlockers.length} заклинание(я) ждут решения мастера о проверке попадания.`
       )
     );
 
@@ -1685,18 +1720,45 @@ export default async function (
       );
 
 
-    const blockers = [
-      ...coreBlockers,
+    const masterReviewBlockers =
+      masterDecisionBlockers.map(
+        item =>
+          `${item} Откройте редактирование анкеты и выберите «Правило попадания · мастер».`
+      );
 
-      ...checks
+
+    const systemBlockers =
+      checks
         .filter(
           item =>
-            !item.ok
+            !item.ok &&
+            item.id !== 'payload-valid' &&
+            item.id !== 'spell-master-review'
         )
         .map(
           item =>
             `${item.label}: ${item.message}`
-        ),
+        );
+
+
+    const blockerGroups = {
+      data:
+        coreBlockers,
+
+      masterDecisions:
+        masterReviewBlockers,
+
+      system:
+        systemBlockers,
+    };
+
+
+    const blockers = [
+      ...blockerGroups.data,
+
+      ...blockerGroups.masterDecisions,
+
+      ...blockerGroups.system,
     ];
 
 
@@ -2004,6 +2066,8 @@ export default async function (
 
 
       checks,
+
+      blockerGroups,
 
       blockers,
 

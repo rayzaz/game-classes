@@ -119,10 +119,43 @@ type GooglePrepareResult = {
     ok: boolean;
     message: string;
   }>;
+  blockerGroups?: {
+    data?: string[];
+    masterDecisions?: string[];
+    system?: string[];
+  };
   blockers?: string[];
   fingerprint?: string;
   error?: string;
 };
+
+function isMasterSpellDecisionBlocker(value: unknown) {
+  return /мастер не подтвердил правило попадания/i.test(String(value || ''));
+}
+
+function prepareMasterBlockers(result: GooglePrepareResult) {
+  if (Array.isArray(result.blockerGroups?.masterDecisions)) {
+    return result.blockerGroups.masterDecisions;
+  }
+
+  return Array.isArray(result.blockers)
+    ? result.blockers.filter(isMasterSpellDecisionBlocker)
+    : [];
+}
+
+function prepareOtherBlockers(result: GooglePrepareResult) {
+  if (result.blockerGroups) {
+    return [
+      ...(Array.isArray(result.blockerGroups.data) ? result.blockerGroups.data : []),
+      ...(Array.isArray(result.blockerGroups.system) ? result.blockerGroups.system : []),
+    ];
+  }
+
+  return Array.isArray(result.blockers)
+    ? result.blockers.filter((item) => !isMasterSpellDecisionBlocker(item))
+    : [];
+}
+
 
 type GoogleCreateResult = {
   ok: boolean;
@@ -931,6 +964,14 @@ export default function QuestionnaireGooglePreview({
   const [createResult, setCreateResult] =
     useState<GoogleCreateResult | null>(null);
 
+  const [repairBusy, setRepairBusy] = useState(false);
+  const [repairError, setRepairError] = useState('');
+  const [repairNotice, setRepairNotice] = useState('');
+
+  const [resyncBusy, setResyncBusy] = useState(false);
+  const [resyncError, setResyncError] = useState('');
+  const [resyncNotice, setResyncNotice] = useState('');
+
   const [lifecycleBusy, setLifecycleBusy] = useState(false);
   const [lifecycleError, setLifecycleError] = useState('');
   const [lifecycle, setLifecycle] =
@@ -1432,6 +1473,165 @@ export default function QuestionnaireGooglePreview({
   }
 
 
+  async function repairGooglePresentation() {
+    const creation = lifecycle?.characterCreation;
+
+    if (!creation?.characterId || !creation?.spreadsheetId || !creation?.mainRows?.start) {
+      setRepairError('Не удалось определить уже созданный Google-блок кандидата. Сначала нажмите «Обновить статус».');
+      return;
+    }
+
+    const confirmed = window.confirm(
+      `Исправить оформление Google-карточки «${payload.character.name || creation.characterId}»?
+
+Будут заново вставлены портрет и гримуар из уже созданных Drive-файлов, имя и VK-ссылка станут жёлтыми, а названию магии будет назначен собственный цвет. Формулы, деньги, уровень и остальные данные не трогаются.`,
+    );
+
+    if (!confirmed) return;
+
+    setRepairBusy(true);
+    setRepairError('');
+    setRepairNotice('');
+
+    try {
+      const response = await fetch('/.netlify/functions/admin-google-repair-presentation', {
+        method: 'POST',
+        headers: {
+          accept: 'application/json',
+          'content-type': 'application/json',
+        },
+        cache: 'no-store',
+        body: JSON.stringify({
+          creation,
+          presentation: {
+            character: {
+              name: payload.character.name,
+              playerLink: payload.character.playerLink,
+            },
+            magic: {
+              name: payload.magic.name,
+              elementKeys: payload.magic.elementKeys,
+            },
+          },
+        }),
+      });
+
+      const text = await response.text();
+      let result: { ok?: boolean; error?: string; message?: string; portraitRestored?: boolean; grimoireRestored?: boolean } = {};
+
+      try {
+        result = JSON.parse(text);
+      } catch {
+        throw new Error(text.trim() ? `Сервер вернул не JSON: ${text.slice(0, 260)}` : `HTTP ${response.status} без ответа`);
+      }
+
+      if (!response.ok || result.ok !== true) {
+        throw new Error(String(result.error || `Ремонт завершился с HTTP ${response.status}`));
+      }
+
+      const imageState = [
+        result.portraitRestored ? 'портрет ✓' : 'портрет не найден',
+        result.grimoireRestored ? 'гримуар ✓' : 'гримуар не найден',
+      ].join(' · ');
+
+      setRepairNotice(`${result.message || 'Оформление обновлено.'} ${imageState}`);
+    } catch (error) {
+      setRepairError(error instanceof Error ? error.message : 'Не удалось исправить оформление Google');
+    } finally {
+      setRepairBusy(false);
+    }
+  }
+
+
+  async function resyncGoogleQuestionnaire() {
+    if (!candidateCreated || resyncBusy) return;
+
+    const pendingMasterRules = payload.spells.filter(
+      (spell) => spell.target !== 'На себя' && spell.hitReviewed !== true,
+    ).length;
+
+    if (questionnaireStatus !== 'approved') {
+      setResyncError('Перед повторной отправкой анкета должна иметь статус «Одобрена».');
+      return;
+    }
+
+    if (!ready) {
+      setResyncError('В анкете остались незаполненные или некорректные поля. Сначала исправьте и сохраните её.');
+      return;
+    }
+
+    if (pendingMasterRules > 0) {
+      setResyncError(`Мастер ещё не подтвердил правило попадания у ${pendingMasterRules} заклинания(й).`);
+      return;
+    }
+
+    const confirmed = window.confirm(
+      `Повторно отправить анкету «${payload.character.name || 'персонажа'}» в Google?\n\nБудут обновлены имя, VK, профиль, внешность, магия, три стартовых заклинания, портрет и гримуар. HP/MP, класс, уровень, орден, ранг, деньги и результаты экзамена останутся без изменений.`,
+    );
+
+    if (!confirmed) return;
+
+    setResyncBusy(true);
+    setResyncError('');
+    setResyncNotice('Повторно отправляю анкету в существующие строки и личную таблицу...');
+
+    try {
+      const response = await fetch('/.netlify/functions/admin-google-resync', {
+        method: 'POST',
+        headers: {
+          accept: 'application/json',
+          'content-type': 'application/json',
+        },
+        cache: 'no-store',
+        body: JSON.stringify({
+          questionnaireKey,
+          payload,
+        }),
+      });
+
+      const text = await response.text();
+      let result: {
+        ok?: boolean;
+        error?: string;
+        message?: string;
+        spellsUpdated?: number;
+        portraitUpdated?: boolean;
+        grimoireUpdated?: boolean;
+      } = {};
+
+      try {
+        result = JSON.parse(text);
+      } catch {
+        throw new Error(
+          text.trim()
+            ? `Сервер повторной отправки вернул не JSON: ${text.slice(0, 260)}`
+            : `Повторная отправка завершилась с HTTP ${response.status} без ответа`,
+        );
+      }
+
+      if (!response.ok || result.ok !== true) {
+        throw new Error(String(result.error || `Повторная отправка завершилась с HTTP ${response.status}`));
+      }
+
+      const imageState = [
+        result.portraitUpdated ? 'портрет ✓' : 'портрет не найден',
+        result.grimoireUpdated ? 'гримуар ✓' : 'гримуар не найден',
+      ].join(' · ');
+
+      setResyncNotice(
+        `${result.message || 'Анкета повторно отправлена.'} Заклинаний обновлено: ${result.spellsUpdated ?? 0} · ${imageState}`,
+      );
+
+      await loadCharacterLifecycle();
+    } catch (error) {
+      setResyncNotice('');
+      setResyncError(error instanceof Error ? error.message : 'Не удалось повторно отправить анкету');
+    } finally {
+      setResyncBusy(false);
+    }
+  }
+
+
   async function createGoogleCharacter() {
     if (
       !prepareResult?.prepared ||
@@ -1820,6 +2020,17 @@ export default function QuestionnaireGooglePreview({
   const candidateCreated = Boolean(
     lifecycle?.candidateCreated ||
     createResult?.created?.characterId
+  );
+
+  const resyncPendingMasterRules = payload.spells.filter(
+    (spell) => spell.target !== 'На себя' && spell.hitReviewed !== true,
+  ).length;
+
+  const resyncEligible = Boolean(
+    candidateCreated &&
+    questionnaireStatus === 'approved' &&
+    ready &&
+    resyncPendingMasterRules === 0,
   );
 
   const examPassed = Boolean(
@@ -2241,6 +2452,91 @@ export default function QuestionnaireGooglePreview({
                     {lifecycle?.characterCreation?.spreadsheetUrl ? ' · личная таблица создана' : ''}
                   </span>
                 </div>
+
+                <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
+                  <button
+                    type="button"
+                    onClick={() => void repairGooglePresentation()}
+                    disabled={repairBusy}
+                    style={{
+                      border: '1px solid rgba(175,145,235,.25)',
+                      background: 'rgba(130,95,190,.09)',
+                      color: '#ccb8ef',
+                      borderRadius: 9,
+                      padding: '8px 11px',
+                      fontSize: 8.5,
+                      fontWeight: 900,
+                      cursor: repairBusy ? 'wait' : 'pointer',
+                    }}
+                  >
+                    {repairBusy ? 'Исправляю оформление...' : '🖼 Исправить картинки и оформление'}
+                  </button>
+                  <span style={{ color: 'var(--admin-muted-2)', fontSize: 8 }}>
+                    Можно запускать повторно: боевые и финансовые данные не меняются.
+                  </span>
+                </div>
+
+                <div style={{ padding: '10px 11px', borderRadius: 10, border: '1px solid rgba(90,155,225,.18)', background: 'rgba(65,125,195,.055)', display: 'grid', gap: 8 }}>
+                  <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
+                    <button
+                      type="button"
+                      onClick={() => void resyncGoogleQuestionnaire()}
+                      disabled={resyncBusy || !resyncEligible}
+                      style={{
+                        border: '1px solid rgba(90,165,230,.30)',
+                        background: resyncBusy || !resyncEligible ? 'rgba(255,255,255,.035)' : 'rgba(65,135,205,.12)',
+                        color: resyncBusy || !resyncEligible ? '#858e99' : '#a9d7fb',
+                        borderRadius: 9,
+                        padding: '8px 11px',
+                        fontSize: 8.5,
+                        fontWeight: 900,
+                        cursor: resyncBusy || !resyncEligible ? 'not-allowed' : 'pointer',
+                      }}
+                    >
+                      {resyncBusy ? 'Повторно отправляю...' : '↻ Повторно отправить анкету в Google'}
+                    </button>
+
+                    <span style={{ color: 'var(--admin-muted-2)', fontSize: 8, lineHeight: 1.45 }}>
+                      Обновляет существующего персонажа без создания дубля и без сброса прогресса.
+                    </span>
+                  </div>
+
+                  {!resyncEligible && (
+                    <span style={{ color: '#efc06c', fontSize: 8, lineHeight: 1.45 }}>
+                      {questionnaireStatus !== 'approved'
+                        ? 'Сначала снова одобрите исправленную анкету.'
+                        : !ready
+                          ? 'Сначала заполните и сохраните все обязательные поля анкеты.'
+                          : resyncPendingMasterRules > 0
+                            ? `Сначала подтвердите правило попадания у ${resyncPendingMasterRules} заклинания(й).`
+                            : 'Обновите статус созданного персонажа.'}
+                    </span>
+                  )}
+                </div>
+
+                {repairError && (
+                  <div style={{ padding: 8, borderRadius: 8, color: '#efaaaa', background: 'rgba(185,65,70,.06)', border: '1px solid rgba(220,90,95,.16)', fontSize: 8.5 }}>
+                    {repairError}
+                  </div>
+                )}
+
+                {repairNotice && (
+                  <div style={{ padding: 8, borderRadius: 8, color: '#acd9bd', background: 'rgba(55,175,115,.05)', border: '1px solid rgba(80,195,135,.14)', fontSize: 8.5 }}>
+                    {repairNotice}
+                  </div>
+                )}
+
+                {resyncError && (
+                  <div style={{ padding: 8, borderRadius: 8, color: '#efaaaa', background: 'rgba(185,65,70,.06)', border: '1px solid rgba(220,90,95,.16)', fontSize: 8.5 }}>
+                    {resyncError}
+                  </div>
+                )}
+
+                {resyncNotice && (
+                  <div style={{ padding: 8, borderRadius: 8, color: '#acd9bd', background: 'rgba(55,175,115,.05)', border: '1px solid rgba(80,195,135,.14)', fontSize: 8.5 }}>
+                    {resyncNotice}
+                  </div>
+                )}
 
                 {examPassed && lifecycle?.exam && (
                   <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, minmax(120px, 1fr))', gap: 7 }}>
@@ -2931,34 +3227,52 @@ export default function QuestionnaireGooglePreview({
 
                       {Array.isArray(prepareResult.checks) && prepareResult.checks.length > 0 && (
                         <div style={{ display: 'grid', gap: 5 }}>
-                          {prepareResult.checks.map((check) => (
-                            <div
-                              key={check.id}
-                              style={{
-                                padding: '7px 9px',
-                                borderRadius: 8,
-                                background: check.ok
-                                  ? 'rgba(55,175,115,.045)'
-                                  : 'rgba(190,75,75,.05)',
-                                border: check.ok
-                                  ? '1px solid rgba(80,195,135,.12)'
-                                  : '1px solid rgba(220,90,95,.14)',
-                                color: check.ok ? '#acd9bd' : '#efaaaa',
-                                fontSize: 8.5,
-                                lineHeight: 1.45,
-                              }}
-                            >
-                              <b>{check.ok ? '✓' : '✕'} {check.label}</b> — {check.message}
-                            </div>
-                          ))}
+                          {prepareResult.checks.map((check) => {
+                            const masterPending = check.id === 'spell-master-review' && !check.ok;
+                            return (
+                              <div
+                                key={check.id}
+                                style={{
+                                  padding: '7px 9px',
+                                  borderRadius: 8,
+                                  background: check.ok
+                                    ? 'rgba(55,175,115,.045)'
+                                    : masterPending
+                                      ? 'rgba(205,155,60,.065)'
+                                      : 'rgba(190,75,75,.05)',
+                                  border: check.ok
+                                    ? '1px solid rgba(80,195,135,.12)'
+                                    : masterPending
+                                      ? '1px solid rgba(225,175,70,.18)'
+                                      : '1px solid rgba(220,90,95,.14)',
+                                  color: check.ok ? '#acd9bd' : masterPending ? '#e8c77f' : '#efaaaa',
+                                  fontSize: 8.5,
+                                  lineHeight: 1.45,
+                                }}
+                              >
+                                <b>{check.ok ? '✓' : masterPending ? '⚠' : '✕'} {check.label}</b> — {check.message}
+                              </div>
+                            );
+                          })}
                         </div>
                       )}
 
-                      {Array.isArray(prepareResult.blockers) && prepareResult.blockers.length > 0 && (
+                      {prepareMasterBlockers(prepareResult).length > 0 && (
+                        <div style={{ padding: '9px 10px', borderRadius: 9, background: 'rgba(205,155,60,.065)', border: '1px solid rgba(225,175,70,.18)', color: '#e8c77f', fontSize: 8.5, lineHeight: 1.5 }}>
+                          <b>⚠ Нужно решение мастера — создание пока заблокировано:</b>
+                          <div style={{ display: 'grid', gap: 3, marginTop: 5 }}>
+                            {prepareMasterBlockers(prepareResult).map((blocker, index) => (
+                              <span key={index}>• {blocker}</span>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+
+                      {prepareOtherBlockers(prepareResult).length > 0 && (
                         <div style={{ padding: '9px 10px', borderRadius: 9, background: 'rgba(185,65,70,.055)', border: '1px solid rgba(220,90,95,.16)', color: '#efaaaa', fontSize: 8.5, lineHeight: 1.5 }}>
                           <b>Что блокирует запись:</b>
                           <div style={{ display: 'grid', gap: 3, marginTop: 5 }}>
-                            {prepareResult.blockers.map((blocker, index) => (
+                            {prepareOtherBlockers(prepareResult).map((blocker, index) => (
                               <span key={index}>• {blocker}</span>
                             ))}
                           </div>

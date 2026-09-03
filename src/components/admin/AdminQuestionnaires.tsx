@@ -1637,6 +1637,7 @@ function SpellCard({
   const isCanonical = spellSchemaVersion >= 1 || Boolean(target || rangeMeters || area);
   const hitReviewed = spell.hitReviewed === true || target === 'На себя';
   const requiresHit = spell.requiresHit === true;
+  const masterPending = isCurrentSchema && target !== 'На себя' && !hitReviewed;
 
   return (
     <article
@@ -1765,10 +1766,27 @@ function SpellCard({
         {isCurrentSchema && target !== 'На себя' ? (
           <InfoTile
             label="Попадание"
-            value={hitReviewed ? (requiresHit ? 'D20 против сложности' : 'Проверка не нужна') : '⚠ Не проверено мастером'}
+            value={hitReviewed ? (requiresHit ? 'D20 против сложности' : 'Проверка не нужна') : '⚠ Требуется решение мастера'}
           />
         ) : null}
       </div>
+
+      {masterPending ? (
+        <div
+          style={{
+            marginBottom: 10,
+            padding: '10px 12px',
+            borderRadius: 11,
+            border: '1px solid rgba(225,175,70,.22)',
+            background: 'rgba(205,155,60,.07)',
+            color: '#e8c77f',
+            fontSize: 11,
+            lineHeight: 1.5,
+          }}
+        >
+          <b>⚠ Это не ошибка игрока.</b> Мастеру нужно открыть редактирование анкеты и выбрать для этого заклинания: нужен D20 против сложности цели или проверка попадания не требуется.
+        </div>
+      ) : null}
 
       {effect ? (
         <div
@@ -3221,8 +3239,13 @@ export default function AdminQuestionnaires() {
 
       setSelected(result.questionnaire);
       setQuestionnaireEditOpen(false);
+
+      const reviewedHitRules = normalizedData.spells.filter(
+        (spell) => spell.target === 'На себя' || spell.hitReviewed === true,
+      ).length;
+
       setQuestionnaireEditMessage(
-        'Анкета сохранена в текущем формате. Все заклинания принудительно записаны в актуальной версии боевой схемы.',
+        `Анкета сохранена в текущем формате. Правило попадания подтверждено для ${reviewedHitRules} из ${normalizedData.spells.length} заклинаний.`,
       );
 
       setQuestionnaires((current) =>

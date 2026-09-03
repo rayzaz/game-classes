@@ -1377,6 +1377,8 @@ export default function QuestionnaireWizard({
             <div className="qf-spell-list">
               {data.spells.map((spell, index) => {
                 const spellIssues = validateCanonicalSpell(spell, { requireMasterReview: adminMode });
+                const masterIssues = spellIssues.filter((issue) => issue.field === 'hitReviewed');
+                const dataIssues = spellIssues.filter((issue) => issue.field !== 'hitReviewed');
                 const targetOptions = spellTargetOptions(spell.form);
                 const rangeNeeded = spellUsesRange(spell);
                 const areaNeeded = spellUsesArea(spell);
@@ -1390,7 +1392,11 @@ export default function QuestionnaireWizard({
                       <div><span>Заклинание</span><b>#{index + 1}</b></div>
                       <div className="qf-spell-head-actions">
                         <span className={`qf-spell-state ${spellIssues.length ? 'warning' : 'ready'}`}>
-                          {spellIssues.length ? `Нужно заполнить: ${spellIssues.length}` : 'Готово для боя'}
+                          {dataIssues.length
+                            ? `Нужно заполнить: ${dataIssues.length}`
+                            : masterIssues.length
+                              ? 'Ждёт решения мастера'
+                              : 'Готово для боя'}
                         </span>
                         {data.spells.length > 1 && <button type="button" className="qf-icon-button danger" onClick={() => removeSpell(index)}>Удалить</button>}
                       </div>
