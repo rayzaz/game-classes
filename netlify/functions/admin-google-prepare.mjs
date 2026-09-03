@@ -1198,7 +1198,7 @@ export default async function (
       );
 
 
-    const donorCharacterId =
+    const requestedTemplateCharacterId =
       normalizeCharacterId(
         body
           ?.donorCharacterId
@@ -1222,21 +1222,6 @@ export default async function (
 
           error:
             'Некорректный ключ анкеты',
-        },
-        400
-      );
-    }
-
-
-    if (
-      !donorCharacterId
-    ) {
-      return json(
-        {
-          ok: false,
-
-          error:
-            'Не выбран персонаж-донор',
         },
         400
       );
@@ -1310,7 +1295,6 @@ export default async function (
     const [
       registryResult,
       layoutResult,
-      donorResult,
     ] =
       await Promise.all([
         fetchServiceJson(
@@ -1330,15 +1314,6 @@ export default async function (
           },
           'Разметка таблиц'
         ),
-
-        fetchServiceJson(
-          serviceUrl,
-          {
-            characterId:
-              donorCharacterId,
-          },
-          'Личное дело донора'
-        ),
       ]);
 
 
@@ -1350,39 +1325,12 @@ export default async function (
       layoutResult.data;
 
 
-    const donorData =
-      donorResult.data;
-
-
     const registryCharacters =
       Array.isArray(
         registry.characters
       )
         ? registry.characters
         : [];
-
-
-    const donorRegistryEntry =
-      registryCharacters.find(
-        item =>
-          normalizeCharacterId(
-            item
-              ?.characterId ||
-            item?.id
-          ) ===
-          donorCharacterId
-      ) ||
-      null;
-
-
-    const donorClassName =
-      cleanText(
-        donorData
-          ?.character
-          ?.className ||
-        donorRegistryEntry
-          ?.className
-      );
 
 
     const payloadCombat =
@@ -1403,6 +1351,194 @@ export default async function (
           .className ||
         payloadCombat
           .classKey
+      );
+
+
+    const targetClassIdentity =
+      classIdentity(
+        targetClassName
+      );
+
+
+    const templateClassOverrides = {
+      anet: 'tank',
+      evtida: 'dps',
+    };
+
+
+    /*
+      v42.6: администратор больше не ищет и не выбирает донора.
+
+      Старый «донор» фактически был техническим шаблоном: из него
+      брались оформление, рабочие формулы нужного класса, листы
+      «Лист персонажа»/«ТЕХ» и диаграмма. Теперь сервер сам выбирает
+      первый доступный активный шаблон того же класса. В план старое
+      поле donorCharacterId пока сохраняется для совместимости с
+      уже опубликованным Apps Script.
+    */
+    const templateCandidates =
+      registryCharacters
+        .filter(
+          item => {
+            const itemId =
+              normalizeCharacterId(
+                item?.characterId ||
+                item?.id
+              );
+
+            const itemClass =
+              templateClassOverrides[itemId] ||
+              classIdentity(
+                item?.className
+              );
+
+            return (
+              item?.active !== false &&
+              itemClass ===
+                targetClassIdentity
+            );
+          }
+        )
+        .sort(
+          (left, right) => {
+            const leftId =
+              normalizeCharacterId(
+                left?.characterId ||
+                left?.id
+              );
+
+            const rightId =
+              normalizeCharacterId(
+                right?.characterId ||
+                right?.id
+              );
+
+            if (
+              requestedTemplateCharacterId &&
+              leftId === requestedTemplateCharacterId
+            ) {
+              return -1;
+            }
+
+            if (
+              requestedTemplateCharacterId &&
+              rightId === requestedTemplateCharacterId
+            ) {
+              return 1;
+            }
+
+            return cleanText(left?.name)
+              .localeCompare(
+                cleanText(right?.name),
+                'ru'
+              );
+          }
+        );
+
+
+    let donorRegistryEntry =
+      null;
+
+    let donorResult = {
+      data: {},
+      elapsedMs: 0,
+    };
+
+
+    for (
+      const candidate
+      of templateCandidates
+    ) {
+      const candidateId =
+        normalizeCharacterId(
+          candidate?.characterId ||
+          candidate?.id
+        );
+
+      if (!candidateId) {
+        continue;
+      }
+
+      try {
+        const detail =
+          await fetchServiceJson(
+            serviceUrl,
+            {
+              characterId:
+                candidateId,
+            },
+            'Технический шаблон'
+          );
+
+        const detailClass =
+          templateClassOverrides[candidateId] ||
+          classIdentity(
+            detail?.data
+              ?.character
+              ?.className ||
+            candidate?.className
+          );
+
+        if (
+          detailClass ===
+          targetClassIdentity
+        ) {
+          donorRegistryEntry =
+            candidate;
+          donorResult =
+            detail;
+          break;
+        }
+      } catch (_) {
+        /*
+          Публичное чтение личного дела иногда даёт HTTP 500, хотя
+          сама таблица доступна Apps Script на запись. В таком случае
+          доверяем уже отфильтрованному классу из живого реестра;
+          createCandidateFromPreparedPlan всё равно ещё раз проверит E38
+          до первой записи.
+        */
+        donorRegistryEntry =
+          candidate;
+        donorResult = {
+          data: {
+            character: {
+              name:
+                cleanText(
+                  candidate?.name
+                ),
+              className:
+                cleanText(
+                  candidate?.className
+                ),
+            },
+          },
+          elapsedMs: 0,
+        };
+        break;
+      }
+    }
+
+
+    const donorCharacterId =
+      normalizeCharacterId(
+        donorRegistryEntry
+          ?.characterId ||
+        donorRegistryEntry
+          ?.id
+      );
+
+
+    const donorData =
+      donorResult.data;
+
+
+    const donorClassName =
+      cleanText(
+        donorData
+          ?.character
+          ?.className ||
+        donorRegistryEntry
+          ?.className
       );
 
 
@@ -1613,9 +1749,9 @@ export default async function (
 
     checks.push(
       makeCheck(
-        'donor-active',
+        'template-active',
 
-        'Донор есть в активном реестре',
+        'Технический шаблон найден автоматически',
 
         Boolean(
           donorRegistryEntry &&
@@ -1625,11 +1761,11 @@ export default async function (
         ),
 
         donorRegistryEntry
-          ? `${cleanText(
+          ? `Выбран ${cleanText(
               donorRegistryEntry
                 .name
             ) || donorCharacterId} (${donorCharacterId}).`
-          : `Персонаж ${donorCharacterId} не найден в активном реестре.`
+          : `Для класса «${targetClassName || 'не указан'}» не найден доступный рабочий шаблон.`
       )
     );
 
@@ -1637,12 +1773,6 @@ export default async function (
     const donorClassIdentity =
       classIdentity(
         donorClassName
-      );
-
-
-    const targetClassIdentity =
-      classIdentity(
-        targetClassName
       );
 
 
@@ -1657,15 +1787,15 @@ export default async function (
 
     checks.push(
       makeCheck(
-        'donor-class',
+        'template-class',
 
-        'Класс донора совпадает',
+        'Формулы шаблона соответствуют классу',
 
         donorClassMatches,
 
         donorClassMatches
-          ? `Донор: ${donorClassName}. Класс распознан как ${donorClassIdentity}.`
-          : `Донор «${donorClassName || 'класс не прочитан'}» (${donorClassIdentity || '—'}), анкета «${targetClassName || 'класс не указан'}» (${targetClassIdentity || '—'}).`
+          ? `Шаблон класса «${donorClassName}» выбран сервером автоматически.`
+          : `Шаблон «${donorClassName || 'не найден'}» (${donorClassIdentity || '—'}), анкета «${targetClassName || 'класс не указан'}» (${targetClassIdentity || '—'}).`
       )
     );
 

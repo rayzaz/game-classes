@@ -151,10 +151,10 @@ export default async function(request) {
 
     const creation = asRecord(questionnaire.characterCreation);
 
-    if (!cleanText(creation.characterId) || !cleanText(creation.spreadsheetId)) {
+    if (!cleanText(creation.characterId)) {
       return json({
         ok: false,
-        error: 'У анкеты нет сохранённого Google-персонажа. Используйте обычное первичное создание.',
+        error: 'У анкеты нет сохранённого characterId. Нажмите «Обновить статус», чтобы восстановить связь с живым листом САЙТ.',
       }, 409);
     }
 
@@ -177,6 +177,8 @@ export default async function(request) {
         ...creation,
         lastSyncedAt: syncedAt,
         lastSyncStatus: 'success',
+        spreadsheetId: cleanText(result.spreadsheetId) || creation.spreadsheetId || '',
+        spreadsheetUrl: cleanText(result.spreadsheetUrl) || creation.spreadsheetUrl || '',
         mainRows: result.mainRows || creation.mainRows || null,
         registryRow: result.registryRow || creation.registryRow || null,
       },

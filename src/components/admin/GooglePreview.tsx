@@ -1410,7 +1410,7 @@ export default function QuestionnaireGooglePreview({
 
   async function prepareGoogleCreation(
     transferPayload: QuestionnaireTransferPayload,
-    donor: DonorCheckItem,
+    donor?: DonorCheckItem | null,
   ) {
     setPrepareBusy(true);
     setPrepareError('');
@@ -1432,7 +1432,9 @@ export default function QuestionnaireGooglePreview({
             questionnaireId,
             questionnaireKey,
             payload: transferPayload,
-            donorCharacterId: donor.characterId,
+            ...(donor?.characterId
+              ? { donorCharacterId: donor.characterId }
+              : {}),
           }),
         },
       );
@@ -2015,6 +2017,11 @@ export default function QuestionnaireGooglePreview({
     liveLayout?.safeForWritePreparation === true,
   );
 
+  const automaticCreationReady = Boolean(
+    selectedClassMatch &&
+    liveLayout?.safeForWritePreparation === true,
+  );
+
   const creationParametersReady = true;
 
   const candidateCreated = Boolean(
@@ -2378,6 +2385,126 @@ export default function QuestionnaireGooglePreview({
             )}
           </div>
 
+          {!candidateCreated && (
+            <div
+              style={{
+                padding: 14,
+                borderRadius: 14,
+                border: prepareResult?.prepared
+                  ? '1px solid rgba(70,205,145,.24)'
+                  : '1px solid rgba(90,155,225,.20)',
+                background: prepareResult?.prepared
+                  ? 'rgba(45,170,115,.055)'
+                  : 'rgba(60,125,200,.045)',
+                display: 'grid',
+                gap: 11,
+              }}
+            >
+              <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, alignItems: 'flex-start', flexWrap: 'wrap' }}>
+                <div style={{ display: 'grid', gap: 4 }}>
+                  <strong style={{ color: '#9ed4ff', fontSize: 12 }}>
+                    ✨ Создание персонажа без поиска донора
+                  </strong>
+                  <span style={{ color: 'var(--admin-muted-2)', fontSize: 9, lineHeight: 1.55, maxWidth: 780 }}>
+                    Система сама выбирает технический шаблон нужного класса, копирует рабочие формулы, оформление, листы «Лист персонажа» и «ТЕХ», затем заменяет только данные анкеты.
+                  </span>
+                </div>
+
+                <button
+                  type="button"
+                  disabled={!automaticCreationReady || prepareBusy}
+                  onClick={() => void prepareGoogleCreation(payload)}
+                  style={{
+                    border: '1px solid rgba(105,175,235,.28)',
+                    background: !automaticCreationReady || prepareBusy
+                      ? 'rgba(90,100,115,.08)'
+                      : 'rgba(65,135,205,.14)',
+                    color: !automaticCreationReady || prepareBusy ? '#87909d' : '#9ed4ff',
+                    borderRadius: 10,
+                    padding: '9px 12px',
+                    fontSize: 9,
+                    fontWeight: 900,
+                    cursor: !automaticCreationReady || prepareBusy ? 'not-allowed' : 'pointer',
+                  }}
+                >
+                  {prepareBusy
+                    ? 'Проверяю и выбираю шаблон…'
+                    : prepareResult
+                      ? 'Проверить заново'
+                      : 'Проверить готовность'}
+                </button>
+              </div>
+
+              {!liveLayout && (
+                <div style={{ color: '#efc06c', fontSize: 9, lineHeight: 1.5 }}>
+                  Сначала нажмите «Проверить связь», чтобы определить свободные строки Google.
+                </div>
+              )}
+
+              {questionnaireStatus !== 'approved' && (
+                <div style={{ color: '#efc06c', fontSize: 9, lineHeight: 1.5 }}>
+                  Перед созданием анкета должна иметь статус «Одобрена».
+                </div>
+              )}
+
+              {prepareError && (
+                <div style={{ padding: '9px 10px', borderRadius: 9, color: '#ef9b9b', background: 'rgba(185,65,70,.07)', border: '1px solid rgba(220,90,95,.18)', fontSize: 9, lineHeight: 1.5 }}>
+                  {prepareError}
+                </div>
+              )}
+
+              {prepareResult && (
+                <div style={{ display: 'grid', gap: 9 }}>
+                  <div style={{ padding: '9px 10px', borderRadius: 9, color: prepareResult.prepared ? '#78dca8' : '#efc06c', background: prepareResult.prepared ? 'rgba(55,175,115,.07)' : 'rgba(205,145,55,.07)', border: prepareResult.prepared ? '1px solid rgba(80,195,135,.18)' : '1px solid rgba(225,165,75,.20)', fontSize: 9, lineHeight: 1.5 }}>
+                    <b>{prepareResult.prepared ? '✓ Всё готово к записи.' : '⚠ Создание пока заблокировано.'}</b>
+                    {' '}Шаблон: {prepareResult.donor?.name || 'не найден'} · класс: {prepareResult.donor?.className || payload.combat.className || '—'}.
+                  </div>
+
+                  {(prepareResult.blockers || []).length > 0 && (
+                    <div style={{ display: 'grid', gap: 4 }}>
+                      {(prepareResult.blockers || []).map((problem, index) => (
+                        <div key={`${index}-${problem}`} style={{ color: '#efaaaa', fontSize: 8.5, lineHeight: 1.45 }}>
+                          • {problem}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  <button
+                    type="button"
+                    onClick={() => void createGoogleCharacter()}
+                    disabled={!prepareResult.prepared || createBusy}
+                    style={{
+                      justifySelf: 'start',
+                      border: '1px solid rgba(85,205,145,.30)',
+                      background: !prepareResult.prepared || createBusy ? 'rgba(255,255,255,.035)' : 'rgba(55,175,115,.13)',
+                      color: !prepareResult.prepared || createBusy ? '#858e99' : '#8de0b2',
+                      borderRadius: 10,
+                      padding: '9px 13px',
+                      fontSize: 9,
+                      fontWeight: 900,
+                      cursor: !prepareResult.prepared || createBusy ? 'not-allowed' : 'pointer',
+                    }}
+                  >
+                    {createBusy ? 'Создаю персонажа…' : 'Создать персонажа в Google'}
+                  </button>
+                </div>
+              )}
+
+              {createError && (
+                <div style={{ padding: '9px 10px', borderRadius: 9, color: '#ef9b9b', background: 'rgba(185,65,70,.07)', border: '1px solid rgba(220,90,95,.18)', fontSize: 9 }}>
+                  {createError}
+                </div>
+              )}
+
+              {createNotice && (
+                <div style={{ padding: '9px 10px', borderRadius: 9, color: '#a9d7fb', background: 'rgba(65,135,205,.07)', border: '1px solid rgba(90,165,230,.18)', fontSize: 9 }}>
+                  {createNotice}
+                </div>
+              )}
+            </div>
+          )}
+
           <div
             style={{
               padding: 14,
@@ -2437,7 +2564,7 @@ export default function QuestionnaireGooglePreview({
 
             {!candidateCreated && !lifecycleBusy && (
               <div style={{ color: '#b8c2ce', fontSize: 9 }}>
-                Кандидат ещё не создан. Ниже выберите донора того же класса и создайте Google-структуру из одобренной анкеты.
+                Кандидат ещё не создан. Система сама подберёт технический шаблон нужного класса — ручной поиск донора больше не требуется.
               </div>
             )}
 
@@ -2686,7 +2813,7 @@ export default function QuestionnaireGooglePreview({
               borderRadius: 14,
               border: '1px solid rgba(180,125,235,.22)',
               background: 'rgba(120,75,175,.055)',
-              display: candidateCreated ? 'none' : 'grid',
+              display: 'none',
               gap: 12,
             }}
           >
@@ -2901,7 +3028,7 @@ export default function QuestionnaireGooglePreview({
               background: dryRunReady
                 ? 'rgba(45,170,115,.055)'
                 : 'rgba(190,130,45,.045)',
-              display: candidateCreated ? 'none' : 'grid',
+              display: 'none',
               gap: 12,
             }}
           >
