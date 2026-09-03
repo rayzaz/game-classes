@@ -1594,10 +1594,30 @@ export default async function (
 
 
     const alreadyCreatedId =
-      cleanText(
+      normalizeCharacterId(
         questionnaire
           ?.characterCreation
           ?.characterId
+      );
+
+
+    const liveCreatedEntry =
+      alreadyCreatedId
+        ? registryCharacters.find(
+            item =>
+              normalizeCharacterId(
+                item?.characterId ||
+                item?.id
+              ) ===
+                alreadyCreatedId
+          ) || null
+        : null;
+
+
+    const recreatingMissingCandidate =
+      Boolean(
+        alreadyCreatedId &&
+        !liveCreatedEntry
       );
 
 
@@ -1605,13 +1625,17 @@ export default async function (
       makeCheck(
         'candidate-not-created',
 
-        'Кандидат ещё не создавался',
+        recreatingMissingCandidate
+          ? 'Удалённого кандидата можно создать заново'
+          : 'Кандидат ещё не создавался',
 
-        !alreadyCreatedId,
+        !liveCreatedEntry,
 
-        alreadyCreatedId
-          ? `Из этой анкеты уже создан кандидат ${alreadyCreatedId}. Повторное создание запрещено.`
-          : 'В анкете ещё нет созданного Google-персонажа.'
+        liveCreatedEntry
+          ? `Кандидат ${alreadyCreatedId} существует в живом листе САЙТ. Для него доступна только повторная синхронизация.`
+          : recreatingMissingCandidate
+            ? `Старая публикация ${alreadyCreatedId} больше не существует в активном листе САЙТ. Разрешено полное создание заново с тем же characterId.`
+            : 'В анкете ещё нет созданного Google-персонажа.'
       )
     );
 
@@ -1844,10 +1868,12 @@ export default async function (
 
 
     const proposedCharacterId =
-      chooseUniqueCharacterId(
-        targetName,
-        registryCharacters
-      );
+      recreatingMissingCandidate
+        ? alreadyCreatedId
+        : chooseUniqueCharacterId(
+            targetName,
+            registryCharacters
+          );
 
 
     const masterReviewBlockers =
@@ -2071,6 +2097,9 @@ export default async function (
 
           questionnaireStatus,
 
+          recreateMissingCandidate:
+            recreatingMissingCandidate,
+
           donorCharacterId,
 
           donorName:
@@ -2170,10 +2199,16 @@ export default async function (
 
       lifecycle: {
         status:
-          'candidate-pending',
+          recreatingMissingCandidate
+            ? 'candidate-missing-recreate-ready'
+            : 'candidate-pending',
         examRequired:
           true,
       },
+
+
+      recreateMissingCandidate:
+        recreatingMissingCandidate,
 
 
       targets:

@@ -66,6 +66,7 @@ type GoogleReadCheckResult = {
 type GooglePrepareResult = {
   ok: boolean;
   prepared?: boolean;
+  recreateMissingCandidate?: boolean;
   writesPerformed?: number;
   checkedAt?: string;
   questionnaire?: {
@@ -214,6 +215,9 @@ type GoogleCreateJobStatusResult = {
 type CharacterLifecycleResult = {
   ok: boolean;
   candidateCreated?: boolean;
+  candidateMissing?: boolean;
+  missingCharacterId?: string;
+  message?: string;
   characterCreation?: {
     status?: string;
     lifecycleStatus?: string;
@@ -1546,7 +1550,7 @@ export default function QuestionnaireGooglePreview({
 
 
   async function resyncGoogleQuestionnaire() {
-    if (!candidateCreated || resyncBusy) return;
+    if ((!candidateCreated && !candidateMissing) || resyncBusy) return;
 
     const pendingMasterRules = payload.spells.filter(
       (spell) => spell.target !== 'На себя' && spell.hitReviewed !== true,
@@ -1568,14 +1572,20 @@ export default function QuestionnaireGooglePreview({
     }
 
     const confirmed = window.confirm(
-      `Повторно отправить анкету «${payload.character.name || 'персонажа'}» в Google?\n\nБудут обновлены имя, VK, профиль, внешность, магия, три стартовых заклинания, портрет и гримуар. HP/MP, класс, уровень, орден, ранг, деньги и результаты экзамена останутся без изменений.`,
+      candidateMissing
+        ? `Восстановить публикацию «${payload.character.name || 'персонажа'}»?\n\nЕсли основной блок и личная таблица сохранились, система восстановит удалённую строку САЙТ и повторно запишет анкету. Если удалено всё, используйте полное создание заново.`
+        : `Повторно отправить анкету «${payload.character.name || 'персонажа'}» в Google?\n\nБудут обновлены имя, VK, профиль, внешность, магия, три стартовых заклинания, портрет и гримуар. HP/MP, класс, уровень, орден, ранг, деньги и результаты экзамена останутся без изменений.`,
     );
 
     if (!confirmed) return;
 
     setResyncBusy(true);
     setResyncError('');
-    setResyncNotice('Повторно отправляю анкету в существующие строки и личную таблицу...');
+    setResyncNotice(
+      candidateMissing
+        ? 'Проверяю сохранённые Google-блоки и восстанавливаю публикацию...'
+        : 'Повторно отправляю анкету в существующие строки и личную таблицу...',
+    );
 
     try {
       const response = await fetch('/.netlify/functions/admin-google-resync', {
@@ -2024,9 +2034,16 @@ export default function QuestionnaireGooglePreview({
 
   const creationParametersReady = true;
 
-  const candidateCreated = Boolean(
-    lifecycle?.candidateCreated ||
-    createResult?.created?.characterId
+  /* Живой Google-статус важнее сохранённого результата старого запуска. */
+  const candidateCreated =
+    lifecycle
+      ? lifecycle.candidateCreated === true
+      : Boolean(
+          createResult?.created?.characterId
+        );
+
+  const candidateMissing = Boolean(
+    lifecycle?.candidateMissing
   );
 
   const resyncPendingMasterRules = payload.spells.filter(
@@ -2034,7 +2051,7 @@ export default function QuestionnaireGooglePreview({
   ).length;
 
   const resyncEligible = Boolean(
-    candidateCreated &&
+    (candidateCreated || candidateMissing) &&
     questionnaireStatus === 'approved' &&
     ready &&
     resyncPendingMasterRules === 0,
@@ -2403,10 +2420,14 @@ export default function QuestionnaireGooglePreview({
               <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, alignItems: 'flex-start', flexWrap: 'wrap' }}>
                 <div style={{ display: 'grid', gap: 4 }}>
                   <strong style={{ color: '#9ed4ff', fontSize: 12 }}>
-                    ✨ Создание персонажа без поиска донора
+                    {candidateMissing
+                      ? '♻ Создать удалённого персонажа заново'
+                      : '✨ Создание персонажа без поиска донора'}
                   </strong>
                   <span style={{ color: 'var(--admin-muted-2)', fontSize: 9, lineHeight: 1.55, maxWidth: 780 }}>
-                    Система сама выбирает технический шаблон нужного класса, копирует рабочие формулы, оформление, листы «Лист персонажа» и «ТЕХ», затем заменяет только данные анкеты.
+                    {candidateMissing
+                      ? `Запись ${lifecycle?.missingCharacterId || ''} отсутствует в живом САЙТ. Система создаст личную таблицу и все Google-блоки заново из сохранённой анкеты.`
+                      : 'Система сама выбирает технический шаблон нужного класса, копирует рабочие формулы, оформление, листы «Лист персонажа» и «ТЕХ», затем заменяет только данные анкеты.'}
                   </span>
                 </div>
 
@@ -2486,7 +2507,11 @@ export default function QuestionnaireGooglePreview({
                       cursor: !prepareResult.prepared || createBusy ? 'not-allowed' : 'pointer',
                     }}
                   >
-                    {createBusy ? 'Создаю персонажа…' : 'Создать персонажа в Google'}
+                    {createBusy
+                      ? 'Создаю персонажа…'
+                      : candidateMissing
+                        ? 'Создать заново из анкеты'
+                        : 'Создать персонажа в Google'}
                   </button>
                 </div>
               )}
@@ -2562,7 +2587,38 @@ export default function QuestionnaireGooglePreview({
               </div>
             )}
 
-            {!candidateCreated && !lifecycleBusy && (
+            {candidateMissing && !lifecycleBusy && (
+              <div style={{ padding: 10, borderRadius: 10, color: '#efc06c', background: 'rgba(205,145,55,.07)', border: '1px solid rgba(225,165,75,.20)', fontSize: 9, lineHeight: 1.5, display: 'grid', gap: 9 }}>
+                <div>
+                  <b>Персонаж был удалён из Google.</b>{' '}
+                  Старый статус публикации больше не считается действующим.
+                </div>
+
+                <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+                  <button
+                    type="button"
+                    onClick={() => void resyncGoogleQuestionnaire()}
+                    disabled={resyncBusy || !resyncEligible}
+                    style={{ border: '1px solid rgba(225,165,75,.28)', background: resyncBusy || !resyncEligible ? 'rgba(255,255,255,.035)' : 'rgba(205,145,55,.12)', color: resyncBusy || !resyncEligible ? '#858e99' : '#f0c36b', borderRadius: 9, padding: '8px 11px', fontSize: 8.5, fontWeight: 900, cursor: resyncBusy || !resyncEligible ? 'not-allowed' : 'pointer' }}
+                  >
+                    {resyncBusy ? 'Восстанавливаю…' : '↻ Восстановить публикацию'}
+                  </button>
+                  <span style={{ color: '#c7ae79', fontSize: 8 }}>
+                    Если прежние блоки тоже удалены, используйте «Создать заново из анкеты» выше.
+                  </span>
+                </div>
+
+                {resyncError && (
+                  <div style={{ color: '#efaaaa', fontSize: 8.5 }}>{resyncError}</div>
+                )}
+
+                {resyncNotice && (
+                  <div style={{ color: '#acd9bd', fontSize: 8.5 }}>{resyncNotice}</div>
+                )}
+              </div>
+            )}
+
+            {!candidateCreated && !candidateMissing && !lifecycleBusy && (
               <div style={{ color: '#b8c2ce', fontSize: 9 }}>
                 Кандидат ещё не создан. Система сама подберёт технический шаблон нужного класса — ручной поиск донора больше не требуется.
               </div>

@@ -445,21 +445,33 @@ async function runCreateRequest(
       );
     }
 
+    const recordedCharacterId =
+      cleanText(
+        questionnaire
+          ?.characterCreation
+          ?.characterId
+      );
+
+    const recreatingMissingCandidate =
+      plan
+        ?.recreateMissingCandidate ===
+        true &&
+      recordedCharacterId ===
+        cleanText(
+          plan
+            ?.proposedCharacterId
+        );
+
     if (
-      questionnaire
-        ?.characterCreation
-        ?.characterId
+      recordedCharacterId &&
+      !recreatingMissingCandidate
     ) {
       return json(
         {
           ok: false,
 
           error:
-            `Из этой анкеты уже создан кандидат ${cleanText(
-              questionnaire
-                .characterCreation
-                .characterId
-            )}.`,
+            `Из этой анкеты уже создан кандидат ${recordedCharacterId}.`,
         },
         409
       );

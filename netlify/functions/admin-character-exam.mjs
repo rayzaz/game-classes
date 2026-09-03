@@ -633,6 +633,15 @@ export default async function (
             ?.characterId
         );
 
+      const recordedCharacterId =
+        characterId;
+
+      let liveRegistryChecked =
+        false;
+
+      let liveCharacterFound =
+        false;
+
       /*
         В локальном Netlify Dev тяжёлый запрос создания может
         быть оборван интерфейсом через 30 секунд, хотя Google
@@ -652,6 +661,9 @@ export default async function (
           const registry =
             await readLiveRegistry();
 
+          liveRegistryChecked =
+            true;
+
           const liveCharacter =
             findRegistryCharacter(
               registry,
@@ -667,6 +679,9 @@ export default async function (
             );
 
           if (liveCharacterId) {
+            liveCharacterFound =
+              true;
+
             const currentCreation =
               asRecord(
                 questionnaire
@@ -740,6 +755,41 @@ export default async function (
             error
           );
         }
+      }
+
+      /*
+        v42.6.1: старый characterCreation в анкете — это только история
+        публикации, а не доказательство, что персонаж всё ещё существует.
+        Если живой реестр прочитан успешно и записи там нет, интерфейс
+        должен разрешить полное создание заново, а не предлагать resync.
+      */
+      if (
+        liveRegistryChecked &&
+        !liveCharacterFound
+      ) {
+        return json({
+          ok: true,
+          candidateCreated:
+            false,
+          candidateMissing:
+            Boolean(
+              recordedCharacterId
+            ),
+          missingCharacterId:
+            recordedCharacterId ||
+            '',
+          characterCreation:
+            questionnaire
+              .characterCreation ||
+            null,
+          exam:
+            questionnaire?.exam ||
+            null,
+          message:
+            recordedCharacterId
+              ? `Персонаж ${recordedCharacterId} был опубликован раньше, но сейчас отсутствует в активном листе САЙТ. Его можно создать заново из анкеты.`
+              : 'Персонаж ещё не опубликован.',
+        });
       }
 
       if (!characterId) {
