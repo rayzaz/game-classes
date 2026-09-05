@@ -2202,7 +2202,9 @@ export default async function (
               ? {
                   ...classFormulaProfile,
                   sheet: 'Классы',
+                  sourceRows: '3:15',
                   personalClassCell: 'Лист персонажа!E38',
+                  personalFormulaRange: 'ТЕХ!E3:E15',
                 }
               : null,
 
@@ -2276,7 +2278,9 @@ export default async function (
             ? {
                 ...classFormulaProfile,
                 sheet: 'Классы',
+                sourceRows: '3:15',
                 personalClassCell: 'Лист персонажа!E38',
+                personalFormulaRange: 'ТЕХ!E3:E15',
               }
             : null,
 
