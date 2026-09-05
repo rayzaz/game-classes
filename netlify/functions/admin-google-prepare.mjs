@@ -25,6 +25,37 @@ const REQUEST_TIMEOUT_MS =
   50_000;
 
 
+/*
+  Класс больше не определяется по персонажу-донору.
+
+  В системной таблице [🕸] Черный клевер СИСТЕМА → «Классы»
+  формулы 19 игровых классов уже лежат в отдельных колонках E:W.
+  Поэтому для создания достаточно знать canonical classId; существующий
+  персонаж нужен только как технический каркас Google Spreadsheet.
+*/
+const CLASS_FORMULA_PROFILES = Object.freeze({
+  tank: { number: 1, column: 'E' },
+  assassin: { number: 2, column: 'F' },
+  alchemist: { number: 3, column: 'G' },
+  bruiser: { number: 4, column: 'H' },
+  debuffer: { number: 5, column: 'I' },
+  healer_buffer: { number: 6, column: 'J' },
+  summoner_dps: { number: 7, column: 'K' },
+  summoner_sup: { number: 8, column: 'L' },
+  summoner_multi: { number: 9, column: 'M' },
+  buffer: { number: 10, column: 'N' },
+  support_x3: { number: 11, column: 'O' },
+  support_x3_alchemist: { number: 12, column: 'P' },
+  buffer_alchemist: { number: 13, column: 'Q' },
+  debuffer_alchemist: { number: 14, column: 'R' },
+  dps: { number: 15, column: 'S' },
+  healer: { number: 16, column: 'T' },
+  healer_debuffer: { number: 17, column: 'U' },
+  healer_alchemist: { number: 18, column: 'V' },
+  buffer_debuffer: { number: 19, column: 'W' },
+});
+
+
 function loadCharacterServiceUrl() {
   const value = String(
     process.env.CHARACTER_SERVICE_URL || ''
@@ -1367,37 +1398,28 @@ export default async function (
 
 
     /*
-      v42.6: администратор больше не ищет и не выбирает донора.
+      v42.7: технический шаблон больше НЕ обязан быть того же класса.
 
-      Старый «донор» фактически был техническим шаблоном: из него
-      брались оформление, рабочие формулы нужного класса, листы
-      «Лист персонажа»/«ТЕХ» и диаграмма. Теперь сервер сам выбирает
-      первый доступный активный шаблон того же класса. В план старое
-      поле donorCharacterId пока сохраняется для совместимости с
-      уже опубликованным Apps Script.
+      Сначала всё ещё предпочитаем шаблон того же класса — это самый
+      консервативный путь для старых персонажей. Но если такого класса
+      в реестре ещё нет, берём любой активный рабочий Spreadsheet.
+
+      Класс нового персонажа задаётся отдельно через targetClassIdentity
+      и CLASS_FORMULA_PROFILES. Поле donorCharacterId оставлено только
+      как legacy-имя для совместимости с Google writer: фактически это
+      templateCharacterId, а не источник класса.
     */
     const templateCandidates =
       registryCharacters
         .filter(
-          item => {
-            const itemId =
+          item =>
+            item?.active !== false &&
+            Boolean(
               normalizeCharacterId(
                 item?.characterId ||
                 item?.id
-              );
-
-            const itemClass =
-              templateClassOverrides[itemId] ||
-              classIdentity(
-                item?.className
-              );
-
-            return (
-              item?.active !== false &&
-              itemClass ===
-                targetClassIdentity
-            );
-          }
+              )
+            )
         )
         .sort(
           (left, right) => {
@@ -1425,6 +1447,34 @@ export default async function (
               rightId === requestedTemplateCharacterId
             ) {
               return 1;
+            }
+
+            const leftClass =
+              templateClassOverrides[leftId] ||
+              classIdentity(left?.className);
+
+            const rightClass =
+              templateClassOverrides[rightId] ||
+              classIdentity(right?.className);
+
+            const leftSameClass =
+              leftClass === targetClassIdentity;
+
+            const rightSameClass =
+              rightClass === targetClassIdentity;
+
+            if (leftSameClass !== rightSameClass) {
+              return leftSameClass ? -1 : 1;
+            }
+
+            /* Проверенные старые шаблоны используем как запасной каркас. */
+            const stableOrder = ['anet', 'evtida'];
+            const leftStable = stableOrder.indexOf(leftId);
+            const rightStable = stableOrder.indexOf(rightId);
+
+            if (leftStable !== rightStable) {
+              if (leftStable >= 0) return -1;
+              if (rightStable >= 0) return 1;
             }
 
             return cleanText(left?.name)
@@ -1470,32 +1520,21 @@ export default async function (
             'Технический шаблон'
           );
 
-        const detailClass =
-          templateClassOverrides[candidateId] ||
-          classIdentity(
-            detail?.data
-              ?.character
-              ?.className ||
-            candidate?.className
-          );
-
-        if (
-          detailClass ===
-          targetClassIdentity
-        ) {
-          donorRegistryEntry =
-            candidate;
-          donorResult =
-            detail;
-          break;
-        }
+        /*
+          Для каркаса достаточно, что личное дело читается. Его класс
+          больше не является условием выбора — целевой класс будет
+          назначен отдельно после копирования Spreadsheet.
+        */
+        donorRegistryEntry =
+          candidate;
+        donorResult =
+          detail;
+        break;
       } catch (_) {
         /*
           Публичное чтение личного дела иногда даёт HTTP 500, хотя
-          сама таблица доступна Apps Script на запись. В таком случае
-          доверяем уже отфильтрованному классу из живого реестра;
-          createCandidateFromPreparedPlan всё равно ещё раз проверит E38
-          до первой записи.
+          сама таблица доступна Apps Script на запись. Для технического
+          каркаса этого достаточно: класс нового персонажа не наследуем.
         */
         donorRegistryEntry =
           candidate;
@@ -1789,7 +1828,7 @@ export default async function (
               donorRegistryEntry
                 .name
             ) || donorCharacterId} (${donorCharacterId}).`
-          : `Для класса «${targetClassName || 'не указан'}» не найден доступный рабочий шаблон.`
+          : 'В активном реестре не найден ни один доступный технический шаблон.'
       )
     );
 
@@ -1809,17 +1848,51 @@ export default async function (
       );
 
 
+    const classFormulaProfile =
+      CLASS_FORMULA_PROFILES[
+        targetClassIdentity
+      ] ||
+      null;
+
+
+    const templateMode =
+      donorClassMatches
+        ? 'same-class'
+        : 'generic';
+
+
     checks.push(
       makeCheck(
-        'template-class',
+        'class-formula-profile',
 
-        'Формулы шаблона соответствуют классу',
+        'Формулы выбранного класса есть в центральном каталоге',
 
-        donorClassMatches,
+        Boolean(
+          classFormulaProfile
+        ),
 
-        donorClassMatches
-          ? `Шаблон класса «${donorClassName}» выбран сервером автоматически.`
-          : `Шаблон «${donorClassName || 'не найден'}» (${donorClassIdentity || '—'}), анкета «${targetClassName || 'класс не указан'}» (${targetClassIdentity || '—'}).`
+        classFormulaProfile
+          ? `Класс «${targetClassName}» распознан как ${targetClassIdentity}; формулы: лист «Классы», колонка ${classFormulaProfile.column} (№${classFormulaProfile.number}).`
+          : `Для класса «${targetClassName || 'не указан'}» (${targetClassIdentity || '—'}) не найден центральный профиль формул.`
+      )
+    );
+
+
+    checks.push(
+      makeCheck(
+        'template-class-independent',
+
+        'Класс не зависит от класса технического шаблона',
+
+        Boolean(
+          donorRegistryEntry
+        ),
+
+        donorRegistryEntry
+          ? donorClassMatches
+            ? `Найден шаблон того же класса «${donorClassName}».`
+            : `Будет использован универсальный каркас «${cleanText(donorRegistryEntry?.name) || donorCharacterId}» класса «${donorClassName || 'не определён'}»; новый персонаж получит класс «${targetClassName}» отдельно.`
+          : 'Технический каркас не найден.'
       )
     );
 
@@ -2024,6 +2097,12 @@ export default async function (
 
       donorClassName,
 
+      targetClassIdentity,
+
+      classFormulaProfile,
+
+      templateMode,
+
       proposedCharacterId,
 
       targetPlan,
@@ -2072,7 +2151,7 @@ export default async function (
         `plans/${fingerprint}`,
         {
           version:
-            2,
+            3,
 
           mode:
             'candidate',
@@ -2112,6 +2191,20 @@ export default async function (
             ),
 
           donorClassName,
+
+          templateMode,
+
+          targetClassId:
+            targetClassIdentity,
+
+          classFormulaProfile:
+            classFormulaProfile
+              ? {
+                  ...classFormulaProfile,
+                  sheet: 'Классы',
+                  personalClassCell: 'Лист персонажа!E38',
+                }
+              : null,
 
           proposedCharacterId,
 
@@ -2169,6 +2262,23 @@ export default async function (
 
         className:
           donorClassName,
+
+        templateMode,
+
+        sameClass:
+          donorClassMatches,
+
+        targetClassId:
+          targetClassIdentity,
+
+        classFormulaProfile:
+          classFormulaProfile
+            ? {
+                ...classFormulaProfile,
+                sheet: 'Классы',
+                personalClassCell: 'Лист персонажа!E38',
+              }
+            : null,
 
         classSkillsCount:
           Array.isArray(

@@ -80,6 +80,15 @@ type GooglePrepareResult = {
     name?: string;
     className?: string;
     classSkillsCount?: number;
+    templateMode?: 'same-class' | 'generic' | string;
+    sameClass?: boolean;
+    targetClassId?: string;
+    classFormulaProfile?: {
+      number?: number;
+      column?: string;
+      sheet?: string;
+      personalClassCell?: string;
+    } | null;
   };
   proposed?: {
     characterId?: string;
@@ -491,7 +500,7 @@ function buildDryRunSteps(
   donor: DonorCheckItem | null,
   layout?: Record<string, any> | null,
 ): DryRunStep[] {
-  const donorName = donor?.name || 'донор ещё не выбран';
+  const donorName = donor?.name || 'технический шаблон будет выбран сервером';
   const donorId = donor?.characterId || '—';
 
   const mainBlock = layout?.main?.nextBlock || {};
@@ -523,7 +532,7 @@ function buildDryRunSteps(
         mainBlock?.startRow
           ? `Зарезервированный безопасный блок: строки ${mainBlock.startRow}–${mainBlock.endRow}.`
           : 'Сначала получить реальный безопасный пятистрочный блок через «Проверить связь».',
-        `Скопировать 5-строчный блок донора ${donorName} того же класса вместе с форматированием и относительными формулами.`,
+        `Скопировать 5-строчный блок технического шаблона ${donorName} вместе с форматированием; класс нового персонажа назначить отдельно.`,
         `Имя: ${mainCells.name || 'B[r]'} ← ${payload.character.name || '—'}.`,
         `Ссылка игрока: ${mainCells.player || 'B[r+2]'} ← ${payload.character.playerLink || '—'}.`,
         `Название магии: ${mainCells.magic || 'S[r+2]'} ← ${payload.magic.name || '—'}.`,
@@ -540,9 +549,9 @@ function buildDryRunSteps(
     {
       number: 2,
       title: 'Таблица персонажа',
-      target: `Копия донора: ${donorName} (${donorId})`,
+      target: `Копия технического шаблона: ${donorName} (${donorId})`,
       actions: [
-        `Создать копию рабочей таблицы персонажа-донора класса «${payload.combat.className || payload.combat.classKey || '—'}».`,
+        `Создать копию рабочей таблицы технического шаблона и затем установить класс «${payload.combat.className || payload.combat.classKey || '—'}» в классовой ячейке.`,
         'Сохранить листы «Лист персонажа» и «ТЕХ» со всеми существующими формулами.',
         `ТЕХ!O2 ← ${payload.character.name || '—'}.`,
         `Лист персонажа!AB5 ← биография (${payload.character.biography ? 'есть' : 'пусто'}).`,
@@ -555,7 +564,7 @@ function buildDryRunSteps(
       ],
       protected: [
         'Не переписывать формулы HP, MP, атаки, защиты и других характеристик.',
-        'Не генерировать заново классовые навыки — оставить их от донора того же класса.',
+        'Не наследовать класс от шаблона: классовые формулы должны определяться выбранным классом через центральный каталог «Классы».',
         'Не менять формулы поиска имени и IMPORTRANGE.',
       ],
     },
@@ -794,7 +803,7 @@ function buildRows(payload: QuestionnaireTransferPayload): PreviewRow[] {
     {
       kind: 'copy',
       source: '5-строчный блок персонажа',
-      value: 'Копия рабочего блока предыдущего персонажа',
+      value: 'Копия рабочего технического блока',
       target: 'ОСНОВНАЯ → Маги!r:r+4',
       note: 'Копируем блок целиком, чтобы сохранить формулы, форматирование и структуру.',
     },
@@ -803,7 +812,7 @@ function buildRows(payload: QuestionnaireTransferPayload): PreviewRow[] {
       source: 'Лист персонажа + ТЕХ',
       value: payload.combat.className || payload.combat.classKey,
       target: 'НОВАЯ ТАБЛИЦА ПЕРСОНАЖА',
-      note: 'Берём рабочий лист/ТЕХ персонажа-донора того же класса. Формулы не строим с нуля.',
+      note: 'Берём рабочий лист/ТЕХ любого проверенного шаблона; класс назначается отдельно после копирования.',
     },
     {
       kind: 'copy',
@@ -817,7 +826,7 @@ function buildRows(payload: QuestionnaireTransferPayload): PreviewRow[] {
       source: 'Классовые навыки и формулы',
       value: payload.combat.className || payload.combat.classKey,
       target: 'ПЕРСОНАЖ → ТЕХ',
-      note: 'Остаются из донора того же класса.',
+      note: 'Определяются выбранным классом; источник формул — центральный лист «Классы».',
     },
 
     {
@@ -2016,9 +2025,7 @@ export default function QuestionnaireGooglePreview({
 
   const dryRunReady = Boolean(
     ready &&
-    donorAudit &&
     selectedClassMatch &&
-    selectedDryRunDonor &&
     liveLayout,
   );
 
@@ -2427,7 +2434,7 @@ export default function QuestionnaireGooglePreview({
                   <span style={{ color: 'var(--admin-muted-2)', fontSize: 9, lineHeight: 1.55, maxWidth: 780 }}>
                     {candidateMissing
                       ? `Запись ${lifecycle?.missingCharacterId || ''} отсутствует в живом САЙТ. Система создаст личную таблицу и все Google-блоки заново из сохранённой анкеты.`
-                      : 'Система сама выбирает технический шаблон нужного класса, копирует рабочие формулы, оформление, листы «Лист персонажа» и «ТЕХ», затем заменяет только данные анкеты.'}
+                      : 'Система сама выбирает рабочий технический шаблон. Совпадение класса больше не обязательно: класс анкеты и его формулы назначаются отдельно из центрального каталога «Классы».'}
                   </span>
                 </div>
 
@@ -2478,7 +2485,7 @@ export default function QuestionnaireGooglePreview({
                 <div style={{ display: 'grid', gap: 9 }}>
                   <div style={{ padding: '9px 10px', borderRadius: 9, color: prepareResult.prepared ? '#78dca8' : '#efc06c', background: prepareResult.prepared ? 'rgba(55,175,115,.07)' : 'rgba(205,145,55,.07)', border: prepareResult.prepared ? '1px solid rgba(80,195,135,.18)' : '1px solid rgba(225,165,75,.20)', fontSize: 9, lineHeight: 1.5 }}>
                     <b>{prepareResult.prepared ? '✓ Всё готово к записи.' : '⚠ Создание пока заблокировано.'}</b>
-                    {' '}Шаблон: {prepareResult.donor?.name || 'не найден'} · класс: {prepareResult.donor?.className || payload.combat.className || '—'}.
+                    {' '}Тех. шаблон: {prepareResult.donor?.name || 'не найден'} · класс анкеты: {payload.combat.className || payload.combat.classKey || '—'}{prepareResult.donor?.sameClass === false ? ' · универсальный режим' : ''}.
                   </div>
 
                   {(prepareResult.blockers || []).length > 0 && (
@@ -2620,7 +2627,7 @@ export default function QuestionnaireGooglePreview({
 
             {!candidateCreated && !candidateMissing && !lifecycleBusy && (
               <div style={{ color: '#b8c2ce', fontSize: 9 }}>
-                Кандидат ещё не создан. Система сама подберёт технический шаблон нужного класса — ручной поиск донора больше не требуется.
+                Кандидат ещё не создан. Система сама подберёт рабочий технический шаблон; персонаж нужного класса в реестре больше не требуется.
               </div>
             )}
 
@@ -2887,7 +2894,7 @@ export default function QuestionnaireGooglePreview({
                   🧬 Проверка персонажей-доноров
                 </strong>
                 <span style={{ color: 'var(--admin-muted-2)', fontSize: 10, lineHeight: 1.55, maxWidth: 760 }}>
-                  Сначала отбирает в живом реестре только персонажей того же класса, что и анкета, и проверяет уже только их личные дела. Для Танка больше не нужно открывать всех персонажей подряд.
+                  Диагностический список технических шаблонов. Совпадение класса теперь желательно, но не обязательно: при отсутствии такого персонажа сервер использует универсальный каркас.
                 </span>
               </div>
 
@@ -3516,7 +3523,7 @@ export default function QuestionnaireGooglePreview({
                       </div>
 
                       <div style={{ color: '#efc06c', fontSize: 8.5, lineHeight: 1.5 }}>
-                        Перед записью Apps Script ещё раз проверит свободные строки и донора. Лист САЙТ записывается последним.
+                        Перед записью Apps Script ещё раз проверит свободные строки и технический шаблон, затем назначит выбранный класс. Лист САЙТ записывается последним.
                       </div>
 
                       {createNotice && (
