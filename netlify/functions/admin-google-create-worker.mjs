@@ -13,6 +13,10 @@ import {
   tryWriteAdminLog,
 } from './_shared/_admin-log.mjs';
 
+import {
+  provisionPortalAccessForCharacter,
+} from './_shared/_portal-users.mjs';
+
 
 const QUESTIONNAIRE_STORE =
   'gosmag-questionnaires';
@@ -526,6 +530,50 @@ async function runCreateRequest(
       new Date()
         .toISOString();
 
+    let portalAccess =
+      null;
+
+    const creationWarnings =
+      Array.isArray(
+        googleResult.warnings
+      )
+        ? [
+            ...googleResult.warnings,
+          ]
+        : [];
+
+    try {
+      portalAccess =
+        await provisionPortalAccessForCharacter({
+          characterId:
+            cleanText(
+              googleResult
+                ?.created
+                ?.characterId
+            ),
+          displayName:
+            cleanText(
+              plan
+                ?.payload
+                ?.character
+                ?.name
+            ),
+          questionnaireId:
+            cleanText(
+              questionnaire.id
+            ),
+        });
+    } catch (accessError) {
+      const accessMessage =
+        accessError instanceof Error
+          ? accessError.message
+          : String(accessError);
+
+      creationWarnings.push(
+        `Персонаж создан, но логин и пароль не удалось выдать автоматически: ${accessMessage}`
+      );
+    }
+
     const updatedQuestionnaire = {
       ...questionnaire,
 
@@ -604,6 +652,18 @@ async function runCreateRequest(
           googleResult
             ?.verification ||
           null,
+
+        portalLogin:
+          cleanText(
+            portalAccess
+              ?.login
+          ),
+
+        portalAccessSource:
+          cleanText(
+            portalAccess
+              ?.source
+          ),
       },
 
       exam: {
@@ -677,11 +737,9 @@ async function runCreateRequest(
         googleResult.verification,
 
       warnings:
-        Array.isArray(
-          googleResult.warnings
-        )
-          ? googleResult.warnings
-          : [],
+        creationWarnings,
+
+      portalAccess,
 
       questionnaireUpdated:
         true,

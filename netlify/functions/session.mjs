@@ -10,6 +10,10 @@ import {
   getEventManagerPermissions,
 } from './_shared/_event-permissions.mjs';
 
+import {
+  loadDynamicPortalUser,
+} from './_shared/_portal-users.mjs';
+
 
 function cleanText(
   value
@@ -69,14 +73,23 @@ export default async function (
       loadUsers();
 
 
-    const user =
+    let user =
       users.find(
         item =>
           normalizeLogin(
             item?.login
           ) ===
           session.sub
-      );
+      ) ||
+      null;
+
+
+    if (!user) {
+      user =
+        await loadDynamicPortalUser(
+          session.sub
+        );
+    }
 
 
     /*

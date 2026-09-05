@@ -167,6 +167,21 @@ function prepareOtherBlockers(result: GooglePrepareResult) {
 }
 
 
+
+type PortalAccessInfo = {
+  login?: string;
+  password?: string;
+  characterId?: string;
+  displayName?: string;
+  source?: string;
+  active?: boolean;
+  created?: boolean;
+  reused?: boolean;
+  spreadsheetUrl?: string;
+  message?: string;
+};
+
+
 type GoogleCreateResult = {
   ok: boolean;
   created?: {
@@ -191,6 +206,7 @@ type GoogleCreateResult = {
     message?: string;
   };
   warnings?: string[];
+  portalAccess?: PortalAccessInfo | null;
   questionnaireUpdated?: boolean;
   error?: string;
 };
@@ -237,6 +253,8 @@ type CharacterLifecycleResult = {
     mainRows?: { start?: number; end?: number } | null;
     systemRows?: { start?: number; end?: number } | null;
     registryRow?: number | null;
+    portalLogin?: string;
+    portalAccessSource?: string;
   } | null;
   exam?: {
     status?: string;
@@ -990,6 +1008,12 @@ export default function QuestionnaireGooglePreview({
   const [lifecycle, setLifecycle] =
     useState<CharacterLifecycleResult | null>(null);
 
+  const [portalAccess, setPortalAccess] =
+    useState<PortalAccessInfo | null>(null);
+  const [portalAccessBusy, setPortalAccessBusy] = useState(false);
+  const [portalAccessError, setPortalAccessError] = useState('');
+  const [portalAccessNotice, setPortalAccessNotice] = useState('');
+
   const [examFormOpen, setExamFormOpen] = useState(false);
   const [examBusy, setExamBusy] = useState(false);
   const [examError, setExamError] = useState('');
@@ -1002,8 +1026,172 @@ export default function QuestionnaireGooglePreview({
   const [examStartingMoney, setExamStartingMoney] = useState(0);
 
   useEffect(() => {
+    setPortalAccess(null);
+    setPortalAccessError('');
+    setPortalAccessNotice('');
     void loadCharacterLifecycle();
   }, [questionnaireKey]);
+
+
+  function currentPublishedCharacterId() {
+    return String(
+      lifecycle?.characterCreation?.characterId ||
+      createResult?.created?.characterId ||
+      '',
+    ).trim().toLowerCase();
+  }
+
+  async function loadPortalAccess() {
+    const characterId = currentPublishedCharacterId();
+
+    if (!characterId) {
+      setPortalAccessError('Сначала нужно опубликовать кандидата.');
+      return;
+    }
+
+    setPortalAccessBusy(true);
+    setPortalAccessError('');
+    setPortalAccessNotice('');
+
+    try {
+      const response = await fetch(
+        `/.netlify/functions/admin-character-access?characterId=${encodeURIComponent(characterId)}&_=${Date.now()}`,
+        {
+          method: 'GET',
+          headers: { accept: 'application/json' },
+          cache: 'no-store',
+        },
+      );
+
+      const rawText = await response.text();
+      let result: {
+        ok?: boolean;
+        found?: boolean;
+        access?: PortalAccessInfo | null;
+        passwordAvailable?: boolean;
+        message?: string;
+        error?: string;
+      } | null = null;
+
+      try {
+        result = JSON.parse(rawText);
+      } catch {
+        throw new Error(
+          rawText.trim()
+            ? `Сервер доступа вернул не JSON: ${rawText.slice(0, 240)}`
+            : `Сервер доступа завершился с HTTP ${response.status} без ответа`,
+        );
+      }
+
+      if (!response.ok || result?.ok !== true) {
+        throw new Error(String(result?.error || `HTTP ${response.status}`));
+      }
+
+      if (!result.found || !result.access) {
+        setPortalAccess(null);
+        setPortalAccessNotice('Для этого персонажа аккаунт кабинета ещё не найден.');
+        return;
+      }
+
+      setPortalAccess(result.access);
+
+      if (result.message) {
+        setPortalAccessNotice(String(result.message));
+      }
+    } catch (error) {
+      setPortalAccessError(
+        error instanceof Error
+          ? error.message
+          : 'Не удалось получить логин и пароль',
+      );
+    } finally {
+      setPortalAccessBusy(false);
+    }
+  }
+
+  async function resetPortalAccessPassword() {
+    const characterId = currentPublishedCharacterId();
+
+    if (!characterId) {
+      return;
+    }
+
+    if (!window.confirm(
+      'Сбросить пароль игрока?\n\nСтарый пароль сразу перестанет работать. Новый пароль будет показан здесь и записан в закрытый Google-реестр доступов.',
+    )) {
+      return;
+    }
+
+    setPortalAccessBusy(true);
+    setPortalAccessError('');
+    setPortalAccessNotice('');
+
+    try {
+      const response = await fetch(
+        '/.netlify/functions/admin-character-access',
+        {
+          method: 'POST',
+          headers: {
+            accept: 'application/json',
+            'content-type': 'application/json',
+          },
+          body: JSON.stringify({
+            action: 'reset-password',
+            characterId,
+          }),
+        },
+      );
+
+      const rawText = await response.text();
+      let result: {
+        ok?: boolean;
+        access?: PortalAccessInfo | null;
+        error?: string;
+      } | null = null;
+
+      try {
+        result = JSON.parse(rawText);
+      } catch {
+        throw new Error(
+          rawText.trim()
+            ? `Сервер сброса вернул не JSON: ${rawText.slice(0, 240)}`
+            : `Сброс завершился с HTTP ${response.status} без ответа`,
+        );
+      }
+
+      if (!response.ok || result?.ok !== true || !result.access) {
+        throw new Error(String(result?.error || `HTTP ${response.status}`));
+      }
+
+      setPortalAccess(result.access);
+      setPortalAccessNotice('Пароль сброшен. Старый пароль больше не действует.');
+    } catch (error) {
+      setPortalAccessError(
+        error instanceof Error
+          ? error.message
+          : 'Не удалось сбросить пароль',
+      );
+    } finally {
+      setPortalAccessBusy(false);
+    }
+  }
+
+  async function copyPortalAccess() {
+    const access = portalAccess || createResult?.portalAccess;
+
+    if (!access?.login || !access?.password) {
+      return;
+    }
+
+    const text = `Логин: ${access.login}\nПароль: ${access.password}`;
+
+    try {
+      await navigator.clipboard.writeText(text);
+      setPortalAccessNotice('Логин и пароль скопированы.');
+    } catch {
+      setPortalAccessNotice(text);
+    }
+  }
 
 
   function invalidatePrepareResult() {
@@ -1821,6 +2009,10 @@ export default function QuestionnaireGooglePreview({
           setCreateResult(
             job.result
           );
+          setPortalAccess(
+            job.result.portalAccess || null
+          );
+          setPortalAccessError('');
           setCreateNotice('');
 
           await loadCharacterLifecycle();
@@ -2068,6 +2260,11 @@ export default function QuestionnaireGooglePreview({
     lifecycle?.exam?.passed ||
     lifecycle?.google?.examPassed
   );
+
+  const effectivePortalAccess =
+    portalAccess ||
+    createResult?.portalAccess ||
+    null;
 
   const examSquadOptions = Array.isArray(lifecycle?.google?.options?.squads)
     ? lifecycle?.google?.options?.squads || []
@@ -2641,6 +2838,71 @@ export default function QuestionnaireGooglePreview({
                     characterId: <b>{lifecycle?.characterCreation?.characterId || createResult?.created?.characterId || '—'}</b>
                     {lifecycle?.characterCreation?.spreadsheetUrl ? ' · личная таблица создана' : ''}
                   </span>
+                </div>
+
+                <div style={{ padding: '10px 11px', borderRadius: 10, border: '1px solid rgba(210,175,95,.20)', background: 'rgba(165,125,55,.055)', display: 'grid', gap: 7 }}>
+                  <div style={{ display: 'flex', gap: 8, alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap' }}>
+                    <b style={{ color: '#e8c77e', fontSize: 9 }}>🔑 Доступ игрока в кабинет</b>
+                    <button
+                      type="button"
+                      onClick={() => void loadPortalAccess()}
+                      disabled={portalAccessBusy}
+                      style={{ border: '1px solid rgba(210,175,95,.28)', background: 'rgba(190,145,65,.10)', color: '#e8c77e', borderRadius: 8, padding: '6px 9px', fontSize: 8, fontWeight: 900, cursor: portalAccessBusy ? 'wait' : 'pointer' }}
+                    >
+                      {portalAccessBusy ? 'Читаю…' : effectivePortalAccess ? '↻ Обновить доступ' : 'Показать логин и пароль'}
+                    </button>
+                  </div>
+
+                  {effectivePortalAccess?.login && (
+                    <div style={{ display: 'grid', gap: 4, padding: '8px 9px', borderRadius: 8, background: 'rgba(0,0,0,.12)' }}>
+                      <span style={{ color: '#d7dde5', fontSize: 8.5 }}>Логин: <b style={{ color: '#fff0c2' }}>{effectivePortalAccess.login}</b></span>
+                      <span style={{ color: '#d7dde5', fontSize: 8.5 }}>
+                        Пароль: <b style={{ color: '#fff0c2' }}>{effectivePortalAccess.password || 'хранится в старом Netlify ENV'}</b>
+                      </span>
+
+                      {effectivePortalAccess.password && (
+                        <div style={{ display: 'flex', gap: 7, flexWrap: 'wrap', marginTop: 2 }}>
+                          <button
+                            type="button"
+                            onClick={() => void copyPortalAccess()}
+                            style={{ border: '1px solid rgba(120,200,150,.22)', background: 'rgba(70,165,110,.08)', color: '#9fe0b8', borderRadius: 7, padding: '5px 8px', fontSize: 7.8, fontWeight: 900, cursor: 'pointer' }}
+                          >
+                            Копировать
+                          </button>
+                          {effectivePortalAccess.source === 'google' && (
+                            <button
+                              type="button"
+                              onClick={() => void resetPortalAccessPassword()}
+                              disabled={portalAccessBusy}
+                              style={{ border: '1px solid rgba(225,145,90,.22)', background: 'rgba(190,105,55,.08)', color: '#efb083', borderRadius: 7, padding: '5px 8px', fontSize: 7.8, fontWeight: 900, cursor: portalAccessBusy ? 'wait' : 'pointer' }}
+                            >
+                              Сбросить пароль
+                            </button>
+                          )}
+                        </div>
+                      )}
+
+                      {effectivePortalAccess.spreadsheetUrl && (
+                        <a href={effectivePortalAccess.spreadsheetUrl} target="_blank" rel="noreferrer" style={{ color: '#9ed4ff', fontSize: 7.8, overflowWrap: 'anywhere' }}>
+                          Открыть закрытый Google-реестр доступов
+                        </a>
+                      )}
+                    </div>
+                  )}
+
+                  {!effectivePortalAccess?.login && (
+                    <span style={{ color: 'var(--admin-muted-2)', fontSize: 8, lineHeight: 1.45 }}>
+                      Для новых персонажей логин совпадает с characterId, пароль создаётся автоматически после успешной публикации.
+                    </span>
+                  )}
+
+                  {portalAccessError && (
+                    <span style={{ color: '#efaaaa', fontSize: 8 }}>{portalAccessError}</span>
+                  )}
+
+                  {portalAccessNotice && (
+                    <span style={{ color: '#efc06c', fontSize: 8, whiteSpace: 'pre-wrap' }}>{portalAccessNotice}</span>
+                  )}
                 </div>
 
                 <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
@@ -3550,6 +3812,14 @@ export default function QuestionnaireGooglePreview({
                             Система: <b>{createResult.created.systemRows?.start ?? '—'}–{createResult.created.systemRows?.end ?? '—'}</b> ·
                             САЙТ: <b>{createResult.created.registryRow ?? '—'}</b>
                           </div>
+
+
+                          {createResult.portalAccess?.login && (
+                            <div style={{ padding: '7px 8px', borderRadius: 8, background: 'rgba(225,180,85,.06)', border: '1px solid rgba(225,180,85,.15)', color: '#e9d4a1', fontSize: 8.5, lineHeight: 1.55 }}>
+                              Доступ в кабинет · логин: <b>{createResult.portalAccess.login}</b>
+                              {createResult.portalAccess.password ? <> · пароль: <b>{createResult.portalAccess.password}</b></> : null}
+                            </div>
+                          )}
 
                           {createResult.created.spreadsheetUrl && (
                             <a

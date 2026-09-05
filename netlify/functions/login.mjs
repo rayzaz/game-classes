@@ -13,6 +13,10 @@ import {
 } from './_shared/_event-permissions.mjs';
 
 import {
+  loadDynamicPortalUser,
+} from './_shared/_portal-users.mjs';
+
+import {
   tryWriteAdminLog,
 } from './_shared/_admin-log.mjs';
 
@@ -101,13 +105,28 @@ export default async (
       loadUsers();
 
 
-    const user =
+    let user =
       users.find(
         item =>
           normalizeLogin(
             item?.login
           ) === login
-      );
+      ) ||
+      null;
+
+
+    /*
+      Новые игроки больше не требуют ручного редактирования
+      PORTAL_USERS_JSON. Если логина нет в старых Netlify ENV,
+      ищем автоматически выданный аккаунт в закрытой Google-таблице
+      доступа через Character Service.
+    */
+    if (!user) {
+      user =
+        await loadDynamicPortalUser(
+          login
+        );
+    }
 
 
     const valid =
