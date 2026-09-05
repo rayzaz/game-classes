@@ -1055,7 +1055,7 @@ export default function QuestionnaireGooglePreview({
 
     try {
       const response = await fetch(
-        `/.netlify/functions/admin-character-access?characterId=${encodeURIComponent(characterId)}&_=${Date.now()}`,
+        `/.netlify/functions/admin-character-access?characterId=${encodeURIComponent(characterId)}&ensure=1&_=${Date.now()}`,
         {
           method: 'GET',
           headers: { accept: 'application/json' },
@@ -2892,7 +2892,7 @@ export default function QuestionnaireGooglePreview({
 
                   {!effectivePortalAccess?.login && (
                     <span style={{ color: 'var(--admin-muted-2)', fontSize: 8, lineHeight: 1.45 }}>
-                      Для новых персонажей логин совпадает с characterId, пароль создаётся автоматически после успешной публикации.
+                      Логин и пароль выдаются автоматически после публикации. Для старых аккаунтов сохраняется прежний пароль; для уже опубликованных без доступа система создаст его при синхронизации.
                     </span>
                   )}
 

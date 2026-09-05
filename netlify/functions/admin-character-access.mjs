@@ -7,6 +7,8 @@ import {
 
 import {
   getDynamicPortalAccessAdmin,
+  importLegacyPortalUsers,
+  provisionPortalAccessForCharacter,
   resetDynamicPortalPassword,
 } from './_shared/_portal-users.mjs';
 
@@ -122,12 +124,64 @@ export default async function (
         );
       }
 
+      /*
+        Новый Google-реестр — источник истины после миграции.
+        Поэтому сначала проверяем его, даже если тот же пользователь
+        всё ещё присутствует в старом PORTAL_USERS_JSON.
+      */
+      let access =
+        await getDynamicPortalAccessAdmin({
+          characterId,
+        });
+
+      if (access) {
+        return json({
+          ok: true,
+          found: true,
+          access,
+          passwordAvailable:
+            Boolean(
+              access.password
+            ),
+        });
+      }
+
       const staticUser =
         findStaticUserByCharacterId(
           characterId
         );
 
       if (staticUser) {
+        const migration =
+          await importLegacyPortalUsers([
+            staticUser,
+          ]);
+
+        access =
+          await getDynamicPortalAccessAdmin({
+            characterId,
+            login:
+              normalizeLogin(
+                staticUser.login
+              ),
+          });
+
+        if (access) {
+          return json({
+            ok: true,
+            found: true,
+            access,
+            passwordAvailable:
+              Boolean(
+                access.password
+              ),
+            message:
+              migration.importedCount > 0
+                ? 'Старый аккаунт автоматически перенесён в закрытый Google-реестр вместе с исходным паролем.'
+                : 'Старый аккаунт уже находится в закрытом Google-реестре.',
+          });
+        }
+
         return json({
           ok: true,
           found: true,
@@ -146,35 +200,66 @@ export default async function (
             source:
               'netlify-env',
             active: true,
+            spreadsheetUrl:
+              migration.spreadsheetUrl,
           },
           passwordAvailable:
             false,
           message:
-            'Это старый аккаунт из PORTAL_USERS_JSON. Его исходный пароль хранится вне нового Google-реестра.',
+            'Старый аккаунт продолжает работать через PORTAL_USERS_JSON, но его логин не удалось сопоставить с архивным паролем.',
         });
       }
 
-      const access =
-        await getDynamicPortalAccessAdmin({
-          characterId,
-        });
+      const shouldEnsure =
+        [
+          '1',
+          'true',
+          'yes',
+        ].includes(
+          cleanText(
+            url.searchParams.get(
+              'ensure'
+            ),
+            10
+          )
+            .toLowerCase()
+        );
 
-      if (!access) {
+      if (shouldEnsure) {
+        access =
+          await provisionPortalAccessForCharacter({
+            characterId,
+            displayName:
+              cleanText(
+                url.searchParams.get(
+                  'displayName'
+                ),
+                250
+              ) ||
+              characterId,
+          });
+
         return json({
           ok: true,
-          found: false,
-          access: null,
+          found: true,
+          created:
+            access.created === true,
+          access,
+          passwordAvailable:
+            Boolean(
+              access.password
+            ),
+          message:
+            access.created === true
+              ? 'Для уже опубликованного персонажа автоматически создан логин и пароль.'
+              : access.message || '',
         });
       }
 
       return json({
         ok: true,
-        found: true,
-        access,
-        passwordAvailable:
-          Boolean(
-            access.password
-          ),
+        found: false,
+        access: null,
       });
     }
 
@@ -234,14 +319,9 @@ export default async function (
         );
 
       if (staticUser) {
-        return json(
-          {
-            ok: false,
-            error:
-              'Старые аккаунты из PORTAL_USERS_JSON нельзя сбросить автоматически. Сначала перенесите их в новый реестр доступа.',
-          },
-          409
-        );
+        await importLegacyPortalUsers([
+          staticUser,
+        ]);
       }
 
       const access =

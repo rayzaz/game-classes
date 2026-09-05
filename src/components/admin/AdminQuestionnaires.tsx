@@ -2335,6 +2335,37 @@ export default function AdminQuestionnaires() {
 
 
   const [
+    accessMigrationBusy,
+    setAccessMigrationBusy
+  ] = useState(false);
+
+  const [
+    accessMigrationError,
+    setAccessMigrationError
+  ] = useState('');
+
+  const [
+    accessMigrationMessage,
+    setAccessMigrationMessage
+  ] = useState('');
+
+  const [
+    accessMigrationSpreadsheetUrl,
+    setAccessMigrationSpreadsheetUrl
+  ] = useState('');
+
+  const [
+    accessMigrationGenerated,
+    setAccessMigrationGenerated
+  ] = useState<Array<{
+    characterId: string;
+    displayName: string;
+    login: string;
+    password: string;
+  }>>([]);
+
+
+  const [
     search,
     setSearch
   ] =
@@ -3795,6 +3826,114 @@ export default function AdminQuestionnaires() {
     );
 
 
+  async function migratePortalAccesses() {
+    if (!window.confirm(
+      'Синхронизировать логины и пароли?\n\nСистема перенесёт старые аккаунты в закрытый Google-реестр с прежними паролями и автоматически создаст доступы для уже опубликованных анкет, у которых их ещё нет.'
+    )) {
+      return;
+    }
+
+    setAccessMigrationBusy(true);
+    setAccessMigrationError('');
+    setAccessMigrationMessage('');
+    setAccessMigrationGenerated([]);
+
+    try {
+      const response =
+        await fetch(
+          '/.netlify/functions/admin-portal-access-migrate',
+          {
+            method: 'POST',
+            headers: {
+              accept: 'application/json',
+              'content-type': 'application/json',
+            },
+            body: JSON.stringify({
+              action: 'migrate',
+            }),
+          }
+        );
+
+      const rawText =
+        await response.text();
+
+      let result: {
+        ok?: boolean;
+        error?: string;
+        spreadsheetUrl?: string;
+        legacyArchiveTotal?: number;
+        legacyImported?: number;
+        legacyReused?: number;
+        publishedQuestionnaires?: number;
+        generatedCount?: number;
+        generated?: Array<{
+          characterId?: string;
+          displayName?: string;
+          login?: string;
+          password?: string;
+        }>;
+        updatedQuestionnaires?: number;
+      } | null = null;
+
+      try {
+        result = JSON.parse(rawText);
+      } catch {
+        throw new Error(
+          rawText.trim()
+            ? `Сервер миграции вернул не JSON: ${rawText.slice(0, 260)}`
+            : `Миграция завершилась с HTTP ${response.status} без ответа`
+        );
+      }
+
+      if (!response.ok || result?.ok !== true) {
+        throw new Error(
+          String(
+            result?.error ||
+            `HTTP ${response.status}`
+          )
+        );
+      }
+
+      const generated =
+        Array.isArray(result.generated)
+          ? result.generated.map(
+              item => ({
+                characterId:
+                  String(item.characterId || ''),
+                displayName:
+                  String(item.displayName || item.characterId || ''),
+                login:
+                  String(item.login || ''),
+                password:
+                  String(item.password || ''),
+              })
+            )
+          : [];
+
+      setAccessMigrationGenerated(generated);
+      setAccessMigrationSpreadsheetUrl(
+        String(result.spreadsheetUrl || '')
+      );
+      setAccessMigrationMessage(
+        `Готово. В архиве старых паролей: ${Number(result.legacyArchiveTotal || 0)}. ` +
+        `Старых аккаунтов перенесено сейчас: ${Number(result.legacyImported || 0)}, уже было перенесено: ${Number(result.legacyReused || 0)}. ` +
+        `Опубликованных анкет найдено: ${Number(result.publishedQuestionnaires || 0)}. ` +
+        `Новых доступов создано: ${Number(result.generatedCount || 0)}.`
+      );
+
+      await loadQuestionnaires();
+
+    } catch (err: any) {
+      setAccessMigrationError(
+        err?.message ||
+        String(err)
+      );
+    } finally {
+      setAccessMigrationBusy(false);
+    }
+  }
+
+
   /* ============================================================
      JSX
      ============================================================ */
@@ -3899,6 +4038,31 @@ export default function AdminQuestionnaires() {
             className="admin-button"
 
             onClick={
+              migratePortalAccesses
+            }
+
+            disabled={
+              accessMigrationBusy
+            }
+
+            title="Переносит старые логины/пароли в закрытый Google-реестр и выдаёт доступ уже опубликованным персонажам без аккаунта."
+          >
+
+            {
+              accessMigrationBusy
+                ? 'Синхронизируем…'
+                : '🔐 Синхронизировать доступы'
+            }
+
+          </button>
+
+
+          <button
+            type="button"
+
+            className="admin-button"
+
+            onClick={
               loadQuestionnaires
             }
 
@@ -3918,6 +4082,65 @@ export default function AdminQuestionnaires() {
         </div>
 
       </div>
+
+
+      {accessMigrationMessage && (
+        <div
+          style={{
+            marginBottom: 12,
+            padding: '10px 12px',
+            border: '1px solid rgba(90, 190, 145, .30)',
+            borderRadius: 12,
+            background: 'rgba(45, 130, 95, .07)',
+            color: '#bce7cf',
+            display: 'grid',
+            gap: 8,
+            fontSize: 10,
+            lineHeight: 1.5,
+          }}
+        >
+          <div>{accessMigrationMessage}</div>
+
+          {accessMigrationGenerated.length > 0 && (
+            <div style={{ display: 'grid', gap: 5 }}>
+              <strong style={{ color: '#f3d48f' }}>Новые логины и пароли, созданные для уже опубликованных персонажей:</strong>
+              {accessMigrationGenerated.map(item => (
+                <div key={item.characterId || item.login} style={{ padding: '6px 8px', borderRadius: 8, background: 'rgba(0,0,0,.14)' }}>
+                  <b>{item.displayName || item.characterId}</b> · логин: <b>{item.login}</b> · пароль: <b>{item.password}</b>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {accessMigrationSpreadsheetUrl && (
+            <a
+              href={accessMigrationSpreadsheetUrl}
+              target="_blank"
+              rel="noreferrer"
+              style={{ color: '#9ed4ff', width: 'fit-content' }}
+            >
+              Открыть закрытый Google-реестр логинов и паролей
+            </a>
+          )}
+        </div>
+      )}
+
+
+      {accessMigrationError && (
+        <div
+          style={{
+            marginBottom: 12,
+            padding: '10px 12px',
+            border: '1px solid rgba(235, 105, 105, .30)',
+            borderRadius: 12,
+            background: 'rgba(180, 55, 55, .07)',
+            color: '#efb0b0',
+            fontSize: 10,
+          }}
+        >
+          {accessMigrationError}
+        </div>
+      )}
 
 
       {

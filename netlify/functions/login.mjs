@@ -105,7 +105,7 @@ export default async (
       loadUsers();
 
 
-    let user =
+    const staticUser =
       users.find(
         item =>
           normalizeLogin(
@@ -115,13 +115,42 @@ export default async (
       null;
 
 
+    let user =
+      staticUser;
+
+
     /*
-      Новые игроки больше не требуют ручного редактирования
-      PORTAL_USERS_JSON. Если логина нет в старых Netlify ENV,
-      ищем автоматически выданный аккаунт в закрытой Google-таблице
-      доступа через Character Service.
+      После миграции старого игрока в Google его запись там становится
+      источником истины для пароля. Это позволяет сбрасывать пароль,
+      не удаляя PORTAL_USERS_JSON из Netlify в тот же день.
+
+      Служебные/админские аккаунты без characterId оставляем в ENV и
+      не заставляем зависеть от Google-сервиса.
     */
-    if (!user) {
+    if (
+      staticUser &&
+      String(
+        staticUser?.characterId ||
+        ''
+      ).trim()
+    ) {
+      try {
+        const dynamicUser =
+          await loadDynamicPortalUser(
+            login
+          );
+
+        if (dynamicUser) {
+          user =
+            dynamicUser;
+        }
+      } catch (dynamicError) {
+        console.warn(
+          'dynamic portal user lookup failed; using Netlify ENV fallback:',
+          dynamicError
+        );
+      }
+    } else if (!user) {
       user =
         await loadDynamicPortalUser(
           login

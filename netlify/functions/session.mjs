@@ -73,7 +73,7 @@ export default async function (
       loadUsers();
 
 
-    let user =
+    const staticUser =
       users.find(
         item =>
           normalizeLogin(
@@ -84,7 +84,34 @@ export default async function (
       null;
 
 
-    if (!user) {
+    let user =
+      staticUser;
+
+
+    if (
+      staticUser &&
+      String(
+        staticUser?.characterId ||
+        ''
+      ).trim()
+    ) {
+      try {
+        const dynamicUser =
+          await loadDynamicPortalUser(
+            session.sub
+          );
+
+        if (dynamicUser) {
+          user =
+            dynamicUser;
+        }
+      } catch (dynamicError) {
+        console.warn(
+          'dynamic portal session lookup failed; using Netlify ENV fallback:',
+          dynamicError
+        );
+      }
+    } else if (!user) {
       user =
         await loadDynamicPortalUser(
           session.sub
