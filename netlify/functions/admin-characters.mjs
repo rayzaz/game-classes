@@ -111,12 +111,19 @@ export default async (
         try { result = JSON.parse(text); } catch (_) { result = null; }
 
         if (!response.ok || !result || result.ok !== true) {
+          const compactText = String(text || '')
+            .replace(/\s+/g, ' ')
+            .trim()
+            .slice(0, 600);
+
           return json(
             {
               ok: false,
               error:
                 result?.error ||
-                'Не удалось исправить личный Google-лист персонажа',
+                (compactText
+                  ? `Character Service не вернул JSON (HTTP ${response.status}): ${compactText}`
+                  : `Character Service не ответил корректно (HTTP ${response.status})`),
             },
             502
           );
