@@ -81,6 +81,74 @@ function CharacterCard({
   const [gender, setGender] = useState<'male' | 'female' | ''>(character.gender || '');
   const [genderSaving, setGenderSaving] = useState(false);
   const [genderMessage, setGenderMessage] = useState('');
+  const [repairing, setRepairing] = useState(false);
+  const [repairMessage, setRepairMessage] = useState('');
+
+  async function repairPersonalSheet() {
+    if (
+      !window.confirm(
+        `Исправить формулы и служебные связи Google-листа персонажа «${character.name}»?\n\n` +
+        'История, заклинания, инвентарь, портрет и прогресс не удаляются.'
+      )
+    ) {
+      return;
+    }
+
+    setRepairing(true);
+    setRepairMessage('');
+
+    try {
+      const response = await fetch('/.netlify/functions/admin-characters', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({
+          action: 'repair-personal-sheet',
+          characterId: character.id,
+        }),
+      });
+
+      const raw = await response.text();
+      let result:
+        | {
+            ok?: boolean;
+            error?: string;
+            message?: string;
+            spreadsheetUrl?: string;
+            mainRowMatched?: number | null;
+          }
+        | null = null;
+
+      try {
+        result = JSON.parse(raw);
+      } catch {
+        throw new Error(
+          /^\s*</.test(raw)
+            ? 'Сервер ремонта Google-листа ещё не опубликован.'
+            : 'Сервер вернул некорректный ответ.'
+        );
+      }
+
+      if (!response.ok || !result?.ok) {
+        throw new Error(
+          result?.error ||
+          'Не удалось исправить Google-лист'
+        );
+      }
+
+      setRepairMessage(
+        result.message ||
+        'Google-лист исправлен.'
+      );
+    } catch (error) {
+      setRepairMessage(
+        error instanceof Error
+          ? error.message
+          : String(error)
+      );
+    } finally {
+      setRepairing(false);
+    }
+  }
 
   async function saveGender(nextGender: 'male' | 'female' | '') {
     const previous = gender;
@@ -262,6 +330,39 @@ function CharacterCard({
           </select>
           {genderMessage ? <small>{genderMessage}</small> : null}
         </label>
+
+        <button
+          type="button"
+          className="admin-open-character"
+          style={{ marginBottom: 10 }}
+          disabled={
+            !character.cabinetReady ||
+            repairing
+          }
+          onClick={() => void repairPersonalSheet()}
+        >
+          {
+            repairing
+              ? 'Исправляю Google-лист…'
+              : '🛠 Исправить Google-лист'
+          }
+        </button>
+
+        {
+          repairMessage
+            ? (
+              <small
+                style={{
+                  display: 'block',
+                  margin: '0 0 10px',
+                  lineHeight: 1.45,
+                }}
+              >
+                {repairMessage}
+              </small>
+            )
+            : null
+        }
 
         <button
           type="button"

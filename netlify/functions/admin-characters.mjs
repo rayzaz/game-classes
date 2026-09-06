@@ -87,13 +87,47 @@ export default async (
     if (request.method === 'POST') {
       const body = await request.json().catch(() => ({}));
       const characterId = String(body?.characterId || '').trim().toLowerCase();
-      const gender = ['male', 'female'].includes(String(body?.gender || '').trim().toLowerCase())
-        ? String(body.gender).trim().toLowerCase()
-        : '';
+      const requestedAction = String(body?.action || '').trim().toLowerCase();
 
       if (!characterId) {
         return json({ ok: false, error: 'Не указан characterId' }, 400);
       }
+
+      if (requestedAction === 'repair-personal-sheet') {
+        const response = await fetch(loadCharacterServiceUrl(), {
+          method: 'POST',
+          headers: { 'content-type': 'application/json; charset=utf-8' },
+          body: JSON.stringify({
+            action: 'repair-personal-sheet',
+            characterId,
+            writeSecret: String(process.env.CHARACTER_WRITE_SECRET || '').trim(),
+          }),
+          cache: 'no-store',
+          redirect: 'follow',
+        });
+
+        const text = await response.text();
+        let result = null;
+        try { result = JSON.parse(text); } catch (_) { result = null; }
+
+        if (!response.ok || !result || result.ok !== true) {
+          return json(
+            {
+              ok: false,
+              error:
+                result?.error ||
+                'Не удалось исправить личный Google-лист персонажа',
+            },
+            502
+          );
+        }
+
+        return json(result);
+      }
+
+      const gender = ['male', 'female'].includes(String(body?.gender || '').trim().toLowerCase())
+        ? String(body.gender).trim().toLowerCase()
+        : '';
 
       const response = await fetch(loadCharacterServiceUrl(), {
         method: 'POST',
