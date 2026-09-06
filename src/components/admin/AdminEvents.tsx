@@ -71,6 +71,18 @@ type EventData = {
 
   createdAt?: string;
   updatedAt?: string;
+
+  eligibilityRule?: {
+    kind?: string;
+    exactLevel?: number;
+    requiresNoKnightRank?: boolean;
+  };
+
+  template?: {
+    key?: string;
+    version?: number;
+    autoCreated?: boolean;
+  };
 };
 
 
@@ -217,6 +229,60 @@ function formatDateTime(
         'short',
     }
   ).format(date);
+}
+
+
+function toDateTimeLocalValue(
+  value: string
+) {
+  const raw =
+    String(
+      value || ''
+    )
+      .trim();
+
+  if (!raw) {
+    return '';
+  }
+
+  if (
+    /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}/
+      .test(
+        raw
+      )
+  ) {
+    return raw.slice(
+      0,
+      16
+    );
+  }
+
+  const date =
+    new Date(
+      raw
+    );
+
+  if (
+    Number.isNaN(
+      date.getTime()
+    )
+  ) {
+    return '';
+  }
+
+  const local =
+    new Date(
+      date.getTime() -
+      date.getTimezoneOffset() *
+      60000
+    );
+
+  return local
+    .toISOString()
+    .slice(
+      0,
+      16
+    );
 }
 
 
@@ -1747,6 +1813,18 @@ export default function AdminEvents() {
 
 
   const [
+    editingEvent,
+    setEditingEvent,
+  ] =
+    useState<
+      EventData |
+      null
+    >(
+      null
+    );
+
+
+  const [
     eventFilter,
     setEventFilter,
   ] =
@@ -1882,6 +1960,22 @@ export default function AdminEvents() {
     );
 
 
+  const editingExam =
+    Boolean(
+      editingEvent &&
+      (
+        editingEvent
+          .template
+          ?.key ===
+          'knight-exam-v1' ||
+        editingEvent
+          .eligibilityRule
+          ?.kind ===
+          'knight-exam'
+      )
+    );
+
+
   const selectedRank =
     getKnightRank(
       requiredKnightRank
@@ -2008,7 +2102,173 @@ export default function AdminEvents() {
         false
       );
 
+      setEditingEvent(
+        null
+      );
+
       resetForm();
+    };
+
+
+  const beginCreateEvent =
+    () => {
+      resetForm();
+
+      setEditingEvent(
+        null
+      );
+
+      setFormOpen(
+        true
+      );
+    };
+
+
+  const beginEditEvent =
+    (
+      event:
+        EventData
+    ) => {
+      setEditingEvent(
+        event
+      );
+
+      setTitle(
+        event.title || ''
+      );
+
+      setDescription(
+        event.description || ''
+      );
+
+      setLocation(
+        event.location || ''
+      );
+
+      setStartsAt(
+        toDateTimeLocalValue(
+          event.startsAt || ''
+        )
+      );
+
+      setEndsAt(
+        toDateTimeLocalValue(
+          event.endsAt || ''
+        )
+      );
+
+      const exam =
+        event.template
+          ?.key ===
+          'knight-exam-v1' ||
+        event.eligibilityRule
+          ?.kind ===
+          'knight-exam';
+
+      setDifficultyLevel(
+        String(
+          exam
+            ? 0
+            : (
+                event.difficulty
+                  ?.level ??
+                1
+              )
+        )
+      );
+
+      setRequiredKnightRank(
+        event.difficulty
+          ?.requiredKnightRank ||
+        (
+          exam
+            ? 'Нулевой карьерный ранг'
+            : ''
+        )
+      );
+
+      setExperienceReward(
+        String(
+          event.rewards
+            ?.experience ??
+          0
+        )
+      );
+
+      setPointsReward(
+        String(
+          event.rewards
+            ?.points ??
+          0
+        )
+      );
+
+      setMoneyReward(
+        String(
+          event.rewards
+            ?.money
+            ?.amount ??
+          0
+        )
+      );
+
+      setMoneyCurrency(
+        event.rewards
+          ?.money
+          ?.currency ||
+        'юли'
+      );
+
+      setMaterialRewards(
+        (
+          event.rewards
+            ?.materials ||
+          []
+        ).map(
+          (
+            material,
+            index
+          ) => ({
+            tempId:
+              material.id ||
+              `${event.id}-${index}-${Date.now()}`,
+
+            name:
+              material.name ||
+              '',
+
+            count:
+              String(
+                material.count ||
+                1
+              ),
+
+            description:
+              material.description ||
+              '',
+          })
+        )
+      );
+
+      setFormOpen(
+        true
+      );
+
+      window.setTimeout(
+        () => {
+          document
+            .querySelector(
+              '.admin-event-form'
+            )
+            ?.scrollIntoView({
+              behavior:
+                'smooth',
+              block:
+                'start',
+            });
+        },
+        0
+      );
     };
 
 
@@ -2052,7 +2312,7 @@ export default function AdminEvents() {
     };
 
 
-  const createEvent =
+  const saveEvent =
     async (
       event:
         FormEvent<HTMLFormElement>
@@ -2073,6 +2333,7 @@ export default function AdminEvents() {
 
 
       if (
+        !editingExam &&
         !requiredKnightRank
       ) {
         window.alert(
@@ -2084,16 +2345,29 @@ export default function AdminEvents() {
 
 
       const level =
-        Math.max(
-          1,
+        editingExam
+          ? 0
+          : Math.max(
+              1,
 
-          Math.floor(
-            Number(
-              difficultyLevel
-            ) ||
-            1
-          )
-        );
+              Math.floor(
+                Number(
+                  difficultyLevel
+                ) ||
+                1
+              )
+            );
+
+
+      const effectiveRank =
+        editingExam
+          ? (
+              editingEvent
+                ?.difficulty
+                ?.requiredKnightRank ||
+              'Нулевой карьерный ранг'
+            )
+          : requiredKnightRank;
 
 
       const cleanMaterials =
@@ -2136,7 +2410,9 @@ export default function AdminEvents() {
             EVENTS_API,
             {
               method:
-                'POST',
+                editingEvent
+                  ? 'PATCH'
+                  : 'POST',
 
               headers: {
                 'Content-Type':
@@ -2145,6 +2421,13 @@ export default function AdminEvents() {
 
               body:
                 JSON.stringify({
+                  ...(editingEvent
+                    ? {
+                        key:
+                          editingEvent.key,
+                      }
+                    : {}),
+
                   title:
                     title.trim(),
 
@@ -2165,7 +2448,8 @@ export default function AdminEvents() {
                   difficultyLevel:
                     level,
 
-                  requiredKnightRank,
+                  requiredKnightRank:
+                    effectiveRank,
 
                   experienceReward:
                     Math.max(
@@ -2210,8 +2494,12 @@ export default function AdminEvents() {
                   materialRewards:
                     cleanMaterials,
 
-                  status:
-                    'draft',
+                  ...(!editingEvent
+                    ? {
+                        status:
+                          'draft',
+                      }
+                    : {}),
                 }),
             }
           );
@@ -2252,7 +2540,6 @@ export default function AdminEvents() {
         );
       }
     };
-
 
   const changeStatus =
     async (
@@ -2807,11 +3094,10 @@ export default function AdminEvents() {
         <button
           type="button"
           className="admin-button admin-button-primary"
-          onClick={() =>
-            setFormOpen(
-              current =>
-                !current
-            )
+          onClick={
+            formOpen
+              ? closeForm
+              : beginCreateEvent
           }
         >
           {formOpen
@@ -2825,17 +3111,25 @@ export default function AdminEvents() {
         <form
           className="admin-event-form"
           onSubmit={
-            createEvent
+            saveEvent
           }
         >
           <div className="admin-event-form-head">
             <div>
               <span className="admin-kicker">
-                НОВЫЙ ИВЕНТ
+                {editingEvent
+                  ? (
+                      editingExam
+                        ? 'РЕДАКТИРОВАНИЕ ЭКЗАМЕНА'
+                        : 'РЕДАКТИРОВАНИЕ ИВЕНТА'
+                    )
+                  : 'НОВЫЙ ИВЕНТ'}
               </span>
 
               <h3>
-                Основные данные
+                {editingEvent
+                  ? `Изменить «${editingEvent.title}»`
+                  : 'Основные данные'}
               </h3>
             </div>
 
@@ -2852,6 +3146,19 @@ export default function AdminEvents() {
               Закрыть
             </button>
           </div>
+
+
+          {editingExam ? (
+            <div className="admin-event-rank-preview">
+              <span>
+                Экзаменационный шаблон
+              </span>
+
+              <strong>
+                Правила допуска фиксированы: только 0 уровень и персонаж без рыцарского звания. Название, описание, даты, место и награды можно менять.
+              </strong>
+            </div>
+          ) : null}
 
 
           <div className="admin-event-form-grid">
@@ -2925,10 +3232,17 @@ export default function AdminEvents() {
 
               <input
                 type="number"
-                min="1"
+                min={
+                  editingExam
+                    ? 0
+                    : 1
+                }
                 step="1"
                 value={
                   difficultyLevel
+                }
+                disabled={
+                  editingExam
                 }
                 onChange={
                   event =>
@@ -2988,6 +3302,9 @@ export default function AdminEvents() {
               <select
                 value={
                   requiredKnightRank
+                }
+                disabled={
+                  editingExam
                 }
                 onChange={
                   event =>
@@ -3306,8 +3623,16 @@ export default function AdminEvents() {
               }
             >
               {saving
-                ? 'Создаём...'
-                : 'Создать черновик'}
+                ? (
+                    editingEvent
+                      ? 'Сохраняем...'
+                      : 'Создаём...'
+                  )
+                : (
+                    editingEvent
+                      ? 'Сохранить изменения'
+                      : 'Создать черновик'
+                  )}
             </button>
 
             <button
@@ -3520,7 +3845,7 @@ export default function AdminEvents() {
                         <span>
                           Ур.{' '}
                           {event.difficulty
-                            ?.level ||
+                            ?.level ??
                             1}
                         </span>
                       </div>
@@ -3697,6 +4022,25 @@ export default function AdminEvents() {
 
 
                   <div className="admin-event-actions">
+                    {event.status !==
+                      'completed' ? (
+                      <button
+                        type="button"
+                        className="admin-button"
+                        disabled={
+                          busy
+                        }
+                        onClick={() =>
+                          beginEditEvent(
+                            event
+                          )
+                        }
+                      >
+                        Редактировать
+                      </button>
+                    ) : null}
+
+
                     <button
                       type="button"
                       className="admin-button"

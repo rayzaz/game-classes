@@ -20,11 +20,6 @@ import {
   tryWriteAdminLog,
 } from './_shared/_admin-log.mjs';
 
-import {
-  listRegisteredEventCharacterIds,
-  trySendGameNotification,
-} from './_shared/_game-notifications.mjs';
-
 
 const STORE_NAME =
   'gosmag-events';
@@ -1033,40 +1028,6 @@ async function createEvent(
   });
 
 
-  if (status === 'published') {
-    const details =
-      [
-        startsAt
-          ? `Начало: ${startsAt}`
-          : '',
-        location
-          ? `Место: ${location}`
-          : '',
-      ]
-        .filter(Boolean)
-        .join(' · ');
-
-    await trySendGameNotification(
-      {
-        all: true,
-        playersOnly: true,
-        payload: {
-          title:
-            `Новый ивент: ${title}`,
-          body:
-            details ||
-            'Открыта запись на новый ивент.',
-          url:
-            '/?open=events',
-          tag:
-            `event-published-${id}`,
-        },
-      },
-      'event-created-published-notification'
-    );
-  }
-
-
   /* =========================
      ОТВЕТ
      ========================= */
@@ -1086,6 +1047,386 @@ async function createEvent(
   );
 }
 
+
+
+function isKnightExamEvent(
+  event
+) {
+  return (
+    cleanText(
+      event?.template?.key,
+      100
+    ) ===
+      'knight-exam-v1' ||
+    cleanText(
+      event?.eligibilityRule?.kind,
+      100
+    )
+      .toLowerCase() ===
+      'knight-exam'
+  );
+}
+
+
+async function updateEvent(
+  request,
+  session
+) {
+  const body =
+    await request
+      .json()
+      .catch(
+        () => ({})
+      );
+
+  const key =
+    cleanText(
+      body?.key,
+      300
+    );
+
+  if (
+    !validEventKey(
+      key
+    )
+  ) {
+    return json(
+      {
+        ok: false,
+        error:
+          'Некорректный ключ ивента',
+      },
+      400
+    );
+  }
+
+  const store =
+    getEventStore();
+
+  const existing =
+    await store.get(
+      key,
+      {
+        type:
+          'json',
+        consistency:
+          'strong',
+      }
+    );
+
+  if (!existing) {
+    return json(
+      {
+        ok: false,
+        error:
+          'Ивент не найден',
+      },
+      404
+    );
+  }
+
+  if (
+    cleanText(
+      existing.status,
+      50
+    )
+      .toLowerCase() ===
+      'completed'
+  ) {
+    return json(
+      {
+        ok: false,
+        error:
+          'Завершённый ивент нельзя редактировать: его данные уже участвуют в истории наград.',
+      },
+      409
+    );
+  }
+
+  const exam =
+    isKnightExamEvent(
+      existing
+    );
+
+  const title =
+    cleanText(
+      body?.title,
+      200
+    );
+
+  const description =
+    cleanText(
+      body?.description,
+      10000
+    );
+
+  if (!title) {
+    return json(
+      {
+        ok: false,
+        error:
+          'Введите название ивента',
+      },
+      400
+    );
+  }
+
+  if (!description) {
+    return json(
+      {
+        ok: false,
+        error:
+          'Введите описание ивента',
+      },
+      400
+    );
+  }
+
+  const requestedLevel =
+    Number(
+      body?.difficultyLevel
+    );
+
+  const difficultyLevel =
+    exam
+      ? 0
+      : cleanNumber(
+          requestedLevel,
+          {
+            min:
+              1,
+            max:
+              999,
+          }
+        );
+
+  if (
+    !exam &&
+    !difficultyLevel
+  ) {
+    return json(
+      {
+        ok: false,
+        error:
+          'Укажите уровень сложности ивента',
+      },
+      400
+    );
+  }
+
+  const requiredKnightRank =
+    exam
+      ? (
+          cleanText(
+            existing?.difficulty
+              ?.requiredKnightRank,
+            100
+          ) ||
+          'Нулевой карьерный ранг'
+        )
+      : cleanText(
+          body?.requiredKnightRank,
+          100
+        );
+
+  if (
+    !requiredKnightRank
+  ) {
+    return json(
+      {
+        ok: false,
+        error:
+          'Укажите минимальный ранг рыцаря для участия',
+      },
+      400
+    );
+  }
+
+  const rewards =
+    {
+      experience:
+        cleanNumber(
+          body?.experienceReward,
+          {
+            min:
+              0,
+            max:
+              999999999,
+          }
+        ),
+
+      points:
+        cleanNumber(
+          body?.pointsReward,
+          {
+            min:
+              0,
+            max:
+              999999999,
+          }
+        ),
+
+      money: {
+        amount:
+          cleanNumber(
+            body?.moneyReward,
+            {
+              min:
+                0,
+              max:
+                999999999,
+            }
+          ),
+
+        currency:
+          cleanText(
+            body?.moneyCurrency,
+            100
+          ) ||
+          cleanText(
+            existing?.rewards
+              ?.money
+              ?.currency,
+            100
+          ) ||
+          'юли',
+      },
+
+      materials:
+        cleanMaterialRewards(
+          body?.materialRewards
+        ),
+    };
+
+  const now =
+    new Date()
+      .toISOString();
+
+  const adminName =
+    getAdminName(
+      session
+    );
+
+  const updated = {
+    ...existing,
+
+    title,
+
+    description,
+
+    location:
+      cleanText(
+        body?.location,
+        300
+      ),
+
+    startsAt:
+      cleanText(
+        body?.startsAt,
+        100
+      ),
+
+    endsAt:
+      cleanText(
+        body?.endsAt,
+        100
+      ),
+
+    difficulty: {
+      ...(
+        existing
+          ?.difficulty ||
+        {}
+      ),
+
+      level:
+        difficultyLevel,
+
+      requiredKnightRank,
+    },
+
+    rewards,
+
+    /*
+      У экзамена правила допуска не редактируем обычной формой:
+      0 уровень + отсутствие рыцарского звания остаются жёсткими.
+    */
+    eligibilityRule:
+      exam
+        ? (
+            existing
+              .eligibilityRule ||
+            {
+              kind:
+                'knight-exam',
+              exactLevel:
+                0,
+              requiresNoKnightRank:
+                true,
+            }
+          )
+        : existing
+            .eligibilityRule,
+
+    template:
+      existing
+        .template,
+
+    createdAt:
+      existing
+        .createdAt,
+
+    createdBy:
+      existing
+        .createdBy,
+
+    updatedAt:
+      now,
+
+    updatedBy: {
+      login:
+        normalizeLogin(
+          session.sub
+        ),
+
+      name:
+        adminName,
+    },
+  };
+
+  await store.setJSON(
+    key,
+    updated
+  );
+
+  await tryWriteAdminLog({
+    adminLogin:
+      session.sub,
+    adminName,
+    action:
+      'UPDATE_EVENT',
+    targetType:
+      'event',
+    targetId:
+      cleanText(
+        existing.id,
+        100
+      ) ||
+      key,
+    targetName:
+      title,
+    details:
+      `Отредактирован ивент «${title}». Тип: ${exam ? 'экзамен' : 'обычный ивент'}.`,
+  });
+
+  return json({
+    ok: true,
+    event: {
+      key,
+      ...updated,
+    },
+  });
+}
 
 
 async function deleteEvent(
@@ -1187,13 +1528,6 @@ async function deleteEvent(
       100
     );
 
-  const deletedCharacterIds =
-    eventId
-      ? await listRegisteredEventCharacterIds(
-          eventId
-        )
-      : [];
-
   let removedSignups =
     0;
 
@@ -1254,29 +1588,6 @@ async function deleteEvent(
     details:
       `Удалён ивент «${cleanText(event.title, 200) || 'Без названия'}». Статус до удаления: ${status}. Удалено записей участников: ${removedSignups}.`,
   });
-
-
-  if (deletedCharacterIds.length > 0) {
-    await trySendGameNotification(
-      {
-        characterIds:
-          deletedCharacterIds,
-        payload: {
-          title:
-            cleanText(event.title, 200) ||
-            'Ивент',
-          body:
-            'Ивент удалён администрацией.',
-          url:
-            '/?open=events',
-          tag:
-            `event-deleted-${eventId || 'unknown'}`,
-        },
-      },
-      'event-deleted-notification'
-    );
-  }
-
 
   return json({
     ok: true,
@@ -1357,6 +1668,22 @@ export default async function (
     ) {
 
       return await createEvent(
+        request,
+        session
+      );
+    }
+
+
+    /* =========================
+       PATCH — РЕДАКТИРОВАТЬ ИВЕНТ
+       ========================= */
+
+    if (
+      request.method ===
+      'PATCH'
+    ) {
+
+      return await updateEvent(
         request,
         session
       );

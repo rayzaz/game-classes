@@ -1348,7 +1348,7 @@ function EventCard({
               Ур.{' '}
               {
                 event.difficulty
-                  ?.level ||
+                  ?.level ??
                 1
               }
             </span>
