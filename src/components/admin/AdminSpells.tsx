@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import type { AdminCharacterSummary } from './AdminCharacters';
+import AdminSpellRequests from './AdminSpellRequests';
 import {
   SPELL_AREAS,
   SPELL_CAST_TIMES,
@@ -534,6 +535,8 @@ export default function AdminSpells({ characters }: { characters: AdminCharacter
         </div>
         <button type="button" className="admin-button" onClick={() => selectedCharacter && void reloadOne(selectedCharacter.id)} disabled={!selectedCharacter}>↻ Проверить выбранного</button>
       </div>
+
+      <AdminSpellRequests />
 
       <div className="admin-spell-stats">
         <div><span>Проверено</span><b>{stats.checked}/{stats.total}</b></div>

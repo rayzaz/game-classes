@@ -1,0 +1,302 @@
+.admin-spell-requests {
+  margin-bottom: 26px;
+  padding: 18px;
+  border-radius: 18px;
+  border: 1px solid rgba(142, 112, 215, 0.2);
+  background: rgba(96, 70, 155, 0.045);
+  display: grid;
+  gap: 14px;
+}
+
+.admin-spell-requests-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 14px;
+}
+
+.admin-spell-requests-head h3 {
+  margin: 4px 0 6px;
+  font-size: 20px;
+}
+
+.admin-spell-requests-head p {
+  margin: 0;
+  color: var(--admin-muted);
+  line-height: 1.55;
+  max-width: 760px;
+}
+
+.admin-spell-request-stats {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 9px;
+}
+
+.admin-spell-request-stats > div {
+  border: 1px solid var(--admin-line-soft);
+  border-radius: 12px;
+  padding: 10px 12px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: rgba(255,255,255,.025);
+}
+
+.admin-spell-request-stats span {
+  color: var(--admin-muted);
+  font-size: 10px;
+}
+
+.admin-spell-request-stats b {
+  font-size: 18px;
+}
+
+.admin-spell-request-stats .approved {
+  border-color: rgba(93, 207, 151, .22);
+}
+
+.admin-spell-request-stats .rejected {
+  border-color: rgba(225, 93, 116, .22);
+}
+
+.admin-spell-request-error {
+  padding: 10px 12px;
+  border-radius: 11px;
+  border: 1px solid rgba(225, 93, 116, .28);
+  background: rgba(225, 93, 116, .08);
+  color: #f2b2bd;
+}
+
+.admin-spell-request-empty {
+  padding: 16px;
+  text-align: center;
+  color: var(--admin-muted);
+  border: 1px dashed var(--admin-line-soft);
+  border-radius: 13px;
+}
+
+.admin-spell-request-empty.ready {
+  border-color: rgba(93, 207, 151, .2);
+}
+
+.admin-spell-request-list {
+  display: grid;
+  gap: 13px;
+}
+
+.admin-spell-request-card {
+  border: 1px solid var(--admin-line-soft);
+  border-radius: 15px;
+  padding: 14px;
+  background: rgba(255,255,255,.025);
+  display: grid;
+  gap: 13px;
+}
+
+.admin-spell-request-card-head {
+  display: flex;
+  justify-content: space-between;
+  gap: 14px;
+}
+
+.admin-spell-request-card-head > div:first-child > span,
+.admin-spell-request-proposed > span {
+  display: block;
+  color: #bca0f5;
+  font-size: 9px;
+  font-weight: 900;
+  letter-spacing: .11em;
+}
+
+.admin-spell-request-card-head h4 {
+  margin: 3px 0;
+  font-size: 18px;
+}
+
+.admin-spell-request-card-head small,
+.admin-spell-request-preview small,
+.admin-spell-request-history small {
+  color: var(--admin-muted);
+}
+
+.admin-spell-request-price {
+  text-align: right;
+  min-width: 90px;
+}
+
+.admin-spell-request-price b,
+.admin-spell-request-price span,
+.admin-spell-request-price small {
+  display: block;
+}
+
+.admin-spell-request-price b {
+  font-size: 24px;
+  color: #d3bdff;
+}
+
+.admin-spell-request-preview {
+  margin-top: 7px;
+  padding: 12px;
+  border-radius: 12px;
+  border: 1px solid rgba(255,255,255,.07);
+  background: rgba(255,255,255,.025);
+}
+
+.admin-spell-request-preview-head {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.admin-spell-request-preview-head span {
+  color: var(--admin-muted);
+  font-size: 9px;
+}
+
+.admin-spell-request-preview-head h4 {
+  margin: 2px 0 0;
+  font-size: 16px;
+}
+
+.admin-spell-request-preview-head > b {
+  color: #d3bdff;
+  font-size: 11px;
+}
+
+.admin-spell-request-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 9px 0;
+}
+
+.admin-spell-request-meta span {
+  padding: 5px 7px;
+  border-radius: 999px;
+  border: 1px solid var(--admin-line-soft);
+  color: var(--admin-muted);
+  font-size: 9px;
+}
+
+.admin-spell-request-preview p {
+  margin: 8px 0;
+  line-height: 1.55;
+}
+
+.admin-spell-request-before summary {
+  cursor: pointer;
+  color: var(--admin-muted);
+  font-size: 10px;
+}
+
+.admin-spell-request-hit,
+.admin-spell-request-note {
+  display: grid;
+  gap: 6px;
+}
+
+.admin-spell-request-hit span,
+.admin-spell-request-note span {
+  color: var(--admin-muted);
+  font-size: 9px;
+  font-weight: 800;
+}
+
+.admin-spell-request-hit select,
+.admin-spell-request-note textarea {
+  width: 100%;
+  box-sizing: border-box;
+  border: 1px solid var(--admin-line-soft);
+  border-radius: 10px;
+  background: rgba(255,255,255,.035);
+  color: var(--admin-text);
+  padding: 9px 10px;
+  outline: none;
+}
+
+.admin-spell-request-self-hit {
+  padding: 9px 10px;
+  border-radius: 10px;
+  background: rgba(93, 207, 151, .07);
+  border: 1px solid rgba(93, 207, 151, .18);
+  color: #9fe0bd;
+  font-size: 10px;
+}
+
+.admin-spell-request-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.admin-spell-request-actions .danger {
+  border-color: rgba(225, 93, 116, .28);
+  color: #efabb7;
+}
+
+.admin-spell-request-actions .primary {
+  border-color: rgba(114, 92, 230, .42);
+  background: rgba(114, 92, 230, .13);
+}
+
+.admin-spell-request-history-toggle {
+  display: flex;
+  justify-content: flex-start;
+}
+
+.admin-spell-request-history {
+  display: grid;
+  gap: 7px;
+}
+
+.admin-spell-request-history article {
+  padding: 10px 12px;
+  border-radius: 11px;
+  border: 1px solid var(--admin-line-soft);
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  background: rgba(255,255,255,.02);
+}
+
+.admin-spell-request-history article > div:last-child {
+  text-align: right;
+}
+
+.admin-spell-request-history span,
+.admin-spell-request-history strong,
+.admin-spell-request-history small,
+.admin-spell-request-history b {
+  display: block;
+}
+
+.admin-spell-request-history .approved {
+  border-color: rgba(93, 207, 151, .18);
+}
+
+.admin-spell-request-history .rejected {
+  border-color: rgba(225, 93, 116, .18);
+}
+
+@media (max-width: 760px) {
+  .admin-spell-requests-head,
+  .admin-spell-request-card-head,
+  .admin-spell-request-history article {
+    flex-direction: column;
+  }
+
+  .admin-spell-request-stats {
+    grid-template-columns: 1fr;
+  }
+
+  .admin-spell-request-price,
+  .admin-spell-request-history article > div:last-child {
+    text-align: left;
+  }
+
+  .admin-spell-request-actions {
+    flex-direction: column-reverse;
+  }
+}

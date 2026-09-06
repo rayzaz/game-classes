@@ -1,5 +1,6 @@
 import React, { useEffect, useState, } from 'react';
 import PlayerEvents from './player/PlayerEvents';
+import PlayerSpellDevelopment from './player/PlayerSpellDevelopment';
 import { SPELL_SCHEMA_VERSION, spellCalculationLabel, spellDurationLabel, spellSpatialLabels, type CanonicalSpell } from '../lib/spellSchema';
 import './player/player-character-themes.css';
 
@@ -1308,6 +1309,14 @@ export default function PlayerCabinet({
             initialView
         );
 
+    const [
+        refreshVersion,
+        setRefreshVersion,
+    ] =
+        useState(
+            0
+        );
+
 
     useEffect(
         () => {
@@ -1394,6 +1403,7 @@ export default function PlayerCabinet({
         [
             adminView,
             characterId,
+            refreshVersion,
         ]
     );
 
@@ -2548,6 +2558,20 @@ export default function PlayerCabinet({
                             {invalidSpells.length} {invalidSpells.length === 1 ? 'заклинание хранится' : 'заклинания хранятся'} в старом или неполном формате. Само заклинание не пропало — администратору нужно один раз подтвердить его боевые параметры.
                         </span>
                     </div>
+                ) : null}
+
+                {!adminView ? (
+                    <PlayerSpellDevelopment
+                        characterId={characterId}
+                        className={data.character.className}
+                        spells={spells}
+                        initialUpgradePoints={data.upgradePoints}
+                        onRefreshCabinet={() =>
+                            setRefreshVersion(
+                                current => current + 1
+                            )
+                        }
+                    />
                 ) : null}
 
                 {
