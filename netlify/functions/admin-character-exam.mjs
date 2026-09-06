@@ -13,6 +13,10 @@ import {
   tryWriteAdminLog,
 } from './_shared/_admin-log.mjs';
 
+import {
+  trySendGameNotification,
+} from './_shared/_game-notifications.mjs';
+
 
 const QUESTIONNAIRE_STORE =
   'gosmag-questionnaires';
@@ -1124,6 +1128,27 @@ export default async function (
       details:
         `Экзамен пройден. Орден: ${squad}. Ранг: ${cleanText(googleResult?.exam?.rank)}. Проживание: ${housing}. Баллы: ${numbers.upgradePoints}. ПЧК: ${numbers.protection}/${numbers.senses}/${numbers.control}. Сбережения: ${numbers.startingMoney}.`,
     });
+
+
+    await trySendGameNotification(
+      {
+        characterIds: [
+          characterId,
+        ],
+        payload: {
+          title:
+            'Экзамен завершён ✦',
+          body:
+            `Ваш ранг: ${cleanText(googleResult?.exam?.rank) || 'обновлён'}. Орден: ${squad}.`,
+          url:
+            '/?open=cabinet',
+          tag:
+            `character-exam-${characterId}`,
+        },
+      },
+      'character-exam-notification'
+    );
+
 
     return json({
       ok: true,

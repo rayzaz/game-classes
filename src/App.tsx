@@ -1,4 +1,4 @@
-import React, {
+﻿import React, {
   useEffect,
   useMemo,
   useState,
@@ -24,11 +24,22 @@ import AdminCabinet from './components/admin/AdminCabinet';
 import EventerCabinet from './components/admin/EventerCabinet';
 
 import './styles.css';
+import {
+  disablePushNotifications,
+} from './lib/pushNotifications';
+
+import {
+  disableNativePushNotifications,
+  isDesktopApp,
+  isNativeAndroidApp,
+} from './lib/nativeNotifications';
+
 import './account.css';
+import { apiUrl } from './lib/api';
 
 
 /* =========================
-   РОЛИ КЛАССОВ
+   Р РћР›Р РљР›РђРЎРЎРћР’
    ========================= */
 
 function splitRoles(
@@ -44,7 +55,7 @@ function splitRoles(
 
   const s =
     raw.replace(
-      /[—–]/g,
+      /[вЂ”вЂ“]/g,
       '-'
     );
 
@@ -52,7 +63,7 @@ function splitRoles(
   const parts =
     s
       .split(
-        /(?:\s+|-|,|\/|;|(?:\sи\s))/i
+        /(?:\s+|-|,|\/|;|(?:\sРё\s))/i
       )
       .map(
         value =>
@@ -143,11 +154,11 @@ function splitRoles(
           item.toLowerCase()
       )
       .includes(
-        'гибрид'
+        'РіРёР±СЂРёРґ'
       )
   ) {
     out.push(
-      'Гибрид'
+      'Р“РёР±СЂРёРґ'
     );
   }
 
@@ -157,7 +168,7 @@ function splitRoles(
 
 
 /* =========================
-   СЛОЖНОСТЬ
+   РЎР›РћР–РќРћРЎРўР¬
    ========================= */
 
 function splitComplexity(
@@ -179,10 +190,10 @@ function splitComplexity(
         x ===
           '1' ||
         x.startsWith(
-          'низк'
+          'РЅРёР·Рє'
         )
       ) {
-        return 'низкая';
+        return 'РЅРёР·РєР°СЏ';
       }
 
 
@@ -190,10 +201,10 @@ function splitComplexity(
         x ===
           '2' ||
         x.startsWith(
-          'средн'
+          'СЃСЂРµРґРЅ'
         )
       ) {
-        return 'средняя';
+        return 'СЃСЂРµРґРЅСЏСЏ';
       }
 
 
@@ -201,10 +212,10 @@ function splitComplexity(
         x ===
           '3' ||
         x.startsWith(
-          'высо'
+          'РІС‹СЃРѕ'
         )
       ) {
-        return 'высокая';
+        return 'РІС‹СЃРѕРєР°СЏ';
       }
 
 
@@ -219,11 +230,11 @@ function splitComplexity(
     ) =>
       value
         .replace(
-          /[—–]/g,
+          /[вЂ”вЂ“]/g,
           '-'
         )
         .split(
-          /(?:\s+|-|,|\/|;|(?:\sи\s))/i
+          /(?:\s+|-|,|\/|;|(?:\sРё\s))/i
         )
         .map(
           token =>
@@ -299,7 +310,7 @@ function splitComplexity(
 
 
 /* =========================
-   СТРАНИЦА
+   РЎРўР РђРќРР¦Рђ
    ========================= */
 
 type AppPage =
@@ -337,6 +348,39 @@ function readPortalNavigation(): PortalNavigationSnapshot {
 
   if (typeof window === 'undefined') {
     return fallback;
+  }
+
+  try {
+    const deepLink =
+      new URL(window.location.href)
+        .searchParams
+        .get('open');
+
+    if (deepLink === 'events') {
+      return {
+        page: 'cabinet',
+        adminCharacterId: null,
+        cabinetInitialView: 'events',
+      };
+    }
+
+    if (deepLink === 'cabinet') {
+      return {
+        page: 'cabinet',
+        adminCharacterId: null,
+        cabinetInitialView: 'cabinet',
+      };
+    }
+
+    if (deepLink === 'admin') {
+      return {
+        page: 'admin',
+        adminCharacterId: null,
+        cabinetInitialView: 'cabinet',
+      };
+    }
+  } catch {
+    // РќРµРєСЂРёС‚РёС‡РЅРѕ: РїСЂРѕСЃС‚Рѕ РёСЃРїРѕР»СЊР·СѓРµРј СЃРѕС…СЂР°РЅС‘РЅРЅСѓСЋ РЅР°РІРёРіР°С†РёСЋ.
   }
 
   try {
@@ -397,7 +441,7 @@ function writePortalNavigation(
       JSON.stringify(snapshot)
     );
   } catch {
-    // Навигация не должна ломать приложение, если storage недоступен.
+    // РќР°РІРёРіР°С†РёСЏ РЅРµ РґРѕР»Р¶РЅР° Р»РѕРјР°С‚СЊ РїСЂРёР»РѕР¶РµРЅРёРµ, РµСЃР»Рё storage РЅРµРґРѕСЃС‚СѓРїРµРЅ.
   }
 }
 
@@ -427,7 +471,7 @@ function rememberPlayerCabinetView(
       view
     );
   } catch {
-    // Не критично.
+    // РќРµ РєСЂРёС‚РёС‡РЅРѕ.
   }
 }
 
@@ -488,7 +532,7 @@ type SessionResponse = {
 export default function App() {
 
   /* =========================
-     ТЕМА
+     РўР•РњРђ
      ========================= */
 
   const [
@@ -644,7 +688,7 @@ export default function App() {
 
 
   /* =========================
-     ПОРТАЛ
+     РџРћР РўРђР›
      ========================= */
 
   const [
@@ -657,7 +701,7 @@ export default function App() {
 
 
   /* =========================
-     СТРАНИЦА
+     РЎРўР РђРќРР¦Рђ
      ========================= */
 
   const [
@@ -731,7 +775,7 @@ export default function App() {
 
 
   /* =========================
-     ВОССТАНОВЛЕНИЕ СЕССИИ
+     Р’РћРЎРЎРўРђРќРћР’Р›Р•РќРР• РЎР•РЎРЎРР
      ========================= */
 
   useEffect(
@@ -861,7 +905,7 @@ export default function App() {
 
 
   /* =========================
-     НАВИГАЦИЯ
+     РќРђР’РР“РђР¦РРЇ
      ========================= */
 
   const goHome =
@@ -899,6 +943,31 @@ export default function App() {
   const logoutAccount =
     async () => {
       try {
+        /*
+          РЈР±РёСЂР°РµРј РїСЂРёРІСЏР·РєСѓ РёРјРµРЅРЅРѕ СЌС‚РѕРіРѕ СѓСЃС‚СЂРѕР№СЃС‚РІР° Р”Рћ СѓРґР°Р»РµРЅРёСЏ
+          cookie-СЃРµСЃСЃРёРё. РРЅР°С‡Рµ РѕР±С‰РёР№ С‚РµР»РµС„РѕРЅ/РџРљ РїРѕСЃР»Рµ РІС‹С…РѕРґР° РјРѕРі Р±С‹
+          РїСЂРѕРґРѕР»Р¶Р°С‚СЊ РїРѕР»СѓС‡Р°С‚СЊ СѓРІРµРґРѕРјР»РµРЅРёСЏ РїСЂРµР¶РЅРµРіРѕ РёРіСЂРѕРєР°.
+        */
+        try {
+          if (isNativeAndroidApp()) {
+            await disableNativePushNotifications();
+          } else if (isDesktopApp()) {
+            await fetch(
+              '/.netlify/functions/desktop-notifications',
+              {
+                method: 'DELETE',
+              }
+            );
+          } else {
+            await disablePushNotifications();
+          }
+        } catch (notificationLogoutError) {
+          console.warn(
+            'notification device cleanup failed:',
+            notificationLogoutError
+          );
+        }
+
         await fetch(
           '/.netlify/functions/logout',
           {
@@ -936,7 +1005,7 @@ export default function App() {
             PORTAL_NAVIGATION_STORAGE_KEY
           );
         } catch {
-          // Не критично.
+          // РќРµ РєСЂРёС‚РёС‡РЅРѕ.
         }
 
 
@@ -948,7 +1017,7 @@ export default function App() {
 
 
   /* =========================
-     РОЛИ ДЛЯ ФИЛЬТРА
+     Р РћР›Р Р”Р›РЇ Р¤РР›Р¬РўР Рђ
      ========================= */
 
   const ALL =
@@ -981,11 +1050,11 @@ export default function App() {
                   value.toLowerCase()
               )
               .includes(
-                'гибрид'
+                'РіРёР±СЂРёРґ'
               )
           ) {
             tokens.push(
-              'Гибрид'
+              'Р“РёР±СЂРёРґ'
             );
           }
 
@@ -1021,9 +1090,9 @@ export default function App() {
 
 
   const COMPLEXITIES = [
-    'низкая',
-    'средняя',
-    'высокая',
+    'РЅРёР·РєР°СЏ',
+    'СЃСЂРµРґРЅСЏСЏ',
+    'РІС‹СЃРѕРєР°СЏ',
   ];
 
 
@@ -1136,7 +1205,7 @@ export default function App() {
 
 
   /* =========================
-     ФИЛЬТРАЦИЯ
+     Р¤РР›Р¬РўР РђР¦РРЇ
      ========================= */
 
   const {
@@ -1183,7 +1252,7 @@ export default function App() {
               2
             ) {
               roleSet.add(
-                'гибрид'
+                'РіРёР±СЂРёРґ'
               );
             }
 
@@ -1328,10 +1397,10 @@ export default function App() {
       >
         <div style={{ textAlign: 'center' }}>
           <strong style={{ fontSize: '20px' }}>
-            Восстанавливаем раздел…
+            Р’РѕСЃСЃС‚Р°РЅР°РІР»РёРІР°РµРј СЂР°Р·РґРµР»вЂ¦
           </strong>
           <div style={{ marginTop: '8px', opacity: 0.7 }}>
-            Проверяем активную сессию
+            РџСЂРѕРІРµСЂСЏРµРј Р°РєС‚РёРІРЅСѓСЋ СЃРµСЃСЃРёСЋ
           </div>
         </div>
       </main>
@@ -1340,7 +1409,7 @@ export default function App() {
 
 
   /* =========================
-     АДМИН ОТКРЫЛ ПЕРСОНАЖА
+     РђР”РњРРќ РћРўРљР Р«Р› РџР•Р РЎРћРќРђР–Рђ
      ========================= */
 
   if (
@@ -1382,7 +1451,7 @@ export default function App() {
 
 
   /* =========================
-     АДМИН-ЦЕНТР
+     РђР”РњРРќ-Р¦Р•РќРўР 
      ========================= */
 
   if (
@@ -1420,7 +1489,7 @@ export default function App() {
 
 
   /* =========================
-     ЦЕНТР ИВЕНТЕРА
+     Р¦Р•РќРўР  РР’Р•РќРўР•Р Рђ
      ========================= */
 
   if (
@@ -1465,7 +1534,7 @@ export default function App() {
 
 
   /* =========================
-     РЕЙТИНГ ПЕРСОНАЖЕЙ
+     Р Р•Р™РўРРќР“ РџР•Р РЎРћРќРђР–Р•Р™
      ========================= */
 
   if (
@@ -1487,7 +1556,7 @@ export default function App() {
 
 
   /* =========================
-     КАТАЛОГ НПС
+     РљРђРўРђР›РћР“ РќРџРЎ
      ========================= */
 
   if (
@@ -1506,7 +1575,7 @@ export default function App() {
 
 
   /* =========================
-     ЛИЧНЫЙ КАБИНЕТ ИГРОКА
+     Р›РР§РќР«Р™ РљРђР‘РРќР•Рў РР“Р РћРљРђ
      ========================= */
 
   if (
@@ -1552,7 +1621,7 @@ export default function App() {
 
 
   /* =========================
-     ГЛАВНАЯ ПОРТАЛА
+     Р“Р›РђР’РќРђРЇ РџРћР РўРђР›Рђ
      ========================= */
 
   if (
@@ -1738,7 +1807,7 @@ export default function App() {
 
 
   /* =========================
-     КАТАЛОГ
+     РљРђРўРђР›РћР“
      ========================= */
 
   const hasCatalogFilters =
@@ -1763,7 +1832,7 @@ export default function App() {
             className="class-catalog-back"
             onClick={goHome}
           >
-            ← Главная
+            в†ђ Р“Р»Р°РІРЅР°СЏ
           </button>
 
           <WorldCalendarBadge />
@@ -1771,9 +1840,9 @@ export default function App() {
 
         <section className="class-catalog-heading">
           <div className="class-catalog-heading-main">
-            <h1>Каталог классов</h1>
+            <h1>РљР°С‚Р°Р»РѕРі РєР»Р°СЃСЃРѕРІ</h1>
             <span className="class-catalog-count">
-              {list.length} из {total}
+              {list.length} РёР· {total}
             </span>
           </div>
 
@@ -1783,14 +1852,14 @@ export default function App() {
               className="class-catalog-picker-button"
               onClick={() => setCatalogPickerOpen(true)}
             >
-              Подбор
+              РџРѕРґР±РѕСЂ
               {activeCatalogFilters ? <b>{activeCatalogFilters}</b> : null}
             </button>
           </div>
         </section>
 
         {hasCatalogFilters ? (
-          <div className="class-catalog-active-filters" aria-label="Активные фильтры">
+          <div className="class-catalog-active-filters" aria-label="РђРєС‚РёРІРЅС‹Рµ С„РёР»СЊС‚СЂС‹">
             {Array.from(selCx).map(value => (
               <button
                 key={`cx-${value}`}
@@ -1799,7 +1868,7 @@ export default function App() {
                 onClick={() => toggleSet(setSelCx, value)}
               >
                 {value.charAt(0).toUpperCase() + value.slice(1)}
-                <b aria-hidden="true">×</b>
+                <b aria-hidden="true">Г—</b>
               </button>
             ))}
 
@@ -1811,7 +1880,7 @@ export default function App() {
                 onClick={() => toggleSet(setSelRoles, value)}
               >
                 {value.charAt(0).toUpperCase() + value.slice(1)}
-                <b aria-hidden="true">×</b>
+                <b aria-hidden="true">Г—</b>
               </button>
             ))}
 
@@ -1824,12 +1893,12 @@ export default function App() {
                 setSelCx(new Set());
               }}
             >
-              Сбросить
+              РЎР±СЂРѕСЃРёС‚СЊ
             </button>
           </div>
         ) : null}
 
-        <section className="class-catalog-grid" aria-label="Классы">
+        <section className="class-catalog-grid" aria-label="РљР»Р°СЃСЃС‹">
           {list.length ? (
             list.map((item: any) => (
               <ClassCard
@@ -1839,7 +1908,7 @@ export default function App() {
             ))
           ) : (
             <div className="class-catalog-empty">
-              Ничего не найдено. Измени параметры подбора.
+              РќРёС‡РµРіРѕ РЅРµ РЅР°Р№РґРµРЅРѕ. РР·РјРµРЅРё РїР°СЂР°РјРµС‚СЂС‹ РїРѕРґР±РѕСЂР°.
             </div>
           )}
         </section>
@@ -1860,25 +1929,25 @@ export default function App() {
                 className="class-catalog-picker-modal"
                 role="dialog"
                 aria-modal="true"
-                aria-label="Подбор класса"
+                aria-label="РџРѕРґР±РѕСЂ РєР»Р°СЃСЃР°"
               >
                 <button
                   type="button"
                   className="class-catalog-picker-close"
                   onClick={() => setCatalogPickerOpen(false)}
-                  aria-label="Закрыть подбор"
+                  aria-label="Р—Р°РєСЂС‹С‚СЊ РїРѕРґР±РѕСЂ"
                 >
-                  ×
+                  Г—
                 </button>
 
                 <header className="class-catalog-picker-head">
-                  <span>Фильтры</span>
-                  <h2>Подбор класса</h2>
+                  <span>Р¤РёР»СЊС‚СЂС‹</span>
+                  <h2>РџРѕРґР±РѕСЂ РєР»Р°СЃСЃР°</h2>
                 </header>
 
                 <div className="class-catalog-picker-sections">
                   <section className="class-catalog-picker-group">
-                    <h3>Сложность</h3>
+                    <h3>РЎР»РѕР¶РЅРѕСЃС‚СЊ</h3>
                     <div className="class-catalog-picker-chips">
                       {COMPLEXITIES.map(complexity => {
                         const key = complexity.toLowerCase();
@@ -1899,7 +1968,7 @@ export default function App() {
                   </section>
 
                   <section className="class-catalog-picker-group">
-                    <h3>Роль в группе</h3>
+                    <h3>Р РѕР»СЊ РІ РіСЂСѓРїРїРµ</h3>
                     <div className="class-catalog-picker-chips">
                       {ALL.map(role => {
                         const key = role.toLowerCase();
@@ -1931,7 +2000,7 @@ export default function App() {
                         setSelCx(new Set());
                       }}
                     >
-                      Сбросить
+                      РЎР±СЂРѕСЃРёС‚СЊ
                     </button>
                   ) : <span />}
 
@@ -1940,7 +2009,7 @@ export default function App() {
                     className="class-catalog-picker-apply"
                     onClick={() => setCatalogPickerOpen(false)}
                   >
-                    Показать {list.length}
+                    РџРѕРєР°Р·Р°С‚СЊ {list.length}
                   </button>
                 </footer>
               </section>
@@ -1950,7 +2019,7 @@ export default function App() {
         : null}
 
       {/* =========================
-          ПОРТАЛ
+          РџРћР РўРђР›
           ========================= */}
 
       <Portal
@@ -1995,3 +2064,4 @@ export default function App() {
     </main>
   );
 }
+

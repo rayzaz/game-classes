@@ -16,6 +16,7 @@ import AdminAuditLog from './AdminAuditLog';
 import AdminCalendar from './AdminCalendar';
 import AdminNpcs from './AdminNpcs';
 import AdminSpells from './AdminSpells';
+import AdminPushNotifications from './AdminPushNotifications';
 
 import './admin.css';
 import './admin-npcs.css';
@@ -41,6 +42,7 @@ type AdminSection =
   | 'reports'
   | 'eventers'
   | 'calendar'
+  | 'push'
   | 'audit';
 
 
@@ -109,6 +111,11 @@ const NAV_ITEMS:
       id: 'calendar',
       label: 'Календарь',
       icon: '◷',
+    },
+    {
+      id: 'push',
+      label: 'Уведомления',
+      icon: '♢',
     },
     {
       id: 'audit',
@@ -542,6 +549,11 @@ export default function AdminCabinet({
             {section ===
             'calendar' ? (
               <AdminCalendar />
+            ) : null}
+
+            {section ===
+            'push' ? (
+              <AdminPushNotifications characters={characters} />
             ) : null}
 
             {section ===

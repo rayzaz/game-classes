@@ -13,6 +13,11 @@ import {
   tryWriteAdminLog,
 } from './_shared/_admin-log.mjs';
 
+import {
+  questionnaireNotificationTarget,
+  trySendGameNotification,
+} from './_shared/_game-notifications.mjs';
+
 
 const STORE_NAME =
   'gosmag-questionnaires';
@@ -504,6 +509,44 @@ export default async function (
                 nextStatus
               )}»`,
       });
+
+
+      const notificationTarget =
+        questionnaireNotificationTarget(
+          updatedEntry
+        );
+
+
+      if (
+        notificationTarget.logins.length > 0 ||
+        notificationTarget.characterIds.length > 0
+      ) {
+        const notificationBody =
+          nextStatus === 'revision'
+            ? `Анкета «${questionnaireName}» возвращена на доработку. ${feedback}`
+            : `Статус анкеты «${questionnaireName}»: ${statusTitle(nextStatus)}.`;
+
+        await trySendGameNotification(
+          {
+            ...notificationTarget,
+            payload: {
+              title:
+                nextStatus === 'approved'
+                  ? 'Анкета одобрена ✦'
+                  : 'Статус анкеты изменён',
+              body:
+                notificationBody,
+              url:
+                nextStatus === 'approved'
+                  ? '/?open=cabinet'
+                  : '/',
+              tag:
+                `questionnaire-status-${String(updatedEntry.id || 'unknown')}`,
+            },
+          },
+          'questionnaire-status-notification'
+        );
+      }
     }
 
 

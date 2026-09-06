@@ -20,6 +20,11 @@ import {
   tryWriteAdminLog,
 } from './_shared/_admin-log.mjs';
 
+import {
+  listRegisteredEventCharacterIds,
+  trySendGameNotification,
+} from './_shared/_game-notifications.mjs';
+
 
 const STORE_NAME =
   'gosmag-events';
@@ -1028,6 +1033,40 @@ async function createEvent(
   });
 
 
+  if (status === 'published') {
+    const details =
+      [
+        startsAt
+          ? `Начало: ${startsAt}`
+          : '',
+        location
+          ? `Место: ${location}`
+          : '',
+      ]
+        .filter(Boolean)
+        .join(' · ');
+
+    await trySendGameNotification(
+      {
+        all: true,
+        playersOnly: true,
+        payload: {
+          title:
+            `Новый ивент: ${title}`,
+          body:
+            details ||
+            'Открыта запись на новый ивент.',
+          url:
+            '/?open=events',
+          tag:
+            `event-published-${id}`,
+        },
+      },
+      'event-created-published-notification'
+    );
+  }
+
+
   /* =========================
      ОТВЕТ
      ========================= */
@@ -1148,6 +1187,13 @@ async function deleteEvent(
       100
     );
 
+  const deletedCharacterIds =
+    eventId
+      ? await listRegisteredEventCharacterIds(
+          eventId
+        )
+      : [];
+
   let removedSignups =
     0;
 
@@ -1208,6 +1254,29 @@ async function deleteEvent(
     details:
       `Удалён ивент «${cleanText(event.title, 200) || 'Без названия'}». Статус до удаления: ${status}. Удалено записей участников: ${removedSignups}.`,
   });
+
+
+  if (deletedCharacterIds.length > 0) {
+    await trySendGameNotification(
+      {
+        characterIds:
+          deletedCharacterIds,
+        payload: {
+          title:
+            cleanText(event.title, 200) ||
+            'Ивент',
+          body:
+            'Ивент удалён администрацией.',
+          url:
+            '/?open=events',
+          tag:
+            `event-deleted-${eventId || 'unknown'}`,
+        },
+      },
+      'event-deleted-notification'
+    );
+  }
+
 
   return json({
     ok: true,

@@ -14,6 +14,10 @@ import {
   tryWriteAdminLog,
 } from './_shared/_admin-log.mjs';
 
+import {
+  trySendGameNotification,
+} from './_shared/_game-notifications.mjs';
+
 
 const EVENTS_STORE =
   'gosmag-events';
@@ -970,6 +974,43 @@ export default async function (
       details:
         `Ивент завершён. Участников: ${participantReports.length}.`,
     });
+
+
+    const completedCharacterIds =
+      Array.from(
+        new Set(
+          participantReports
+            .map(item =>
+              cleanText(
+                item?.characterId,
+                150
+              )
+                .toLowerCase()
+            )
+            .filter(Boolean)
+        )
+      );
+
+    if (completedCharacterIds.length > 0) {
+      await trySendGameNotification(
+        {
+          characterIds:
+            completedCharacterIds,
+          payload: {
+            title:
+              `Ивент завершён: ${cleanText(event.title, 200) || 'Ивент'}`,
+            body:
+              'Награды и результаты ивента уже применены к персонажу.',
+            url:
+              '/?open=cabinet',
+            tag:
+              `event-completed-${cleanText(event.id, 100) || 'unknown'}`,
+          },
+        },
+        'event-completed-notification'
+      );
+    }
+
 
     await saveJob(
       jobId,

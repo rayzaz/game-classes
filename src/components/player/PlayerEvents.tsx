@@ -76,6 +76,7 @@ type PlayerSummary = {
   rank: string;
   className: string;
   squad: string;
+  portrait?: string;
 };
 
 
@@ -389,6 +390,10 @@ function PlayerIdentity({
     );
 
   const portrait =
+    String(
+      player.portrait ||
+      ''
+    ).trim() ||
     `/cards/characters/${encodeURIComponent(
       player.characterId ||
       'unknown'

@@ -2,6 +2,7 @@ import React from 'react';
 
 import type { LoginUser } from './Portal';
 import WorldCalendarBadge from './WorldCalendarBadge';
+import PushNotificationsCard from './PushNotificationsCard';
 
 import './portal-home.css';
 
@@ -322,6 +323,8 @@ export default function PortalHome({
               </button>
             ) : null}
           </div>
+
+          <PushNotificationsCard />
         </section>
       ) : null}
     </main>

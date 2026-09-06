@@ -12,6 +12,10 @@ import {
   json,
 } from './_shared/_auth.mjs';
 
+import {
+  trySendGameNotification,
+} from './_shared/_game-notifications.mjs';
+
 
 const STORE_NAME =
   'gosmag-questionnaires';
@@ -273,6 +277,37 @@ export default async function (
     await store.setJSON(
       key,
       entry
+    );
+
+
+    const applicantName =
+      cleanText(
+        data?.name ||
+        data?.characterName ||
+        data?.character_name ||
+        data?.fullName ||
+        data?.full_name ||
+        'Новый игрок',
+        200
+      );
+
+
+    await trySendGameNotification(
+      {
+        all: true,
+        adminsOnly: true,
+        payload: {
+          title:
+            'Новая анкета ✦',
+          body:
+            `${applicantName} отправил(а) анкету на рассмотрение.`,
+          url:
+            '/?open=admin',
+          tag:
+            `questionnaire-new-${id}`,
+        },
+      },
+      'questionnaire-submit-notification'
     );
 
 

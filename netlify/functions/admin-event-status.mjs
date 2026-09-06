@@ -14,6 +14,11 @@ import {
   tryWriteAdminLog,
 } from './_shared/_admin-log.mjs';
 
+import {
+  listRegisteredEventCharacterIds,
+  trySendGameNotification,
+} from './_shared/_game-notifications.mjs';
+
 
 const EVENTS_STORE =
   'gosmag-events';
@@ -341,6 +346,86 @@ export default async function (
       details:
         `Статус ивента изменён: ${previousStatus} → ${status}`,
     });
+
+
+    const eventTitle =
+      cleanText(
+        event.title ||
+        'Ивент'
+      );
+
+
+    if (status === 'published') {
+      const details =
+        [
+          cleanText(event.startsAt)
+            ? `Начало: ${cleanText(event.startsAt)}`
+            : '',
+          cleanText(event.location)
+            ? `Место: ${cleanText(event.location)}`
+            : '',
+        ]
+          .filter(Boolean)
+          .join(' · ');
+
+      await trySendGameNotification(
+        {
+          all: true,
+          playersOnly: true,
+          payload: {
+            title:
+              `Новый ивент: ${eventTitle}`,
+            body:
+              details ||
+              'Открыта запись на новый ивент.',
+            url:
+              '/?open=events',
+            tag:
+              `event-published-${String(event.id || 'unknown')}`,
+          },
+        },
+        'event-published-notification'
+      );
+
+    } else if (
+      status === 'active' ||
+      status === 'cancelled' ||
+      (
+        status === 'draft' &&
+        previousStatus === 'published'
+      )
+    ) {
+      const characterIds =
+        await listRegisteredEventCharacterIds(
+          event.id
+        );
+
+      if (characterIds.length > 0) {
+        const statusText =
+          status === 'active'
+            ? 'Ивент начался.'
+            : status === 'cancelled'
+              ? 'Ивент отменён администрацией.'
+              : 'Ивент снят с публикации. Следите за обновлениями.';
+
+        await trySendGameNotification(
+          {
+            characterIds,
+            payload: {
+              title:
+                eventTitle,
+              body:
+                statusText,
+              url:
+                '/?open=events',
+              tag:
+                `event-status-${String(event.id || 'unknown')}`,
+            },
+          },
+          'event-status-notification'
+        );
+      }
+    }
 
 
     return json({

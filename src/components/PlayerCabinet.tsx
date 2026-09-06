@@ -97,6 +97,7 @@ type CharacterData = {
         squad: string;
         className: string;
         magicType: string;
+        portrait?: string;
     };
 
     profile?: {
@@ -210,16 +211,18 @@ function SectionTitle({
 function CharacterPortrait({
     characterId,
     name,
+    portrait,
 }: {
     characterId: string;
     name: string;
+    portrait?: string;
 }) {
     const [
-        broken,
-        setBroken,
+        failedIndex,
+        setFailedIndex,
     ] =
         useState(
-            false
+            0
         );
 
     const initials =
@@ -253,14 +256,41 @@ function CharacterPortrait({
             'unknown'
         );
 
+    const tablePortrait =
+        String(
+            portrait ||
+            ''
+        ).trim();
+
+    const localPortrait =
+        `/cards/characters/${safeCharacterId}.jpg`;
+
+    const portraitCandidates =
+        [
+            tablePortrait,
+            localPortrait,
+        ]
+            .filter(
+                (value, index, values) =>
+                    Boolean(value) &&
+                    values.indexOf(value) === index
+            );
+
+    const activePortrait =
+        portraitCandidates[
+            failedIndex
+        ] ||
+        '';
+
     useEffect(
         () => {
-            setBroken(
-                false
+            setFailedIndex(
+                0
             );
         },
         [
             safeCharacterId,
+            tablePortrait,
         ]
     );
 
@@ -268,11 +298,11 @@ function CharacterPortrait({
         <div className="nero-portrait-shell">
 
             {
-                !broken
+                activePortrait
                     ? (
                         <img
                             src={
-                                `/cards/characters/${safeCharacterId}.jpg`
+                                activePortrait
                             }
 
                             alt={
@@ -281,8 +311,9 @@ function CharacterPortrait({
 
                             onError={
                                 () =>
-                                    setBroken(
-                                        true
+                                    setFailedIndex(
+                                        current =>
+                                            current + 1
                                     )
                             }
                         />
@@ -1698,6 +1729,10 @@ export default function PlayerCabinet({
 
                     name={
                         data.character.name
+                    }
+
+                    portrait={
+                        data.character.portrait
                     }
                 />
 

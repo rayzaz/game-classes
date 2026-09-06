@@ -243,6 +243,13 @@ export default async function (
             ?.character
             ?.squad
         ),
+
+      portrait:
+        cleanText(
+          characterData
+            ?.character
+            ?.portrait
+        ),
     };
 
 

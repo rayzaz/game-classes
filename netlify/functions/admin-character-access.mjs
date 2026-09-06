@@ -12,6 +12,10 @@ import {
   resetDynamicPortalPassword,
 } from './_shared/_portal-users.mjs';
 
+import {
+  trySendGameNotification,
+} from './_shared/_game-notifications.mjs';
+
 
 function cleanText(
   value,
@@ -328,6 +332,27 @@ export default async function (
         await resetDynamicPortalPassword({
           characterId,
         });
+
+
+      await trySendGameNotification(
+        {
+          characterIds: [
+            characterId,
+          ],
+          payload: {
+            title:
+              'Доступ к кабинету изменён',
+            body:
+              'Администратор сбросил пароль вашего кабинета. Получите новый пароль у администрации.',
+            url:
+              '/?open=cabinet',
+            tag:
+              `character-access-${characterId}`,
+          },
+        },
+        'character-access-notification'
+      );
+
 
       return json({
         ok: true,

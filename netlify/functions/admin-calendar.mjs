@@ -7,6 +7,10 @@ import {
   tryWriteAdminLog,
 } from './_shared/_admin-log.mjs';
 
+import {
+  trySendGameNotification,
+} from './_shared/_game-notifications.mjs';
+
 
 function requireAdmin(
   request
@@ -255,6 +259,26 @@ export default async function(
               ? `Наступила ${result.calendar?.seasonLabel || ''}, ${result.calendar?.year || ''} год. Возраст обновлён у ${result.ageReport?.updatedCount || 0} персонажей.`
               : `Сезон: ${result.calendar?.seasonLabel || ''}, ${result.calendar?.year || ''} год`,
         });
+
+
+        await trySendGameNotification(
+          {
+            all: true,
+            playersOnly: true,
+            payload: {
+              title:
+                'Смена времени года ✦',
+              body:
+                `Наступила ${result.calendar?.seasonLabel || 'новая пора'}, ${result.calendar?.year || ''} год.`,
+              url:
+                '/',
+              tag:
+                'world-season-change',
+            },
+          },
+          'calendar-season-notification'
+        );
+
 
         return json(
           result

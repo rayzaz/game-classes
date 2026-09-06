@@ -4611,3 +4611,104 @@ html[data-theme="light"] .admin-root :is(
   .admin-character-gender { grid-template-columns: 1fr; }
   .admin-character-gender small { grid-column: auto; }
 }
+
+/* ==========================================================
+   WEB PUSH ADMIN
+   ========================================================== */
+
+.admin-push-section {
+  display: grid;
+  gap: 18px;
+}
+
+.admin-push-stats {
+  display: grid;
+  gap: 2px;
+  text-align: right;
+}
+
+.admin-push-stats strong {
+  font-size: 28px;
+  line-height: 1;
+}
+
+.admin-push-stats span {
+  font-size: 12px;
+  opacity: 0.68;
+}
+
+.admin-push-warning,
+.admin-push-message {
+  padding: 12px 14px;
+  border: 1px solid var(--admin-line);
+  border-radius: 14px;
+  background: rgba(127, 127, 127, 0.07);
+  line-height: 1.45;
+}
+
+.admin-push-warning {
+  border-color: rgba(218, 165, 32, 0.38);
+}
+
+.admin-push-form {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.admin-push-form label {
+  display: grid;
+  gap: 7px;
+}
+
+.admin-push-form label > span {
+  font-size: 12px;
+  font-weight: 800;
+  opacity: 0.76;
+}
+
+.admin-push-form input,
+.admin-push-form select,
+.admin-push-form textarea {
+  width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+  padding: 11px 12px;
+  border: 1px solid var(--admin-line);
+  border-radius: 12px;
+  background: rgba(127, 127, 127, 0.055);
+  color: var(--admin-text);
+  font: inherit;
+}
+
+.admin-push-form textarea {
+  resize: vertical;
+}
+
+.admin-push-wide {
+  grid-column: 1 / -1;
+}
+
+.admin-push-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.admin-push-send {
+  font-weight: 900;
+}
+
+@media (max-width: 720px) {
+  .admin-push-form {
+    grid-template-columns: 1fr;
+  }
+
+  .admin-push-wide {
+    grid-column: auto;
+  }
+
+  .admin-push-stats {
+    text-align: left;
+  }
+}

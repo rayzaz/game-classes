@@ -22,3 +22,9 @@ dist/
 *.tsbuildinfo
 *.zip
 *.tsbuildinfo
+
+# native app builds
+android/
+release-desktop/
+release-files/
+capacitor.config.json
