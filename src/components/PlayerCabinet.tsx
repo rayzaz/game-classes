@@ -1,6 +1,7 @@
 import React, { useEffect, useState, } from 'react';
 import PlayerEvents from './player/PlayerEvents';
 import PlayerSpellDevelopment from './player/PlayerSpellDevelopment';
+import ExamRegistrationCard from './player/ExamRegistrationCard';
 import { SPELL_SCHEMA_VERSION, spellCalculationLabel, spellDurationLabel, spellSpatialLabels, type CanonicalSpell } from '../lib/spellSchema';
 import './player/player-character-themes.css';
 
@@ -1890,6 +1891,24 @@ export default function PlayerCabinet({
                 </div>
 
             </section>
+
+
+            {!adminView ? (
+                <ExamRegistrationCard
+                    level={
+                        data.level.current
+                    }
+                    rank={
+                        data.character.rank
+                    }
+                    onOpenEvents={
+                        () =>
+                            setView(
+                                'events'
+                            )
+                    }
+                />
+            ) : null}
 
 
             {/* =========================

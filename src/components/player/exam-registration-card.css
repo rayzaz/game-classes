@@ -1,0 +1,126 @@
+.exam-registration-card {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 24px;
+  align-items: center;
+  padding: 24px 26px;
+  margin: 0 0 24px;
+  border: 1px solid rgba(197, 159, 72, 0.34);
+  border-radius: 24px;
+  background:
+    radial-gradient(circle at 92% 8%, rgba(234, 194, 89, 0.14), transparent 34%),
+    linear-gradient(135deg, rgba(45, 31, 61, 0.96), rgba(24, 20, 34, 0.98));
+  box-shadow: 0 20px 60px rgba(8, 5, 16, 0.18);
+}
+
+.exam-registration-copy {
+  min-width: 0;
+}
+
+.exam-registration-kicker {
+  display: block;
+  margin-bottom: 8px;
+  color: #e4b94f;
+  font-size: 12px;
+  font-weight: 900;
+  letter-spacing: 0.16em;
+}
+
+.exam-registration-card h2 {
+  margin: 0 0 8px;
+  color: #fffaf0;
+  font-size: clamp(22px, 2.4vw, 34px);
+  line-height: 1.05;
+}
+
+.exam-registration-card p {
+  max-width: 760px;
+  margin: 0;
+  color: rgba(243, 237, 248, 0.74);
+  line-height: 1.6;
+}
+
+.exam-registration-rules {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 16px;
+}
+
+.exam-registration-rules span {
+  padding: 7px 10px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 999px;
+  color: rgba(255, 255, 255, 0.82);
+  background: rgba(255, 255, 255, 0.045);
+  font-size: 12px;
+}
+
+.exam-registration-actions {
+  display: grid;
+  gap: 10px;
+  min-width: 210px;
+}
+
+.exam-registration-actions button {
+  min-height: 48px;
+  padding: 0 18px;
+  border: 1px solid rgba(229, 191, 86, 0.36);
+  border-radius: 16px;
+  color: #f5ead0;
+  background: rgba(255, 255, 255, 0.055);
+  font: inherit;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.exam-registration-actions button.is-primary {
+  color: #201627;
+  background: linear-gradient(135deg, #e7bd58, #c99737);
+  border-color: rgba(255, 225, 139, 0.72);
+}
+
+.exam-registration-actions button:disabled {
+  opacity: 0.55;
+  cursor: wait;
+}
+
+.exam-registration-status {
+  padding: 10px 14px;
+  border-radius: 14px;
+  color: #9fe1b7;
+  background: rgba(72, 170, 112, 0.12);
+  border: 1px solid rgba(96, 204, 139, 0.22);
+  text-align: center;
+  font-weight: 900;
+}
+
+.exam-registration-message {
+  margin-top: 14px;
+  padding: 10px 12px;
+  border-radius: 12px;
+  font-size: 13px;
+}
+
+.exam-registration-message.is-success {
+  color: #a9e5bd;
+  background: rgba(66, 166, 105, 0.1);
+  border: 1px solid rgba(78, 184, 120, 0.18);
+}
+
+.exam-registration-message.is-error {
+  color: #ffb0b0;
+  background: rgba(204, 72, 72, 0.1);
+  border: 1px solid rgba(224, 88, 88, 0.18);
+}
+
+@media (max-width: 760px) {
+  .exam-registration-card {
+    grid-template-columns: 1fr;
+    padding: 20px;
+  }
+
+  .exam-registration-actions {
+    min-width: 0;
+  }
+}

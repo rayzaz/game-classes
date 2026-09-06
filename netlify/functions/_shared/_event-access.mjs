@@ -268,14 +268,19 @@ export function getEventEligibility(
         ?.current
     ) || 0;
 
-
-  const eventLevel =
+  const rawEventLevel =
     Number(
       event
         ?.difficulty
         ?.level
-    ) || 1;
+    );
 
+  const eventLevel =
+    Number.isFinite(
+      rawEventLevel
+    )
+      ? rawEventLevel
+      : 1;
 
   const playerRankText =
     cleanText(
@@ -284,7 +289,6 @@ export function getEventEligibility(
         ?.rank
     );
 
-
   const requiredRankText =
     cleanText(
       event
@@ -292,11 +296,8 @@ export function getEventEligibility(
         ?.requiredKnightRank
     );
 
-
   /*
-    Пустой рыцарский ранг означает карьерный ранг 0:
-    персонаж ещё не получил первый ранг, но может участвовать
-    в специально созданных для этого ивентах.
+    Пустой рыцарский ранг означает карьерный ранг 0.
   */
   const playerRank =
     getKnightRank(
@@ -304,26 +305,22 @@ export function getEventEligibility(
       'Нулевой карьерный ранг'
     );
 
-
   const requiredRank =
     getKnightRank(
       requiredRankText
     );
-
 
   const rankKnown =
     Boolean(
       playerRank
     );
 
-
   const requiredRankKnown =
     Boolean(
       requiredRank
     );
 
-
-  const rankAllowed =
+  let rankAllowed =
     Boolean(
       playerRank &&
       requiredRank &&
@@ -331,79 +328,140 @@ export function getEventEligibility(
         requiredRank.order
     );
 
+  let levelAllowed =
+    true;
 
   let levelState =
     'normal';
 
-
   let levelWarning =
     '';
-
-
-  /*
-    Уровень ничего не запрещает.
-
-    Он только предупреждает игрока.
-  */
-
-  if (
-    playerLevel <
-    eventLevel
-  ) {
-    levelState =
-      'danger';
-
-    levelWarning =
-      `Уровень персонажа (${playerLevel}) ниже уровня ивента (${eventLevel}). Участие возможно, но событие может быть опасным.`;
-
-  } else if (
-    playerLevel >
-    eventLevel
-  ) {
-    levelState =
-      'low_reward';
-
-    levelWarning =
-      `Уровень персонажа (${playerLevel}) выше уровня ивента (${eventLevel}). Участие возможно, но награда может быть уменьшена.`;
-  }
-
 
   let reason =
     '';
 
+  const rule =
+    event &&
+    event.eligibilityRule &&
+    typeof event.eligibilityRule ===
+      'object'
+      ? event.eligibilityRule
+      : null;
 
-  if (
-    !requiredRankKnown
-  ) {
-    reason =
-      'unknown_required_rank';
+  const isKnightExam =
+    cleanText(
+      rule?.kind
+    ).toLowerCase() ===
+      'knight-exam';
 
-  } else if (
-    !rankKnown
-  ) {
-    reason =
-      'unknown_player_rank';
+  if (isKnightExam) {
+    const exactLevelRaw =
+      Number(
+        rule?.exactLevel
+      );
 
-  } else if (
-    !rankAllowed
-  ) {
-    reason =
-      'insufficient_rank';
+    const exactLevel =
+      Number.isFinite(
+        exactLevelRaw
+      )
+        ? exactLevelRaw
+        : 0;
 
-  } else if (
-    event.status !==
-    'published'
-  ) {
-    reason =
-      'registration_closed';
+    const requiresNoKnightRank =
+      rule?.requiresNoKnightRank !==
+      false;
+
+    levelAllowed =
+      playerLevel ===
+      exactLevel;
+
+    rankAllowed =
+      requiresNoKnightRank
+        ? !playerRankText
+        : rankAllowed;
+
+    if (!levelAllowed) {
+      levelState =
+        'blocked';
+
+      levelWarning =
+        `Экзамен предназначен только для персонажей ${exactLevel} уровня.`;
+
+      reason =
+        'wrong_exam_level';
+
+    } else if (!rankAllowed) {
+      reason =
+        'exam_rank_already_received';
+
+    } else if (
+      event.status !==
+      'published'
+    ) {
+      reason =
+        'registration_closed';
+    }
+
+  } else {
+    /*
+      Для обычных ивентов уровень остаётся предупреждением,
+      а не запретом.
+    */
+    if (
+      playerLevel <
+      eventLevel
+    ) {
+      levelState =
+        'danger';
+
+      levelWarning =
+        `Уровень персонажа (${playerLevel}) ниже уровня ивента (${eventLevel}). Участие возможно, но событие может быть опасным.`;
+
+    } else if (
+      playerLevel >
+      eventLevel
+    ) {
+      levelState =
+        'low_reward';
+
+      levelWarning =
+        `Уровень персонажа (${playerLevel}) выше уровня ивента (${eventLevel}). Участие возможно, но награда может быть уменьшена.`;
+    }
+
+    if (
+      !requiredRankKnown
+    ) {
+      reason =
+        'unknown_required_rank';
+
+    } else if (
+      !rankKnown
+    ) {
+      reason =
+        'unknown_player_rank';
+
+    } else if (
+      !rankAllowed
+    ) {
+      reason =
+        'insufficient_rank';
+
+    } else if (
+      event.status !==
+      'published'
+    ) {
+      reason =
+        'registration_closed';
+    }
   }
-
 
   const canJoin =
     event.status ===
       'published' &&
-    rankAllowed;
-
+    rankAllowed &&
+    levelAllowed &&
+    requiredRankKnown &&
+    rankKnown;
 
   return {
     canJoin,
@@ -412,10 +470,16 @@ export function getEventEligibility(
 
     rankAllowed,
 
+    levelAllowed,
+
     rankKnown,
 
     requiredRankKnown,
 
+    ruleKind:
+      isKnightExam
+        ? 'knight-exam'
+        : 'standard',
 
     playerRank:
       playerRank
@@ -434,7 +498,6 @@ export function getEventEligibility(
           }
         : null,
 
-
     requiredRank:
       requiredRank
         ? {
@@ -451,7 +514,6 @@ export function getEventEligibility(
               requiredRank.step,
           }
         : null,
-
 
     playerLevel,
 
