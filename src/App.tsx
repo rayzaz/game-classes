@@ -35,7 +35,6 @@ import {
 } from './lib/nativeNotifications';
 
 import './account.css';
-import { apiUrl } from './lib/api';
 
 
 /* =========================
