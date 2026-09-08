@@ -2,6 +2,7 @@ import React, { useEffect, useState, } from 'react';
 import PlayerEvents from './player/PlayerEvents';
 import PlayerSpellDevelopment from './player/PlayerSpellDevelopment';
 import ExamRegistrationCard from './player/ExamRegistrationCard';
+import CharacterFamilyTree from './player/CharacterFamilyTree';
 import { SPELL_SCHEMA_VERSION, spellCalculationLabel, spellDurationLabel, spellSpatialLabels, type CanonicalSpell } from '../lib/spellSchema';
 import './player/player-character-themes.css';
 
@@ -1305,7 +1306,8 @@ export default function PlayerCabinet({
     ] =
         useState<
             'cabinet' |
-            'events'
+            'events' |
+            'family'
         >(
             initialView
         );
@@ -1432,6 +1434,39 @@ export default function PlayerCabinet({
 
                 adminView={
                     adminView
+                }
+            />
+        );
+    }
+
+
+    /* =========================
+       РОДОСЛОВНАЯ
+       ========================= */
+
+    if (
+        view ===
+        'family'
+    ) {
+        return (
+            <CharacterFamilyTree
+                characterId={
+                    characterId
+                }
+
+                adminView={
+                    adminView
+                }
+
+                themeClass={
+                    characterThemeClass
+                }
+
+                onBack={
+                    () =>
+                        setView(
+                            'cabinet'
+                        )
                 }
             />
         );
@@ -1706,6 +1741,26 @@ export default function PlayerCabinet({
                         adminView
                             ? '✦ Ивенты персонажа'
                             : '✦ Ивенты'
+                    }
+                </button>
+
+
+                <button
+                    className="nero-button"
+
+                    type="button"
+
+                    onClick={
+                        () =>
+                            setView(
+                                'family'
+                            )
+                    }
+                >
+                    {
+                        adminView
+                            ? '🌳 Родословная персонажа'
+                            : '🌳 Родословная'
                     }
                 </button>
 
