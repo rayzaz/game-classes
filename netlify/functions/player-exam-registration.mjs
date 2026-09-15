@@ -3,10 +3,6 @@ import {
 } from '@netlify/blobs';
 
 import {
-  randomUUID,
-} from 'node:crypto';
-
-import {
   json,
   readSession,
 } from './_shared/_auth.mjs';
@@ -82,104 +78,6 @@ function isExamEvent(
 }
 
 
-function makeExamEvent() {
-  const id =
-    randomUUID();
-
-  const now =
-    new Date()
-      .toISOString();
-
-  return {
-    id,
-
-    title:
-      'Экзамен в рыцари-чародеи',
-
-    description:
-      'Вступительный экзамен для кандидатов без рыцарского звания. Участие доступно только персонажам 0 уровня, которые ещё не получили первый ранг.',
-
-    location:
-      'Экзаменационный полигон',
-
-    startsAt:
-      '',
-
-    endsAt:
-      '',
-
-    status:
-      'published',
-
-    difficulty: {
-      level:
-        0,
-
-      requiredKnightRank:
-        'Нулевой карьерный ранг',
-    },
-
-    eligibilityRule: {
-      kind:
-        'knight-exam',
-
-      exactLevel:
-        0,
-
-      requiresNoKnightRank:
-        true,
-    },
-
-    rewards: {
-      experience:
-        0,
-
-      points:
-        0,
-
-      money: {
-        amount:
-          0,
-
-        currency:
-          'юли',
-      },
-
-      materials:
-        [],
-    },
-
-    template: {
-      key:
-        EXAM_TEMPLATE_KEY,
-
-      version:
-        1,
-
-      autoCreated:
-        true,
-    },
-
-    createdAt:
-      now,
-
-    updatedAt:
-      now,
-
-    createdBy: {
-      login:
-        'system',
-
-      name:
-        'ГосМаг · экзаменационный шаблон',
-    },
-
-    participants:
-      [],
-  };
-}
-
-
 async function findPublishedExam() {
   const store =
     getEventsStore();
@@ -242,42 +140,6 @@ async function findPublishedExam() {
   }
 
   return null;
-}
-
-
-async function ensurePublishedExam() {
-  const existing =
-    await findPublishedExam();
-
-  if (existing) {
-    return {
-      ...existing,
-
-      created:
-        false,
-    };
-  }
-
-  const store =
-    getEventsStore();
-
-  const event =
-    makeExamEvent();
-
-  const key =
-    `events/${Date.now()}_${event.id}`;
-
-  await store.setJSON(
-    key,
-    event
-  );
-
-  return {
-    key,
-    event,
-    created:
-      true,
-  };
 }
 
 
@@ -665,7 +527,22 @@ export default async function (
     }
 
     const exam =
-      await ensurePublishedExam();
+      await findPublishedExam();
+
+    if (!exam) {
+      return json(
+        {
+          ok:
+            false,
+
+          error:
+            'Экзамен сейчас не опубликован. Его создаёт администратор или ивентер.',
+
+          candidate,
+        },
+        409
+      );
+    }
 
     const result =
       await signupForExam({
@@ -685,8 +562,6 @@ export default async function (
         {
           ...result,
 
-          eventCreated:
-            exam.created,
         },
         result.status || 409
       );
@@ -694,9 +569,6 @@ export default async function (
 
     return json({
       ...result,
-
-      eventCreated:
-        exam.created,
 
       event: {
         key:

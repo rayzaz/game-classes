@@ -28,6 +28,10 @@ const SIGNUPS_STORE =
   'gosmag-event-signups';
 
 
+const EXAM_TEMPLATE_KEY =
+  'knight-exam-v1';
+
+
 const ALLOWED_STATUSES =
   new Set([
     'draft',
@@ -485,16 +489,20 @@ async function listEvents() {
                 difficulty: {
 
                   level:
-                    cleanNumber(
-                      event.difficulty?.level,
-                      {
-                        min:
-                          1,
+                    isKnightExamEvent(
+                      event
+                    )
+                      ? 0
+                      : cleanNumber(
+                          event.difficulty?.level,
+                          {
+                            min:
+                              1,
 
-                        max:
-                          999,
-                      }
-                    ),
+                            max:
+                              999,
+                          }
+                        ),
 
                   requiredKnightRank:
                     String(
@@ -544,6 +552,21 @@ async function listEvents() {
                       ? event.rewards.materials
                       : [],
                 },
+
+
+                eligibilityRule:
+                  event.eligibilityRule &&
+                  typeof event.eligibilityRule ===
+                    'object'
+                    ? event.eligibilityRule
+                    : undefined,
+
+                template:
+                  event.template &&
+                  typeof event.template ===
+                    'object'
+                    ? event.template
+                    : undefined,
 
 
                 createdAt:
@@ -623,6 +646,20 @@ async function createEvent(
       .catch(
         () => ({})
       );
+
+
+  const exam =
+    cleanText(
+      body?.eventKind,
+      100
+    )
+      .toLowerCase() ===
+      'knight-exam' ||
+    cleanText(
+      body?.templateKey,
+      100
+    ) ===
+      EXAM_TEMPLATE_KEY;
 
 
   /* =========================
@@ -717,19 +754,22 @@ async function createEvent(
      ========================= */
 
   const difficultyLevel =
-    cleanNumber(
-      body?.difficultyLevel,
-      {
-        min:
-          1,
+    exam
+      ? 0
+      : cleanNumber(
+          body?.difficultyLevel,
+          {
+            min:
+              1,
 
-        max:
-          999,
-      }
-    );
+            max:
+              999,
+          }
+        );
 
 
   if (
+    !exam &&
     !difficultyLevel
   ) {
 
@@ -750,10 +790,12 @@ async function createEvent(
      ========================= */
 
   const requiredKnightRank =
-    cleanText(
-      body?.requiredKnightRank,
-      100
-    );
+    exam
+      ? 'Нулевой карьерный ранг'
+      : cleanText(
+          body?.requiredKnightRank,
+          100
+        );
 
 
   if (
@@ -778,7 +820,12 @@ async function createEvent(
 
   const experienceReward =
     cleanNumber(
-      body?.experienceReward,
+      body?.experienceReward ??
+        (
+          exam
+            ? 20
+            : 0
+        ),
       {
         min:
           0,
@@ -795,7 +842,12 @@ async function createEvent(
 
   const pointsReward =
     cleanNumber(
-      body?.pointsReward,
+      body?.pointsReward ??
+        (
+          exam
+            ? 5
+            : 0
+        ),
       {
         min:
           0,
@@ -950,6 +1002,33 @@ async function createEvent(
     },
 
 
+    ...(exam
+      ? {
+          eligibilityRule: {
+            kind:
+              'knight-exam',
+
+            exactLevel:
+              0,
+
+            requiresNoKnightRank:
+              true,
+          },
+
+          template: {
+            key:
+              EXAM_TEMPLATE_KEY,
+
+            version:
+              1,
+
+            autoCreated:
+              false,
+          },
+        }
+      : {}),
+
+
     /* =========================
        СЛУЖЕБНОЕ
        ========================= */
@@ -1057,7 +1136,7 @@ function isKnightExamEvent(
       event?.template?.key,
       100
     ) ===
-      'knight-exam-v1' ||
+      EXAM_TEMPLATE_KEY ||
     cleanText(
       event?.eligibilityRule?.kind,
       100

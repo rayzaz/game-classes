@@ -60,6 +60,13 @@ export default function ExamRegistrationCard({
   );
 
   const [
+    available,
+    setAvailable,
+  ] = useState(
+    false
+  );
+
+  const [
     eventTitle,
     setEventTitle,
   ] = useState(
@@ -130,6 +137,12 @@ export default function ExamRegistrationCard({
 
             setJoined(
               result.joined === true
+            );
+
+            setAvailable(
+              Boolean(
+                result.event
+              )
             );
 
             if (
@@ -226,6 +239,10 @@ export default function ExamRegistrationCard({
         true
       );
 
+      setAvailable(
+        true
+      );
+
       if (
         result.event?.title
       ) {
@@ -237,9 +254,7 @@ export default function ExamRegistrationCard({
       setMessage(
         result.alreadyRegistered
           ? 'Вы уже записаны на этот экзамен.'
-          : result.eventCreated
-            ? 'Экзаменационный ивент создан, а вы записаны первым участником.'
-            : 'Запись на экзамен подтверждена.'
+          : 'Запись на экзамен подтверждена.'
       );
 
     } catch (
@@ -280,6 +295,14 @@ export default function ExamRegistrationCard({
           <span>Запись: через личный кабинет</span>
         </div>
 
+        {!loading &&
+        !available &&
+        !joined ? (
+          <div className="exam-registration-message">
+            Экзамен пока не опубликован. Его создаёт администрация или ивентер.
+          </div>
+        ) : null}
+
         {message ? (
           <div className="exam-registration-message is-success">
             {message}
@@ -315,7 +338,8 @@ export default function ExamRegistrationCard({
             className="is-primary"
             disabled={
               loading ||
-              saving
+              saving ||
+              !available
             }
             onClick={
               () =>
@@ -327,7 +351,9 @@ export default function ExamRegistrationCard({
                 ? 'Проверяю запись…'
                 : saving
                   ? 'Записываю…'
-                  : 'Хочу пройти экзамен'
+                  : !available
+                    ? 'Экзамен пока не открыт'
+                    : 'Хочу пройти экзамен'
             }
           </button>
         )}

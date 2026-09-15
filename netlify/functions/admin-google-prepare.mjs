@@ -56,10 +56,52 @@ const CLASS_FORMULA_PROFILES = Object.freeze({
 });
 
 
+function normalizeCharacterServiceUrl(
+  raw
+) {
+  const value =
+    String(
+      raw || ''
+    ).trim();
+
+  if (!value) {
+    return '';
+  }
+
+  try {
+    const url =
+      new URL(
+        value
+      );
+
+    if (
+      /\/dev\/?$/i.test(
+        url.pathname
+      )
+    ) {
+      url.pathname =
+        url.pathname.replace(
+          /\/dev\/?$/i,
+          '/exec'
+        );
+    }
+
+    return url.toString();
+
+  } catch {
+    return value.replace(
+      /\/dev\/?$/i,
+      '/exec'
+    );
+  }
+}
+
+
 function loadCharacterServiceUrl() {
-  const value = String(
-    process.env.CHARACTER_SERVICE_URL || ''
-  ).trim();
+  const value =
+    normalizeCharacterServiceUrl(
+      process.env.CHARACTER_SERVICE_URL
+    );
 
   if (!value) {
     throw new Error(
@@ -536,6 +578,20 @@ async function fetchServiceJson(
 
 
     if (!response.ok) {
+      const looksLikeHtml =
+        /^\s*</.test(
+          text
+        );
+
+      if (
+        response.status === 404 &&
+        looksLikeHtml
+      ) {
+        throw new Error(
+          `${label}: CHARACTER_SERVICE_URL недоступен (HTTP 404). Проверьте Netlify → Environment variables → CHARACTER_SERVICE_URL: нужен текущий Apps Script Web App URL, оканчивающийся на /exec.`
+        );
+      }
+
       throw new Error(
         `${label}: HTTP ${response.status}${
           text

@@ -1825,6 +1825,13 @@ export default function AdminEvents() {
 
 
   const [
+    creatingExam,
+    setCreatingExam,
+  ] =
+    useState(false);
+
+
+  const [
     eventFilter,
     setEventFilter,
   ] =
@@ -1976,6 +1983,11 @@ export default function AdminEvents() {
     );
 
 
+  const formExam =
+    creatingExam ||
+    editingExam;
+
+
   const selectedRank =
     getKnightRank(
       requiredKnightRank
@@ -2106,6 +2118,10 @@ export default function AdminEvents() {
         null
       );
 
+      setCreatingExam(
+        false
+      );
+
       resetForm();
     };
 
@@ -2116,6 +2132,56 @@ export default function AdminEvents() {
 
       setEditingEvent(
         null
+      );
+
+      setCreatingExam(
+        false
+      );
+
+      setFormOpen(
+        true
+      );
+    };
+
+
+  const beginCreateExam =
+    () => {
+      resetForm();
+
+      setEditingEvent(
+        null
+      );
+
+      setCreatingExam(
+        true
+      );
+
+      setTitle(
+        'Экзамен в рыцари-чародеи'
+      );
+
+      setDescription(
+        'Вступительный экзамен для кандидатов без рыцарского звания. Участие доступно только персонажам 0 уровня.'
+      );
+
+      setLocation(
+        'Экзаменационный полигон'
+      );
+
+      setDifficultyLevel(
+        '0'
+      );
+
+      setRequiredKnightRank(
+        'Нулевой карьерный ранг'
+      );
+
+      setExperienceReward(
+        '20'
+      );
+
+      setPointsReward(
+        '5'
       );
 
       setFormOpen(
@@ -2129,6 +2195,10 @@ export default function AdminEvents() {
       event:
         EventData
     ) => {
+      setCreatingExam(
+        false
+      );
+
       setEditingEvent(
         event
       );
@@ -2333,7 +2403,7 @@ export default function AdminEvents() {
 
 
       if (
-        !editingExam &&
+        !formExam &&
         !requiredKnightRank
       ) {
         window.alert(
@@ -2345,7 +2415,7 @@ export default function AdminEvents() {
 
 
       const level =
-        editingExam
+        formExam
           ? 0
           : Math.max(
               1,
@@ -2360,7 +2430,7 @@ export default function AdminEvents() {
 
 
       const effectiveRank =
-        editingExam
+        formExam
           ? (
               editingEvent
                 ?.difficulty
@@ -2493,6 +2563,11 @@ export default function AdminEvents() {
 
                   materialRewards:
                     cleanMaterials,
+
+                  eventKind:
+                    formExam
+                      ? 'knight-exam'
+                      : 'standard',
 
                   ...(!editingEvent
                     ? {
@@ -3091,19 +3166,48 @@ export default function AdminEvents() {
           </p>
         </div>
 
-        <button
-          type="button"
-          className="admin-button admin-button-primary"
-          onClick={
-            formOpen
-              ? closeForm
-              : beginCreateEvent
-          }
+        <div
+          style={{
+            display: 'flex',
+            gap: 10,
+            flexWrap: 'wrap',
+            justifyContent: 'flex-end',
+          }}
         >
-          {formOpen
-            ? 'Закрыть форму'
-            : '+ Создать ивент'}
-        </button>
+          {formOpen ? (
+            <button
+              type="button"
+              className="admin-button"
+              onClick={
+                closeForm
+              }
+            >
+              Закрыть форму
+            </button>
+          ) : (
+            <>
+              <button
+                type="button"
+                className="admin-button admin-button-primary"
+                onClick={
+                  beginCreateEvent
+                }
+              >
+                + Создать ивент
+              </button>
+
+              <button
+                type="button"
+                className="admin-button"
+                onClick={
+                  beginCreateExam
+                }
+              >
+                ✦ Создать экзамен
+              </button>
+            </>
+          )}
+        </div>
       </div>
 
 
@@ -3123,13 +3227,21 @@ export default function AdminEvents() {
                         ? 'РЕДАКТИРОВАНИЕ ЭКЗАМЕНА'
                         : 'РЕДАКТИРОВАНИЕ ИВЕНТА'
                     )
-                  : 'НОВЫЙ ИВЕНТ'}
+                  : (
+                      creatingExam
+                        ? 'НОВЫЙ ЭКЗАМЕН'
+                        : 'НОВЫЙ ИВЕНТ'
+                    )}
               </span>
 
               <h3>
                 {editingEvent
                   ? `Изменить «${editingEvent.title}»`
-                  : 'Основные данные'}
+                  : (
+                      creatingExam
+                        ? 'Экзамен в рыцари-чародеи'
+                        : 'Основные данные'
+                    )}
               </h3>
             </div>
 
@@ -3148,7 +3260,7 @@ export default function AdminEvents() {
           </div>
 
 
-          {editingExam ? (
+          {formExam ? (
             <div className="admin-event-rank-preview">
               <span>
                 Экзаменационный шаблон
@@ -3233,7 +3345,7 @@ export default function AdminEvents() {
               <input
                 type="number"
                 min={
-                  editingExam
+                  formExam
                     ? 0
                     : 1
                 }
@@ -3242,7 +3354,7 @@ export default function AdminEvents() {
                   difficultyLevel
                 }
                 disabled={
-                  editingExam
+                  formExam
                 }
                 onChange={
                   event =>
@@ -3304,7 +3416,7 @@ export default function AdminEvents() {
                   requiredKnightRank
                 }
                 disabled={
-                  editingExam
+                  formExam
                 }
                 onChange={
                   event =>

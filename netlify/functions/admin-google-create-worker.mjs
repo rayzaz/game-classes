@@ -97,12 +97,55 @@ function loadRequiredEnv(
 }
 
 
+function normalizeCharacterServiceUrl(
+  raw
+) {
+  const value =
+    cleanText(
+      raw
+    );
+
+  if (!value) {
+    return '';
+  }
+
+  try {
+    const url =
+      new URL(
+        value
+      );
+
+    if (
+      /\/dev\/?$/i.test(
+        url.pathname
+      )
+    ) {
+      url.pathname =
+        url.pathname.replace(
+          /\/dev\/?$/i,
+          '/exec'
+        );
+    }
+
+    return url.toString();
+
+  } catch {
+    return value.replace(
+      /\/dev\/?$/i,
+      '/exec'
+    );
+  }
+}
+
+
 async function postCreateToGoogle(
   plan
 ) {
   const serviceUrl =
-    loadRequiredEnv(
-      'CHARACTER_SERVICE_URL'
+    normalizeCharacterServiceUrl(
+      loadRequiredEnv(
+        'CHARACTER_SERVICE_URL'
+      )
     );
 
   const writeSecret =
@@ -159,6 +202,17 @@ async function postCreateToGoogle(
 
     const text =
       await response.text();
+
+    if (
+      response.status === 404 &&
+      /^\s*</.test(
+        text
+      )
+    ) {
+      throw new Error(
+        'CHARACTER_SERVICE_URL недоступен (HTTP 404). В Netlify нужен текущий Apps Script Web App URL, оканчивающийся на /exec.'
+      );
+    }
 
     let data;
 

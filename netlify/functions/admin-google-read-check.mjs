@@ -8,10 +8,52 @@ const REQUEST_TIMEOUT_MS =
   55_000;
 
 
+function normalizeCharacterServiceUrl(
+  raw
+) {
+  const value =
+    String(
+      raw || ''
+    ).trim();
+
+  if (!value) {
+    return '';
+  }
+
+  try {
+    const url =
+      new URL(
+        value
+      );
+
+    if (
+      /\/dev\/?$/i.test(
+        url.pathname
+      )
+    ) {
+      url.pathname =
+        url.pathname.replace(
+          /\/dev\/?$/i,
+          '/exec'
+        );
+    }
+
+    return url.toString();
+
+  } catch {
+    return value.replace(
+      /\/dev\/?$/i,
+      '/exec'
+    );
+  }
+}
+
+
 function loadCharacterServiceUrl() {
-  const raw = String(
-    process.env.CHARACTER_SERVICE_URL || ''
-  ).trim();
+  const raw =
+    normalizeCharacterServiceUrl(
+      process.env.CHARACTER_SERVICE_URL
+    );
 
   if (!raw) {
     throw new Error(
@@ -157,6 +199,11 @@ async function fetchServiceJson(
         .text()
         .catch(() => '');
 
+      const looksLikeHtml =
+        /^\s*</.test(
+          text
+        );
+
       return {
         ok: false,
         responseMs,
@@ -164,11 +211,14 @@ async function fetchServiceJson(
           response.status,
         data: null,
         error:
-          `HTTP ${response.status}${
-            text
-              ? ` — ${text.slice(0, 220)}`
-              : ''
-          }`,
+          response.status === 404 &&
+          looksLikeHtml
+            ? 'CHARACTER_SERVICE_URL недоступен (HTTP 404). В Netlify нужен текущий Apps Script Web App URL, оканчивающийся на /exec.'
+            : `HTTP ${response.status}${
+                text
+                  ? ` — ${text.slice(0, 220)}`
+                  : ''
+              }`,
       };
     }
 

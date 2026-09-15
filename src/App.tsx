@@ -1,4 +1,4 @@
-﻿import React, {
+import React, {
   useEffect,
   useMemo,
   useState,
@@ -38,7 +38,7 @@ import './account.css';
 
 
 /* =========================
-   Р РћР›Р РљР›РђРЎРЎРћР’
+   РОЛИ КЛАССОВ
    ========================= */
 
 function splitRoles(
@@ -54,7 +54,7 @@ function splitRoles(
 
   const s =
     raw.replace(
-      /[вЂ”вЂ“]/g,
+      /[—–]/g,
       '-'
     );
 
@@ -62,7 +62,7 @@ function splitRoles(
   const parts =
     s
       .split(
-        /(?:\s+|-|,|\/|;|(?:\sРё\s))/i
+        /(?:\s+|-|,|\/|;|(?:\sи\s))/i
       )
       .map(
         value =>
@@ -153,11 +153,11 @@ function splitRoles(
           item.toLowerCase()
       )
       .includes(
-        'РіРёР±СЂРёРґ'
+        'гибрид'
       )
   ) {
     out.push(
-      'Р“РёР±СЂРёРґ'
+      'Гибрид'
     );
   }
 
@@ -167,7 +167,7 @@ function splitRoles(
 
 
 /* =========================
-   РЎР›РћР–РќРћРЎРўР¬
+   СЛОЖНОСТЬ
    ========================= */
 
 function splitComplexity(
@@ -189,10 +189,10 @@ function splitComplexity(
         x ===
           '1' ||
         x.startsWith(
-          'РЅРёР·Рє'
+          'низк'
         )
       ) {
-        return 'РЅРёР·РєР°СЏ';
+        return 'низкая';
       }
 
 
@@ -200,10 +200,10 @@ function splitComplexity(
         x ===
           '2' ||
         x.startsWith(
-          'СЃСЂРµРґРЅ'
+          'средн'
         )
       ) {
-        return 'СЃСЂРµРґРЅСЏСЏ';
+        return 'средняя';
       }
 
 
@@ -211,10 +211,10 @@ function splitComplexity(
         x ===
           '3' ||
         x.startsWith(
-          'РІС‹СЃРѕ'
+          'высо'
         )
       ) {
-        return 'РІС‹СЃРѕРєР°СЏ';
+        return 'высокая';
       }
 
 
@@ -229,11 +229,11 @@ function splitComplexity(
     ) =>
       value
         .replace(
-          /[вЂ”вЂ“]/g,
+          /[—–]/g,
           '-'
         )
         .split(
-          /(?:\s+|-|,|\/|;|(?:\sРё\s))/i
+          /(?:\s+|-|,|\/|;|(?:\sи\s))/i
         )
         .map(
           token =>
@@ -309,7 +309,7 @@ function splitComplexity(
 
 
 /* =========================
-   РЎРўР РђРќРР¦Рђ
+   СТРАНИЦА
    ========================= */
 
 type AppPage =
@@ -379,7 +379,7 @@ function readPortalNavigation(): PortalNavigationSnapshot {
       };
     }
   } catch {
-    // РќРµРєСЂРёС‚РёС‡РЅРѕ: РїСЂРѕСЃС‚Рѕ РёСЃРїРѕР»СЊР·СѓРµРј СЃРѕС…СЂР°РЅС‘РЅРЅСѓСЋ РЅР°РІРёРіР°С†РёСЋ.
+    // Некритично: просто используем сохранённую навигацию.
   }
 
   try {
@@ -440,7 +440,7 @@ function writePortalNavigation(
       JSON.stringify(snapshot)
     );
   } catch {
-    // РќР°РІРёРіР°С†РёСЏ РЅРµ РґРѕР»Р¶РЅР° Р»РѕРјР°С‚СЊ РїСЂРёР»РѕР¶РµРЅРёРµ, РµСЃР»Рё storage РЅРµРґРѕСЃС‚СѓРїРµРЅ.
+    // Навигация не должна ломать приложение, если storage недоступен.
   }
 }
 
@@ -470,7 +470,7 @@ function rememberPlayerCabinetView(
       view
     );
   } catch {
-    // РќРµ РєСЂРёС‚РёС‡РЅРѕ.
+    // Не критично.
   }
 }
 
@@ -531,7 +531,7 @@ type SessionResponse = {
 export default function App() {
 
   /* =========================
-     РўР•РњРђ
+     ТЕМА
      ========================= */
 
   const [
@@ -687,7 +687,7 @@ export default function App() {
 
 
   /* =========================
-     РџРћР РўРђР›
+     ПОРТАЛ
      ========================= */
 
   const [
@@ -700,7 +700,7 @@ export default function App() {
 
 
   /* =========================
-     РЎРўР РђРќРР¦Рђ
+     СТРАНИЦА
      ========================= */
 
   const [
@@ -774,7 +774,7 @@ export default function App() {
 
 
   /* =========================
-     Р’РћРЎРЎРўРђРќРћР’Р›Р•РќРР• РЎР•РЎРЎРР
+     ВОССТАНОВЛЕНИЕ СЕССИИ
      ========================= */
 
   useEffect(
@@ -904,7 +904,7 @@ export default function App() {
 
 
   /* =========================
-     РќРђР’РР“РђР¦РРЇ
+     НАВИГАЦИЯ
      ========================= */
 
   const goHome =
@@ -943,9 +943,9 @@ export default function App() {
     async () => {
       try {
         /*
-          РЈР±РёСЂР°РµРј РїСЂРёРІСЏР·РєСѓ РёРјРµРЅРЅРѕ СЌС‚РѕРіРѕ СѓСЃС‚СЂРѕР№СЃС‚РІР° Р”Рћ СѓРґР°Р»РµРЅРёСЏ
-          cookie-СЃРµСЃСЃРёРё. РРЅР°С‡Рµ РѕР±С‰РёР№ С‚РµР»РµС„РѕРЅ/РџРљ РїРѕСЃР»Рµ РІС‹С…РѕРґР° РјРѕРі Р±С‹
-          РїСЂРѕРґРѕР»Р¶Р°С‚СЊ РїРѕР»СѓС‡Р°С‚СЊ СѓРІРµРґРѕРјР»РµРЅРёСЏ РїСЂРµР¶РЅРµРіРѕ РёРіСЂРѕРєР°.
+          Убираем привязку именно этого устройства ДО удаления
+          cookie-сессии. Иначе общий телефон/ПК после выхода мог бы
+          продолжать получать уведомления прежнего игрока.
         */
         try {
           if (isNativeAndroidApp()) {
@@ -1004,7 +1004,7 @@ export default function App() {
             PORTAL_NAVIGATION_STORAGE_KEY
           );
         } catch {
-          // РќРµ РєСЂРёС‚РёС‡РЅРѕ.
+          // Не критично.
         }
 
 
@@ -1016,7 +1016,7 @@ export default function App() {
 
 
   /* =========================
-     Р РћР›Р Р”Р›РЇ Р¤РР›Р¬РўР Рђ
+     РОЛИ ДЛЯ ФИЛЬТРА
      ========================= */
 
   const ALL =
@@ -1049,11 +1049,11 @@ export default function App() {
                   value.toLowerCase()
               )
               .includes(
-                'РіРёР±СЂРёРґ'
+                'гибрид'
               )
           ) {
             tokens.push(
-              'Р“РёР±СЂРёРґ'
+              'Гибрид'
             );
           }
 
@@ -1089,9 +1089,9 @@ export default function App() {
 
 
   const COMPLEXITIES = [
-    'РЅРёР·РєР°СЏ',
-    'СЃСЂРµРґРЅСЏСЏ',
-    'РІС‹СЃРѕРєР°СЏ',
+    'низкая',
+    'средняя',
+    'высокая',
   ];
 
 
@@ -1204,7 +1204,7 @@ export default function App() {
 
 
   /* =========================
-     Р¤РР›Р¬РўР РђР¦РРЇ
+     ФИЛЬТРАЦИЯ
      ========================= */
 
   const {
@@ -1251,7 +1251,7 @@ export default function App() {
               2
             ) {
               roleSet.add(
-                'РіРёР±СЂРёРґ'
+                'гибрид'
               );
             }
 
@@ -1396,10 +1396,10 @@ export default function App() {
       >
         <div style={{ textAlign: 'center' }}>
           <strong style={{ fontSize: '20px' }}>
-            Р’РѕСЃСЃС‚Р°РЅР°РІР»РёРІР°РµРј СЂР°Р·РґРµР»вЂ¦
+            Восстанавливаем раздел…
           </strong>
           <div style={{ marginTop: '8px', opacity: 0.7 }}>
-            РџСЂРѕРІРµСЂСЏРµРј Р°РєС‚РёРІРЅСѓСЋ СЃРµСЃСЃРёСЋ
+            Проверяем активную сессию
           </div>
         </div>
       </main>
@@ -1408,7 +1408,7 @@ export default function App() {
 
 
   /* =========================
-     РђР”РњРРќ РћРўРљР Р«Р› РџР•Р РЎРћРќРђР–Рђ
+     АДМИН ОТКРЫЛ ПЕРСОНАЖА
      ========================= */
 
   if (
@@ -1450,7 +1450,7 @@ export default function App() {
 
 
   /* =========================
-     РђР”РњРРќ-Р¦Р•РќРўР 
+     АДМИН-ЦЕНТР
      ========================= */
 
   if (
@@ -1488,7 +1488,7 @@ export default function App() {
 
 
   /* =========================
-     Р¦Р•РќРўР  РР’Р•РќРўР•Р Рђ
+     ЦЕНТР ИВЕНТЕРА
      ========================= */
 
   if (
@@ -1533,7 +1533,7 @@ export default function App() {
 
 
   /* =========================
-     Р Р•Р™РўРРќР“ РџР•Р РЎРћРќРђР–Р•Р™
+     РЕЙТИНГ ПЕРСОНАЖЕЙ
      ========================= */
 
   if (
@@ -1555,7 +1555,7 @@ export default function App() {
 
 
   /* =========================
-     РљРђРўРђР›РћР“ РќРџРЎ
+     КАТАЛОГ НПС
      ========================= */
 
   if (
@@ -1574,7 +1574,7 @@ export default function App() {
 
 
   /* =========================
-     Р›РР§РќР«Р™ РљРђР‘РРќР•Рў РР“Р РћРљРђ
+     ЛИЧНЫЙ КАБИНЕТ ИГРОКА
      ========================= */
 
   if (
@@ -1620,7 +1620,7 @@ export default function App() {
 
 
   /* =========================
-     Р“Р›РђР’РќРђРЇ РџРћР РўРђР›Рђ
+     ГЛАВНАЯ ПОРТАЛА
      ========================= */
 
   if (
@@ -1806,7 +1806,7 @@ export default function App() {
 
 
   /* =========================
-     РљРђРўРђР›РћР“
+     КАТАЛОГ
      ========================= */
 
   const hasCatalogFilters =
@@ -1831,7 +1831,7 @@ export default function App() {
             className="class-catalog-back"
             onClick={goHome}
           >
-            в†ђ Р“Р»Р°РІРЅР°СЏ
+            ← Главная
           </button>
 
           <WorldCalendarBadge />
@@ -1839,9 +1839,9 @@ export default function App() {
 
         <section className="class-catalog-heading">
           <div className="class-catalog-heading-main">
-            <h1>РљР°С‚Р°Р»РѕРі РєР»Р°СЃСЃРѕРІ</h1>
+            <h1>Каталог классов</h1>
             <span className="class-catalog-count">
-              {list.length} РёР· {total}
+              {list.length} из {total}
             </span>
           </div>
 
@@ -1851,14 +1851,14 @@ export default function App() {
               className="class-catalog-picker-button"
               onClick={() => setCatalogPickerOpen(true)}
             >
-              РџРѕРґР±РѕСЂ
+              Подбор
               {activeCatalogFilters ? <b>{activeCatalogFilters}</b> : null}
             </button>
           </div>
         </section>
 
         {hasCatalogFilters ? (
-          <div className="class-catalog-active-filters" aria-label="РђРєС‚РёРІРЅС‹Рµ С„РёР»СЊС‚СЂС‹">
+          <div className="class-catalog-active-filters" aria-label="Активные фильтры">
             {Array.from(selCx).map(value => (
               <button
                 key={`cx-${value}`}
@@ -1867,7 +1867,7 @@ export default function App() {
                 onClick={() => toggleSet(setSelCx, value)}
               >
                 {value.charAt(0).toUpperCase() + value.slice(1)}
-                <b aria-hidden="true">Г—</b>
+                <b aria-hidden="true">×</b>
               </button>
             ))}
 
@@ -1879,7 +1879,7 @@ export default function App() {
                 onClick={() => toggleSet(setSelRoles, value)}
               >
                 {value.charAt(0).toUpperCase() + value.slice(1)}
-                <b aria-hidden="true">Г—</b>
+                <b aria-hidden="true">×</b>
               </button>
             ))}
 
@@ -1892,12 +1892,12 @@ export default function App() {
                 setSelCx(new Set());
               }}
             >
-              РЎР±СЂРѕСЃРёС‚СЊ
+              Сбросить
             </button>
           </div>
         ) : null}
 
-        <section className="class-catalog-grid" aria-label="РљР»Р°СЃСЃС‹">
+        <section className="class-catalog-grid" aria-label="Классы">
           {list.length ? (
             list.map((item: any) => (
               <ClassCard
@@ -1907,7 +1907,7 @@ export default function App() {
             ))
           ) : (
             <div className="class-catalog-empty">
-              РќРёС‡РµРіРѕ РЅРµ РЅР°Р№РґРµРЅРѕ. РР·РјРµРЅРё РїР°СЂР°РјРµС‚СЂС‹ РїРѕРґР±РѕСЂР°.
+              Ничего не найдено. Измени параметры подбора.
             </div>
           )}
         </section>
@@ -1928,25 +1928,25 @@ export default function App() {
                 className="class-catalog-picker-modal"
                 role="dialog"
                 aria-modal="true"
-                aria-label="РџРѕРґР±РѕСЂ РєР»Р°СЃСЃР°"
+                aria-label="Подбор класса"
               >
                 <button
                   type="button"
                   className="class-catalog-picker-close"
                   onClick={() => setCatalogPickerOpen(false)}
-                  aria-label="Р—Р°РєСЂС‹С‚СЊ РїРѕРґР±РѕСЂ"
+                  aria-label="Закрыть подбор"
                 >
-                  Г—
+                  ×
                 </button>
 
                 <header className="class-catalog-picker-head">
-                  <span>Р¤РёР»СЊС‚СЂС‹</span>
-                  <h2>РџРѕРґР±РѕСЂ РєР»Р°СЃСЃР°</h2>
+                  <span>Фильтры</span>
+                  <h2>Подбор класса</h2>
                 </header>
 
                 <div className="class-catalog-picker-sections">
                   <section className="class-catalog-picker-group">
-                    <h3>РЎР»РѕР¶РЅРѕСЃС‚СЊ</h3>
+                    <h3>Сложность</h3>
                     <div className="class-catalog-picker-chips">
                       {COMPLEXITIES.map(complexity => {
                         const key = complexity.toLowerCase();
@@ -1967,7 +1967,7 @@ export default function App() {
                   </section>
 
                   <section className="class-catalog-picker-group">
-                    <h3>Р РѕР»СЊ РІ РіСЂСѓРїРїРµ</h3>
+                    <h3>Роль в группе</h3>
                     <div className="class-catalog-picker-chips">
                       {ALL.map(role => {
                         const key = role.toLowerCase();
@@ -1999,7 +1999,7 @@ export default function App() {
                         setSelCx(new Set());
                       }}
                     >
-                      РЎР±СЂРѕСЃРёС‚СЊ
+                      Сбросить
                     </button>
                   ) : <span />}
 
@@ -2008,7 +2008,7 @@ export default function App() {
                     className="class-catalog-picker-apply"
                     onClick={() => setCatalogPickerOpen(false)}
                   >
-                    РџРѕРєР°Р·Р°С‚СЊ {list.length}
+                    Показать {list.length}
                   </button>
                 </footer>
               </section>
@@ -2018,7 +2018,7 @@ export default function App() {
         : null}
 
       {/* =========================
-          РџРћР РўРђР›
+          ПОРТАЛ
           ========================= */}
 
       <Portal

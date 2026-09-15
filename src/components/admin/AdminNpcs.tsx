@@ -1169,7 +1169,7 @@ export default function AdminNpcs() {
           <p>Проверка заполненности, редактирование листа «НПС» и связи с НПС и персонажами игроков.</p>
         </div>
         <div className="admin-npc-head-actions">
-          <button type="button" className="admin-button" onClick={() => setLegacyImportOpen(true)}>⇩ Импорт из старой базы</button>
+
           <button type="button" className="admin-button" onClick={() => setKinshipOpen(true)}>✦ Автоматизация родства</button>
           <button type="button" className="admin-button admin-button-primary" onClick={() => setCreating(true)}>＋ Новый НПС</button>
           <button type="button" className="admin-button" onClick={() => void load()} disabled={loading}>↻ Обновить</button>
