@@ -4,28 +4,15 @@ import {
 
 import {
   json,
-  loadUsers,
-  normalizeLogin,
   readSession,
 } from './_shared/_auth.mjs';
 
-import {
-  tryWriteAdminLog,
-} from './_shared/_admin-log.mjs';
-
-import {
-  provisionPortalAccessForCharacter,
-} from './_shared/_portal-users.mjs';
-
-
-const QUESTIONNAIRE_STORE =
-  'gosmag-questionnaires';
 
 const PLAN_STORE =
   'gosmag-google-create-plans';
 
-const REQUEST_TIMEOUT_MS =
-  55_000;
+const CREATE_JOB_STORE =
+  'gosmag-google-create-jobs';
 
 
 function cleanText(
@@ -43,190 +30,88 @@ function cleanText(
 }
 
 
-function getAdminName(
-  session
+function workerUrlForRequest(
+  request
 ) {
-  try {
-    const users =
-      loadUsers();
-
-    const admin =
-      users.find(
-        user =>
-          normalizeLogin(
-            user?.login
-          ) ===
-          normalizeLogin(
-            session?.sub
-          )
-      );
-
-    return String(
-      admin?.displayName ||
-      session?.sub ||
-      'Администратор'
-    );
-
-  } catch {
-    return String(
-      session?.sub ||
-      'Администратор'
-    );
-  }
+  return new URL(
+    '/.netlify/functions/admin-google-create-worker',
+    request.url
+  );
 }
 
 
-function loadRequiredEnv(
-  name
+async function setJob(
+  fingerprint,
+  value
 ) {
-  const value =
-    cleanText(
-      process.env[name]
-    );
+  const store =
+    getStore({
+      name:
+        CREATE_JOB_STORE,
 
-  if (!value) {
-    throw new Error(
-      `Не задан ${name}`
-    );
-  }
+      consistency:
+        'strong',
+    });
 
-  return value;
+  await store.setJSON(
+    `jobs/${fingerprint}`,
+    {
+      fingerprint,
+      ...value,
+      updatedAt:
+        new Date().toISOString(),
+    }
+  );
 }
 
 
-async function postCreateToGoogle(
-  plan
+async function getJob(
+  fingerprint
 ) {
-  const serviceUrl =
-    loadRequiredEnv(
-      'CHARACTER_SERVICE_URL'
-    );
+  const store =
+    getStore({
+      name:
+        CREATE_JOB_STORE,
 
-  const writeSecret =
-    loadRequiredEnv(
-      'CHARACTER_WRITE_SECRET'
-    );
+      consistency:
+        'strong',
+    });
 
-  const controller =
-    new AbortController();
+  return await store.get(
+    `jobs/${fingerprint}`,
+    {
+      type:
+        'json',
 
-  const timer =
-    setTimeout(
-      () =>
-        controller.abort(),
-      REQUEST_TIMEOUT_MS
-    );
-
-  try {
-    const response =
-      await fetch(
-        serviceUrl,
-        {
-          method:
-            'POST',
-
-          headers: {
-            accept:
-              'application/json',
-
-            'content-type':
-              'application/json',
-          },
-
-          cache:
-            'no-store',
-
-          redirect:
-            'follow',
-
-          signal:
-            controller.signal,
-
-          body:
-            JSON.stringify({
-              action:
-                'create-candidate',
-
-              writeSecret,
-
-              plan,
-            }),
-        }
-      );
-
-    const text =
-      await response.text();
-
-    let data;
-
-    try {
-      data =
-        JSON.parse(
-          text
-        );
-    } catch {
-      throw new Error(
-        `Google-сервис вернул не JSON: ${
-          text.slice(
-            0,
-            400
-          ) ||
-          'пустой ответ'
-        }`
-      );
+      consistency:
+        'strong',
     }
+  );
+}
 
-    if (
-      !response.ok ||
-      data?.ok !== true
-    ) {
-      throw new Error(
-        cleanText(
-          data?.error ||
-          `Google-сервис завершился с HTTP ${response.status}`
-        )
-      );
+
+async function getPlan(
+  fingerprint
+) {
+  const store =
+    getStore({
+      name:
+        PLAN_STORE,
+
+      consistency:
+        'strong',
+    });
+
+  return await store.get(
+    `plans/${fingerprint}`,
+    {
+      type:
+        'json',
+
+      consistency:
+        'strong',
     }
-
-    return data;
-
-  } catch (
-    error
-  ) {
-    if (
-      error &&
-      typeof error ===
-        'object' &&
-      error.name ===
-        'AbortError'
-    ) {
-      throw new Error(
-        `Создание кандидата превысило время ожидания ${REQUEST_TIMEOUT_MS} мс. Не нажимайте кнопку повторно, пока не проверите лист САЙТ и журнал создания.`
-      );
-    }
-
-    if (
-      cleanText(
-        plan?.templateMode
-      ) === 'generic'
-    ) {
-      const detail =
-        error instanceof Error
-          ? error.message
-          : cleanText(error) || 'Google-сервис отклонил создание кандидата';
-
-      throw new Error(
-        `${detail} Использован универсальный технический шаблон другого класса. Если опубликованный Google Apps Script всё ещё проверяет класс шаблона по E38 до копирования, обновите обработчик create-candidate по инструкции GOOGLE_APPS_SCRIPT_CLASS_TEMPLATE_PATCH.md.`
-      );
-    }
-
-    throw error;
-
-  } finally {
-    clearTimeout(
-      timer
-    );
-  }
+  );
 }
 
 
@@ -240,7 +125,6 @@ export default async function (
     return json(
       {
         ok: false,
-
         error:
           'Метод не поддерживается',
       },
@@ -258,7 +142,6 @@ export default async function (
       return json(
         {
           ok: false,
-
           error:
             'Сначала войдите в систему',
         },
@@ -273,7 +156,6 @@ export default async function (
       return json(
         {
           ok: false,
-
           error:
             'Недостаточно прав',
         },
@@ -295,15 +177,13 @@ export default async function (
       );
 
     if (
-      !/^[a-f0-9]{24}$/i
-        .test(
-          fingerprint
-        )
+      !/^[a-f0-9]{24}$/i.test(
+        fingerprint
+      )
     ) {
       return json(
         {
           ok: false,
-
           error:
             'Некорректный отпечаток подготовленного плана',
         },
@@ -311,34 +191,21 @@ export default async function (
       );
     }
 
-    const planStore =
-      getStore({
-        name:
-          PLAN_STORE,
-
-        consistency:
-          'strong',
-      });
-
+    /*
+      Проверяем, что prepare-план действительно существует.
+      Сам worker повторит все write-side проверки ещё раз.
+    */
     const plan =
-      await planStore.get(
-        `plans/${fingerprint}`,
-        {
-          type:
-            'json',
-
-          consistency:
-            'strong',
-        }
+      await getPlan(
+        fingerprint
       );
 
     if (!plan) {
       return json(
         {
           ok: false,
-
           error:
-            'Подготовленный план не найден. Нажмите «Проверить готовность к записи» ещё раз.',
+            'Подготовленный план не найден. Нажмите «Проверить готовность» ещё раз.',
         },
         404
       );
@@ -346,24 +213,11 @@ export default async function (
 
     if (
       cleanText(
-        plan.fingerprint
+        plan?.fingerprint
       ) !==
-      fingerprint
-    ) {
-      return json(
-        {
-          ok: false,
-
-          error:
-            'Отпечаток плана не совпадает',
-        },
-        409
-      );
-    }
-
-    if (
+      fingerprint ||
       cleanText(
-        plan.mode
+        plan?.mode
       ) !==
       'candidate'
     ) {
@@ -371,7 +225,7 @@ export default async function (
         {
           ok: false,
           error:
-            'Этот план относится к старой схеме создания персонажа. Нажмите «Проверить готовность» заново.',
+            'Подготовленный план не соответствует текущей схеме создания кандидата.',
         },
         409
       );
@@ -380,7 +234,7 @@ export default async function (
     const expiresAt =
       Date.parse(
         cleanText(
-          plan.expiresAt
+          plan?.expiresAt
         )
       );
 
@@ -391,14 +245,9 @@ export default async function (
       Date.now() >
         expiresAt
     ) {
-      await planStore.delete(
-        `plans/${fingerprint}`
-      );
-
       return json(
         {
           ok: false,
-
           error:
             'Подготовленный план устарел. Выполните серверную проверку заново.',
         },
@@ -406,363 +255,228 @@ export default async function (
       );
     }
 
-    const questionnaireKey =
-      cleanText(
-        plan.questionnaireKey
+    /*
+      Защита от двойного клика / повторной отправки.
+      jobId намеренно равен fingerprint — worker уже использует этот ключ.
+    */
+    const existing =
+      await getJob(
+        fingerprint
       );
 
-    const questionnaireStore =
-      getStore({
-        name:
-          QUESTIONNAIRE_STORE,
-
-        consistency:
-          'strong',
+    if (
+      existing?.status ===
+        'queued' ||
+      existing?.status ===
+        'running' ||
+      existing?.status ===
+        'success'
+    ) {
+      return json({
+        ok: true,
+        jobId:
+          fingerprint,
+        status:
+          existing.status,
+        message:
+          existing.status ===
+          'success'
+            ? 'Создание уже завершено. Загружаю результат.'
+            : 'Создание уже запущено. Продолжаю ждать результат.',
       });
-
-    const questionnaire =
-      await questionnaireStore.get(
-        questionnaireKey,
-        {
-          type:
-            'json',
-
-          consistency:
-            'strong',
-        }
-      );
-
-    if (!questionnaire) {
-      return json(
-        {
-          ok: false,
-
-          error:
-            'Анкета подготовленного плана больше не существует',
-        },
-        404
-      );
     }
 
+    /*
+      Ошибочный job не перезапускаем тем же кликом:
+      при частичной записи в Google автоматический retry опасен.
+    */
     if (
-      cleanText(
-        questionnaire.status
-      ) !==
-      'approved'
+      existing?.status ===
+      'error'
     ) {
       return json(
         {
           ok: false,
-
           error:
-            'Анкета больше не имеет статус approved. Создание кандидата отменено.',
+            cleanText(
+              existing?.error
+            ) ||
+            'Предыдущая попытка завершилась ошибкой. Сначала проверьте статус анкеты и Google-таблицы, затем выполните «Проверить готовность» заново.',
         },
         409
       );
     }
 
-    const recordedCharacterId =
-      cleanText(
-        questionnaire
-          ?.characterCreation
-          ?.characterId
-      );
-
-    const recreatingMissingCandidate =
-      plan
-        ?.recreateMissingCandidate ===
-        true &&
-      recordedCharacterId ===
-        cleanText(
-          plan
-            ?.proposedCharacterId
-        );
-
-    if (
-      recordedCharacterId &&
-      !recreatingMissingCandidate
-    ) {
-      return json(
-        {
-          ok: false,
-
-          error:
-            `Из этой анкеты уже создан кандидат ${recordedCharacterId}.`,
-        },
-        409
-      );
-    }
-
-    if (
-      cleanText(
-        questionnaire.id
-      ) &&
-      cleanText(
-        plan.questionnaireId
-      ) &&
-      cleanText(
-        questionnaire.id
-      ) !==
-        cleanText(
-          plan.questionnaireId
-        )
-    ) {
-      return json(
-        {
-          ok: false,
-
-          error:
-            'Анкета изменилась после подготовки плана',
-        },
-        409
-      );
-    }
-
-    const googleResult =
-      await postCreateToGoogle(
-        plan
-      );
-
-    const createdAt =
+    const queuedAt =
       new Date()
         .toISOString();
 
-    let portalAccess =
-      null;
+    await setJob(
+      fingerprint,
+      {
+        status:
+          'queued',
+        queuedAt,
+        startedAt:
+          '',
+        finishedAt:
+          '',
+        result:
+          null,
+        error:
+          '',
+      }
+    );
 
-    const creationWarnings =
-      Array.isArray(
-        googleResult.warnings
-      )
-        ? [
-            ...googleResult.warnings,
-          ]
-        : [];
+    const headers = {
+      accept:
+        'application/json',
+
+      'content-type':
+        'application/json',
+    };
+
+    const cookie =
+      cleanText(
+        request.headers.get(
+          'cookie'
+        ),
+        12000
+      );
+
+    if (cookie) {
+      headers.cookie =
+        cookie;
+    }
+
+    const authorization =
+      cleanText(
+        request.headers.get(
+          'authorization'
+        ),
+        4000
+      );
+
+    if (authorization) {
+      headers.authorization =
+        authorization;
+    }
+
+    let workerResponse;
 
     try {
-      portalAccess =
-        await provisionPortalAccessForCharacter({
-          characterId:
-            cleanText(
-              googleResult
-                ?.created
-                ?.characterId
-            ),
-          displayName:
-            cleanText(
-              plan
-                ?.payload
-                ?.character
-                ?.name
-            ),
-          questionnaireId:
-            cleanText(
-              questionnaire.id
-            ),
-        });
-    } catch (accessError) {
-      const accessMessage =
-        accessError instanceof Error
-          ? accessError.message
-          : String(accessError);
+      workerResponse =
+        await fetch(
+          workerUrlForRequest(
+            request
+          ),
+          {
+            method:
+              'POST',
 
-      creationWarnings.push(
-        `Персонаж создан, но логин и пароль не удалось выдать автоматически: ${accessMessage}`
+            headers,
+
+            cache:
+              'no-store',
+
+            body:
+              JSON.stringify({
+                fingerprint,
+              }),
+          }
+        );
+    } catch (error) {
+      const message =
+        error instanceof Error
+          ? error.message
+          : String(error);
+
+      await setJob(
+        fingerprint,
+        {
+          status:
+            'error',
+          finishedAt:
+            new Date().toISOString(),
+          error:
+            `Не удалось запустить фоновую функцию: ${message}`,
+        }
+      );
+
+      throw error;
+    }
+
+    /*
+      Background Function обычно подтверждает запуск HTTP 202.
+      Допускаем любой 2xx, чтобы одинаково работать и в Netlify Dev.
+    */
+    if (
+      !workerResponse.ok
+    ) {
+      const text =
+        await workerResponse
+          .text()
+          .catch(
+            () => ''
+          );
+
+      const detail =
+        cleanText(
+          text,
+          500
+        );
+
+      await setJob(
+        fingerprint,
+        {
+          status:
+            'error',
+          finishedAt:
+            new Date().toISOString(),
+          error:
+            detail
+              ? `Фоновая функция не запустилась: HTTP ${workerResponse.status}: ${detail}`
+              : `Фоновая функция не запустилась: HTTP ${workerResponse.status}`,
+        }
+      );
+
+      return json(
+        {
+          ok: false,
+          error:
+            detail
+              ? `Не удалось запустить фоновое создание: ${detail}`
+              : `Не удалось запустить фоновое создание: HTTP ${workerResponse.status}`,
+        },
+        502
       );
     }
 
-    const updatedQuestionnaire = {
-      ...questionnaire,
-
-      characterCreation: {
-        status:
-          googleResult?.verification?.ok === true
-            ? 'candidate_created'
-            : 'candidate_created_pending_verification',
-
-        createdAt,
-
-        lifecycleStatus:
-          'candidate',
-
-        fingerprint,
-
-        characterId:
-          cleanText(
-            googleResult
-              ?.created
-              ?.characterId
-          ),
-
-        spreadsheetId:
-          cleanText(
-            googleResult
-              ?.created
-              ?.spreadsheetId
-          ),
-
-        spreadsheetUrl:
-          cleanText(
-            googleResult
-              ?.created
-              ?.spreadsheetUrl
-          ),
-
-        donorCharacterId:
-          cleanText(
-            plan.donorCharacterId
-          ),
-
-        templateMode:
-          cleanText(
-            plan.templateMode
-          ) || 'same-class',
-
-        targetClassId:
-          cleanText(
-            plan.targetClassId
-          ),
-
-        classFormulaProfile:
-          plan.classFormulaProfile ||
-          null,
-
-        mainRows:
-          googleResult
-            ?.created
-            ?.mainRows ||
-          null,
-
-        systemRows:
-          googleResult
-            ?.created
-            ?.systemRows ||
-          null,
-
-        registryRow:
-          googleResult
-            ?.created
-            ?.registryRow ||
-          null,
-
-        verification:
-          googleResult
-            ?.verification ||
-          null,
-
-        portalLogin:
-          cleanText(
-            portalAccess
-              ?.login
-          ),
-
-        portalAccessSource:
-          cleanText(
-            portalAccess
-              ?.source
-          ),
-      },
-
-      exam: {
-        status:
-          'pending',
-        passed:
-          false,
-        updatedAt:
-          createdAt,
-      },
-    };
-
-    await questionnaireStore.setJSON(
-      questionnaireKey,
-      updatedQuestionnaire
-    );
-
-    await planStore.delete(
-      `plans/${fingerprint}`
-    );
-
-    await tryWriteAdminLog({
-      adminLogin:
-        session.sub,
-
-      adminName:
-        getAdminName(
-          session
-        ),
-
-      action:
-        'CREATE_CANDIDATE_FROM_QUESTIONNAIRE',
-
-      targetType:
-        'character',
-
-      targetId:
-        cleanText(
-          googleResult
-            ?.created
-            ?.characterId
-        ),
-
-      targetName:
-        cleanText(
-          plan
-            ?.payload
-            ?.character
-            ?.name
-        ),
-
-      details:
-        `Создан кандидат из анкеты ${cleanText(
-          questionnaire.id
-        )}. Технический шаблон: ${cleanText(
-          plan.donorCharacterId
-        )}. Таблица: ${cleanText(
-          googleResult
-            ?.created
-            ?.spreadsheetId
-        )}.`,
-    });
-
     return json({
       ok: true,
-
-      created:
-        googleResult.created,
-
-      verification:
-        googleResult.verification,
-
-      warnings:
-        creationWarnings,
-
-      portalAccess,
-
-      questionnaireUpdated:
-        true,
-
-      lifecycleStatus:
-        'candidate',
+      jobId:
+        fingerprint,
+      status:
+        'queued',
+      message:
+        'Создание кандидата поставлено в очередь.',
     });
 
   } catch (
     error
   ) {
     console.error(
-      'admin-google-create:',
+      'admin-google-create start:',
       error
     );
 
     return json(
       {
         ok: false,
-
         error:
           error instanceof Error
             ? error.message
-            : String(
-                error
-              ),
+            : String(error),
       },
       500
     );
