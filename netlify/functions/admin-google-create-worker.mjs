@@ -262,20 +262,6 @@ async function postCreateToGoogle(
       );
     }
 
-    if (
-      cleanText(
-        plan?.templateMode
-      ) === 'generic'
-    ) {
-      const detail =
-        error instanceof Error
-          ? error.message
-          : cleanText(error) || 'Google-сервис отклонил создание кандидата';
-
-      throw new Error(
-        `${detail} Использован универсальный технический шаблон другого класса. Если опубликованный Google Apps Script всё ещё проверяет класс шаблона по E38 до копирования, обновите обработчик create-candidate по инструкции GOOGLE_APPS_SCRIPT_CLASS_TEMPLATE_PATCH.md.`
-      );
-    }
 
     throw error;
 
@@ -673,7 +659,7 @@ async function runCreateRequest(
         templateMode:
           cleanText(
             plan.templateMode
-          ) || 'same-class',
+          ) || 'class-template',
 
         targetClassId:
           cleanText(
@@ -772,9 +758,9 @@ async function runCreateRequest(
       details:
         `Создан кандидат из анкеты ${cleanText(
           questionnaire.id
-        )}. Технический шаблон: ${cleanText(
-          plan.donorCharacterId
-        )}. Таблица: ${cleanText(
+        )}. Классовый шаблон: ${cleanText(
+          plan.targetClassId
+        ) || 'не указан'}. Живой персонаж-донор не используется. Таблица: ${cleanText(
           googleResult
             ?.created
             ?.spreadsheetId

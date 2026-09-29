@@ -4,6 +4,7 @@ import {
 
 import {
   createHash,
+  randomUUID,
 } from 'node:crypto';
 
 import {
@@ -22,7 +23,7 @@ const PLAN_LIFETIME_MS =
   15 * 60 * 1000;
 
 const REQUEST_TIMEOUT_MS =
-  50_000;
+  22_000;
 
 
 /*
@@ -664,7 +665,44 @@ async function fetchServiceJson(
     }
 
 
-    throw error;
+    const errorMessage =
+      error instanceof Error
+        ? error.message
+        : String(error);
+
+    const cause =
+      error &&
+      typeof error === 'object'
+        ? error.cause
+        : null;
+
+    const causeCode =
+      cause &&
+      typeof cause === 'object'
+        ? cleanText(cause.code)
+        : '';
+
+    const causeMessage =
+      cause &&
+      typeof cause === 'object'
+        ? cleanText(cause.message)
+        : '';
+
+    const details = [
+      errorMessage,
+      causeCode,
+      causeMessage,
+    ]
+      .filter(Boolean)
+      .filter(
+        (item, index, all) =>
+          all.indexOf(item) === index
+      )
+      .join(' · ');
+
+    throw new Error(
+      `${label}: ${details || 'ошибка сетевого запроса к Google'}`
+    );
 
   } finally {
     clearTimeout(
@@ -1375,51 +1413,6 @@ export default async function (
     }
 
 
-    const serviceUrl =
-      loadCharacterServiceUrl();
-
-
-    const [
-      registryResult,
-      layoutResult,
-    ] =
-      await Promise.all([
-        fetchServiceJson(
-          serviceUrl,
-          {
-            action:
-              'list',
-          },
-          'Реестр'
-        ),
-
-        fetchServiceJson(
-          serviceUrl,
-          {
-            action:
-              'layout',
-          },
-          'Разметка таблиц'
-        ),
-      ]);
-
-
-    const registry =
-      registryResult.data;
-
-
-    const layout =
-      layoutResult.data;
-
-
-    const registryCharacters =
-      Array.isArray(
-        registry.characters
-      )
-        ? registry.characters
-        : [];
-
-
     const payloadCombat =
       asRecord(
         payload.combat
@@ -1447,194 +1440,171 @@ export default async function (
       );
 
 
-    const templateClassOverrides = {
-      anet: 'tank',
-      evtida: 'dps',
+    if (!targetClassIdentity) {
+      throw new Error(
+        `Не удалось определить класс анкеты «${targetClassName || 'не указан'}».`
+      );
+    }
+
+
+    const serviceUrl =
+      loadCharacterServiceUrl();
+
+
+    /*
+      v43.3.3:
+      prepare больше НЕ вызывает тяжёлые action=list + action=layout.
+
+      Один быстрый READ ONLY create-preflight:
+      - читает лёгкий САЙТ;
+      - проверяет только следующий предполагаемый слот;
+      - проверяет READY_TEMPLATE выбранного класса;
+      - подтверждает нейтральные технические блоки.
+
+      Полный getSystemLayout() остаётся обязательным и выполняется
+      в Apps Script непосредственно перед записью под ScriptLock.
+    */
+    const preflightResult =
+      await fetchServiceJson(
+        serviceUrl,
+        {
+          action:
+            'create-preflight',
+
+          classKey:
+            targetClassIdentity,
+        },
+        'Быстрая проверка Google'
+      );
+
+
+    const preflight =
+      asRecord(
+        preflightResult.data
+      );
+
+
+    const preflightRegistry =
+      asRecord(
+        preflight.registry
+      );
+
+
+    const registryCharacters =
+      Array.isArray(
+        preflightRegistry.characters
+      )
+        ? preflightRegistry.characters
+        : [];
+
+
+    /*
+      Сохраняем форму layout для совместимости UI и старого plan schema,
+      но это FAST PREFLIGHT, а не полный аудит всех исторических блоков.
+    */
+    const preflightTargets =
+      asRecord(
+        preflight.targets
+      );
+
+
+    const layout = {
+      ok: true,
+
+      mode:
+        'fast-create-preflight',
+
+      safeForWritePreparation:
+        preflight.safeForPrepare ===
+        true,
+
+      warning:
+        cleanText(
+          preflight.warning
+        ),
+
+      finalFullLayoutCheckAtWrite:
+        preflight.finalFullLayoutCheckAtWrite ===
+        true,
+
+      consistency: {
+        mainCount:
+          null,
+
+        systemCount:
+          null,
+
+        registryCount:
+          integerValue(
+            preflightRegistry.count,
+            registryCharacters.length
+          ),
+
+        mainOnly: [],
+        systemOnly: [],
+        registryOnly: [],
+      },
+
+      main: {
+        detectedCharacters:
+          null,
+
+        malformedBlocks: [],
+
+        nextBlock:
+          asRecord(
+            preflightTargets.main
+          ),
+      },
+
+      system: {
+        detectedCharacters:
+          null,
+
+        malformedBlocks: [],
+
+        nextBlock:
+          asRecord(
+            preflightTargets.system
+          ),
+      },
+
+      registry: {
+        detectedCharacters:
+          integerValue(
+            preflightRegistry.count,
+            registryCharacters.length
+          ),
+
+        nextRow:
+          asRecord(
+            preflightTargets.registry
+          ),
+      },
     };
 
 
     /*
-      v42.7: технический шаблон больше НЕ обязан быть того же класса.
-
-      Сначала всё ещё предпочитаем шаблон того же класса — это самый
-      консервативный путь для старых персонажей. Но если такого класса
-      в реестре ещё нет, берём любой активный рабочий Spreadsheet.
-
-      Класс нового персонажа задаётся отдельно через targetClassIdentity
-      и CLASS_FORMULA_PROFILES. Поле donorCharacterId оставлено только
-      как legacy-имя для совместимости с Google writer: фактически это
-      templateCharacterId, а не источник класса.
+      Живого донора больше нет.
+      Эти legacy-поля оставлены пустыми только для совместимости
+      старых сохранённых планов/ответов.
     */
-    const templateCandidates =
-      registryCharacters
-        .filter(
-          item =>
-            item?.active !== false &&
-            Boolean(
-              normalizeCharacterId(
-                item?.characterId ||
-                item?.id
-              )
-            )
-        )
-        .sort(
-          (left, right) => {
-            const leftId =
-              normalizeCharacterId(
-                left?.characterId ||
-                left?.id
-              );
-
-            const rightId =
-              normalizeCharacterId(
-                right?.characterId ||
-                right?.id
-              );
-
-            if (
-              requestedTemplateCharacterId &&
-              leftId === requestedTemplateCharacterId
-            ) {
-              return -1;
-            }
-
-            if (
-              requestedTemplateCharacterId &&
-              rightId === requestedTemplateCharacterId
-            ) {
-              return 1;
-            }
-
-            const leftClass =
-              templateClassOverrides[leftId] ||
-              classIdentity(left?.className);
-
-            const rightClass =
-              templateClassOverrides[rightId] ||
-              classIdentity(right?.className);
-
-            const leftSameClass =
-              leftClass === targetClassIdentity;
-
-            const rightSameClass =
-              rightClass === targetClassIdentity;
-
-            if (leftSameClass !== rightSameClass) {
-              return leftSameClass ? -1 : 1;
-            }
-
-            /* Проверенные старые шаблоны используем как запасной каркас. */
-            const stableOrder = ['anet', 'evtida'];
-            const leftStable = stableOrder.indexOf(leftId);
-            const rightStable = stableOrder.indexOf(rightId);
-
-            if (leftStable !== rightStable) {
-              if (leftStable >= 0) return -1;
-              if (rightStable >= 0) return 1;
-            }
-
-            return cleanText(left?.name)
-              .localeCompare(
-                cleanText(right?.name),
-                'ru'
-              );
-          }
-        );
-
-
-    let donorRegistryEntry =
+    const donorRegistryEntry =
       null;
 
-    let donorResult = {
+    const donorResult = {
       data: {},
       elapsedMs: 0,
     };
 
-
-    for (
-      const candidate
-      of templateCandidates
-    ) {
-      const candidateId =
-        normalizeCharacterId(
-          candidate?.characterId ||
-          candidate?.id
-        );
-
-      if (!candidateId) {
-        continue;
-      }
-
-      try {
-        const detail =
-          await fetchServiceJson(
-            serviceUrl,
-            {
-              characterId:
-                candidateId,
-            },
-            'Технический шаблон'
-          );
-
-        /*
-          Для каркаса достаточно, что личное дело читается. Его класс
-          больше не является условием выбора — целевой класс будет
-          назначен отдельно после копирования Spreadsheet.
-        */
-        donorRegistryEntry =
-          candidate;
-        donorResult =
-          detail;
-        break;
-      } catch (_) {
-        /*
-          Публичное чтение личного дела иногда даёт HTTP 500, хотя
-          сама таблица доступна Apps Script на запись. Для технического
-          каркаса этого достаточно: класс нового персонажа не наследуем.
-        */
-        donorRegistryEntry =
-          candidate;
-        donorResult = {
-          data: {
-            character: {
-              name:
-                cleanText(
-                  candidate?.name
-                ),
-              className:
-                cleanText(
-                  candidate?.className
-                ),
-            },
-          },
-          elapsedMs: 0,
-        };
-        break;
-      }
-    }
-
-
     const donorCharacterId =
-      normalizeCharacterId(
-        donorRegistryEntry
-          ?.characterId ||
-        donorRegistryEntry
-          ?.id
-      );
-
+      '';
 
     const donorData =
       donorResult.data;
 
-
     const donorClassName =
-      cleanText(
-        donorData
-          ?.character
-          ?.className ||
-        donorRegistryEntry
-          ?.className
-      );
+      '';
 
 
     const questionnaireStatus =
@@ -1771,9 +1741,9 @@ export default async function (
 
     checks.push(
       makeCheck(
-        'layout-safe',
+        'fast-preflight-safe',
 
-        'Три Google-структуры согласованы',
+        'Быстрый Google-preflight пройден',
 
         layout
           ?.safeForWritePreparation ===
@@ -1782,10 +1752,10 @@ export default async function (
         layout
           ?.safeForWritePreparation ===
           true
-          ? `Основная ${layout?.consistency?.mainCount ?? '—'} · Система ${layout?.consistency?.systemCount ?? '—'} · САЙТ ${layout?.consistency?.registryCount ?? '—'}.`
+          ? `READY_TEMPLATE и следующий целевой слот проверены. Полная согласованность всех блоков будет повторно проверена Apps Script непосредственно перед записью. САЙТ: ${layout?.consistency?.registryCount ?? '—'} записей.`
           : cleanText(
               layout?.warning ||
-              'Разметка не разрешает создание кандидата.'
+              'Быстрый preflight не разрешает создание кандидата.'
             )
       )
     );
@@ -1868,40 +1838,38 @@ export default async function (
 
     checks.push(
       makeCheck(
-        'template-active',
+        'class-template-route',
 
-        'Технический шаблон найден автоматически',
+        'Источник создания — готовый шаблон выбранного класса',
 
         Boolean(
-          donorRegistryEntry &&
-          donorRegistryEntry
-            .active !==
-            false
+          targetClassIdentity &&
+          preflight
+            ?.classTemplate
+            ?.ready ===
+            true
         ),
 
-        donorRegistryEntry
-          ? `Выбран ${cleanText(
-              donorRegistryEntry
-                .name
-            ) || donorCharacterId} (${donorCharacterId}).`
-          : 'В активном реестре не найден ни один доступный технический шаблон.'
+        targetClassIdentity &&
+        preflight
+          ?.classTemplate
+          ?.ready ===
+          true
+          ? `Google Apps Script подтвердил READY_TEMPLATE класса «${targetClassName}» (${targetClassIdentity}). Живой персонаж-донор не используется.`
+          : cleanText(
+              preflight?.warning ||
+              'READY_TEMPLATE выбранного класса не подтверждён.'
+            )
       )
     );
 
 
+    /* legacy compatibility: живого донора больше нет */
     const donorClassIdentity =
-      classIdentity(
-        donorClassName
-      );
-
+      '';
 
     const donorClassMatches =
-      Boolean(
-        donorClassIdentity &&
-        targetClassIdentity &&
-        donorClassIdentity ===
-          targetClassIdentity
-      );
+      true;
 
 
     const classFormulaProfile =
@@ -1912,9 +1880,7 @@ export default async function (
 
 
     const templateMode =
-      donorClassMatches
-        ? 'same-class'
-        : 'generic';
+      'class-template';
 
 
     checks.push(
@@ -1936,19 +1902,38 @@ export default async function (
 
     checks.push(
       makeCheck(
-        'template-class-independent',
+        'ready-class-template',
 
-        'Класс не зависит от класса технического шаблона',
+        'Класс будет создан из READY_TEMPLATE, а не из персонажа',
 
         Boolean(
-          donorRegistryEntry
+          targetClassIdentity &&
+          classFormulaProfile &&
+          preflight
+            ?.classTemplate
+            ?.ready ===
+            true &&
+          preflight
+            ?.neutralBlocks
+            ?.ready ===
+            true
         ),
 
-        donorRegistryEntry
-          ? donorClassMatches
-            ? `Найден шаблон того же класса «${donorClassName}».`
-            : `Будет использован универсальный каркас «${cleanText(donorRegistryEntry?.name) || donorCharacterId}» класса «${donorClassName || 'не определён'}»; новый персонаж получит класс «${targetClassName}» отдельно.`
-          : 'Технический каркас не найден.'
+        targetClassIdentity &&
+        classFormulaProfile &&
+        preflight
+          ?.classTemplate
+          ?.ready ===
+          true &&
+        preflight
+          ?.neutralBlocks
+          ?.ready ===
+          true
+          ? `Маршрут подтверждён: «Шаблоны классов» -> ${targetClassIdentity} -> templateSpreadsheetId; Основная/СИСТЕМА -> нейтральные технические блоки.`
+          : cleanText(
+              preflight?.warning ||
+              'Маршрут к READY_TEMPLATE или нейтральным блокам не готов.'
+            )
       )
     );
 
@@ -2135,7 +2120,29 @@ export default async function (
     };
 
 
+    /*
+      RETRY FIX v1.
+
+      Старый fingerprint был полностью детерминированным:
+      одинаковая анкета + одинаковые целевые строки = тот же fingerprint.
+
+      admin-google-create намеренно НЕ перезапускает job со status=error,
+      поэтому после первого падения все следующие клики могли возвращать
+      старую сохранённую ошибку, вообще не вызывая новый Apps Script.
+
+      Каждый новый «Проверить готовность» теперь создаёт НОВЫЙ prepareAttemptId.
+      Внутри одного prepare fingerprint остаётся стабильным, поэтому защита
+      от двойного клика сохраняется.
+    */
+    const preparedAt =
+      new Date();
+
+    const prepareAttemptId =
+      randomUUID();
+
     const fingerprintSource = {
+      prepareAttemptId,
+
       questionnaireKey,
 
       questionnaireId:
@@ -2199,10 +2206,6 @@ export default async function (
         });
 
 
-      const preparedAt =
-        new Date();
-
-
       await planStore.setJSON(
         `plans/${fingerprint}`,
         {
@@ -2213,6 +2216,8 @@ export default async function (
             'candidate',
 
           fingerprint,
+
+          prepareAttemptId,
 
           preparedAt:
             preparedAt.toISOString(),
@@ -2306,25 +2311,25 @@ export default async function (
 
 
       donor: {
+        /*
+          Legacy response key kept so old frontend versions do not crash.
+          This object no longer describes a live character.
+        */
         characterId:
-          donorCharacterId,
+          '',
 
         name:
-          cleanText(
-            donorData
-              ?.character
-              ?.name ||
-            donorRegistryEntry
-              ?.name
-          ),
+          targetClassName
+            ? `READY_TEMPLATE: ${targetClassName}`
+            : 'READY_TEMPLATE',
 
         className:
-          donorClassName,
+          targetClassName,
 
         templateMode,
 
         sameClass:
-          donorClassMatches,
+          true,
 
         targetClassId:
           targetClassIdentity,
@@ -2387,15 +2392,18 @@ export default async function (
 
       timings: {
         registryMs:
-          registryResult
+          preflightResult
             .elapsedMs,
 
         layoutMs:
-          layoutResult
+          preflightResult
             .elapsedMs,
 
         donorMs:
-          donorResult
+          0,
+
+        preflightMs:
+          preflightResult
             .elapsedMs,
       },
 
@@ -2407,6 +2415,8 @@ export default async function (
       blockers,
 
       fingerprint,
+
+      prepareAttemptId,
     });
 
 

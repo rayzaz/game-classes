@@ -1,4 +1,4 @@
-import React from 'react';
+﻿import React from 'react';
 
 import type { LoginUser } from './Portal';
 import WorldCalendarBadge from './WorldCalendarBadge';
@@ -74,7 +74,11 @@ export default function PortalHome({
     );
 
   return (
-    <main className="portal-home-shell">
+        <main
+      className={
+        `portal-home-shell${sessionChecked && user ? ' is-authenticated' : ''}`
+      }
+    >
       <div className="portal-home-ambient" aria-hidden>
         <span className="portal-home-orb portal-home-orb-a" />
         <span className="portal-home-orb portal-home-orb-b" />
@@ -89,9 +93,12 @@ export default function PortalHome({
           aria-label="На начало главной страницы"
         >
           <span className="portal-home-brand-mark">G</span>
-          <strong>Гос.Маг.Услуги</strong>
+          <strong>Государственные Магические Услуги</strong>
         </button>
 
+        <div className="portal-home-header-calendar">
+          <WorldCalendarBadge />
+        </div>
         <nav className="portal-home-nav" aria-label="Управление порталом">
           <button
             type="button"
@@ -184,9 +191,7 @@ export default function PortalHome({
           )}
         </div>
 
-        <div className="portal-home-calendar-card">
-          <WorldCalendarBadge />
-        </div>
+
       </section>
 
       {sessionChecked && user ? (
@@ -285,6 +290,19 @@ export default function PortalHome({
               <span className="portal-home-card-arrow" aria-hidden>↗</span>
             </button>
 
+            <button
+              type="button"
+              className="portal-home-card portal-home-card-bank"
+              disabled
+              aria-disabled="true"
+              title="Раздел пока недоступен"
+            >
+              <HomeIcon>¤</HomeIcon>
+
+              <span className="portal-home-card-copy">
+                <strong>Тут будет твой банк</strong>
+              </span>
+            </button>
             {user.permissions?.canManageEvents ? (
               <button
                 type="button"
@@ -330,3 +348,5 @@ export default function PortalHome({
     </main>
   );
 }
+
+

@@ -5,7 +5,7 @@ import {
 
 
 const REQUEST_TIMEOUT_MS =
-  55_000;
+  10_000;
 
 
 function normalizeCharacterServiceUrl(
@@ -50,81 +50,83 @@ function normalizeCharacterServiceUrl(
 
 
 function loadCharacterServiceUrl() {
-  const raw =
+  const value =
     normalizeCharacterServiceUrl(
       process.env.CHARACTER_SERVICE_URL
     );
 
-  if (!raw) {
+  if (!value) {
     throw new Error(
       'Не задан CHARACTER_SERVICE_URL'
     );
   }
 
-  return raw;
+  return value;
 }
 
 
-function compactCharacter(character) {
-  const characterId = String(
-    character?.characterId ||
-    character?.id ||
-    ''
+function cleanText(
+  value,
+  maxLength = 1000
+) {
+  return String(
+    value ?? ''
   )
     .trim()
-    .toLowerCase();
-
-  return {
-    characterId,
-    id: characterId,
-
-    name: String(
-      character?.name ||
-      characterId ||
-      'Без имени'
-    ).trim(),
-
-    className: String(
-      character?.className ||
-      ''
-    ).trim(),
-
-    squad: String(
-      character?.squad ||
-      ''
-    ).trim(),
-
-    active:
-      character?.active !== false,
-  };
+    .slice(
+      0,
+      maxLength
+    );
 }
 
 
-async function readJson(response) {
-  const text = await response
-    .text()
-    .catch(() => '');
+function networkErrorMessage(
+  error
+) {
+  const message =
+    error instanceof Error
+      ? error.message
+      : String(error);
 
-  if (!text) {
-    throw new Error(
-      'Сервис вернул пустой ответ'
-    );
-  }
+  const cause =
+    error &&
+    typeof error === 'object'
+      ? error.cause
+      : null;
 
-  try {
-    return JSON.parse(text);
-  } catch {
-    throw new Error(
-      `Сервис вернул не JSON: ${text.slice(0, 220)}`
-    );
-  }
+  const code =
+    cause &&
+    typeof cause === 'object'
+      ? cleanText(
+          cause.code
+        )
+      : '';
+
+  const causeMessage =
+    cause &&
+    typeof cause === 'object'
+      ? cleanText(
+          cause.message
+        )
+      : '';
+
+  return [
+    message,
+    code,
+    causeMessage,
+  ]
+    .filter(Boolean)
+    .filter(
+      (item, index, all) =>
+        all.indexOf(item) === index
+    )
+    .join(' · ');
 }
 
 
 async function fetchServiceJson(
   serviceUrl,
-  params,
-  timeoutMs = REQUEST_TIMEOUT_MS
+  params
 ) {
   const url =
     new URL(
@@ -160,11 +162,12 @@ async function fetchServiceJson(
 
   const timer =
     setTimeout(
-      () => controller.abort(),
-      timeoutMs
+      () =>
+        controller.abort(),
+      REQUEST_TIMEOUT_MS
     );
 
-  const started =
+  const startedAt =
     Date.now();
 
   try {
@@ -190,101 +193,76 @@ async function fetchServiceJson(
         }
       );
 
-    const responseMs =
-      Date.now() -
-      started;
+    const text =
+      await response
+        .text();
 
     if (!response.ok) {
-      const text = await response
-        .text()
-        .catch(() => '');
-
       const looksLikeHtml =
         /^\s*</.test(
           text
         );
 
-      return {
-        ok: false,
-        responseMs,
-        status:
-          response.status,
-        data: null,
-        error:
-          response.status === 404 &&
-          looksLikeHtml
-            ? 'CHARACTER_SERVICE_URL недоступен (HTTP 404). В Netlify нужен текущий Apps Script Web App URL, оканчивающийся на /exec.'
-            : `HTTP ${response.status}${
-                text
-                  ? ` — ${text.slice(0, 220)}`
-                  : ''
-              }`,
-      };
+      throw new Error(
+        response.status === 404 &&
+        looksLikeHtml
+          ? 'CHARACTER_SERVICE_URL недоступен (HTTP 404). Нужен текущий Apps Script Web App URL с /exec.'
+          : `HTTP ${response.status}${text ? ` — ${text.slice(0, 220)}` : ''}`
+      );
     }
+
+    let data;
 
     try {
-      const data =
-        await readJson(
-          response
+      data =
+        JSON.parse(
+          text
         );
-
-      return {
-        ok:
-          data?.ok === true,
-        responseMs,
-        status:
-          response.status,
-        data,
-        error:
-          data?.ok === true
-            ? ''
-            : String(
-                data?.error ||
-                'Сервис вернул ok=false'
-              ),
-      };
-    } catch (error) {
-      return {
-        ok: false,
-        responseMs,
-        status:
-          response.status,
-        data: null,
-        error:
-          error instanceof Error
-            ? error.message
-            : 'Не удалось прочитать JSON',
-      };
+    } catch {
+      throw new Error(
+        `Apps Script вернул не JSON: ${text.slice(0, 220) || 'пустой ответ'}`
+      );
     }
-  } catch (error) {
-    const responseMs =
-      Date.now() -
-      started;
 
     if (
-      error instanceof Error &&
-      error.name === 'AbortError'
+      data?.ok !==
+      true
     ) {
-      return {
-        ok: false,
-        responseMs,
-        status: 0,
-        data: null,
-        error:
-          `Превышено время ожидания ${timeoutMs} мс`,
-      };
+      throw new Error(
+        cleanText(
+          data?.error ||
+          'Apps Script вернул ok=false'
+        )
+      );
     }
 
     return {
-      ok: false,
-      responseMs,
-      status: 0,
-      data: null,
-      error:
-        error instanceof Error
-          ? error.message
-          : 'Ошибка запроса к Google-сервису',
+      data,
+      responseMs:
+        Date.now() -
+        startedAt,
     };
+
+  } catch (
+    error
+  ) {
+    if (
+      error &&
+      typeof error === 'object' &&
+      error.name === 'AbortError'
+    ) {
+      throw new Error(
+        `Apps Script не ответил за ${REQUEST_TIMEOUT_MS} мс`
+      );
+    }
+
+    throw new Error(
+      networkErrorMessage(
+        error
+      ) ||
+      'Ошибка сетевого запроса к Apps Script'
+    );
+
   } finally {
     clearTimeout(
       timer
@@ -297,7 +275,8 @@ export default async function (
   request
 ) {
   if (
-    request.method !== 'GET'
+    request.method !==
+    'GET'
   ) {
     return json(
       {
@@ -327,7 +306,8 @@ export default async function (
     }
 
     if (
-      session.role !== 'admin'
+      session.role !==
+      'admin'
     ) {
       return json(
         {
@@ -347,84 +327,73 @@ export default async function (
         request.url
       );
 
-    const mode = String(
-      requestUrl.searchParams.get('mode') ||
-      'full'
-    )
-      .trim()
-      .toLowerCase();
+    const mode =
+      cleanText(
+        requestUrl
+          .searchParams
+          .get('mode') ||
+        'ping'
+      )
+        .toLowerCase();
 
-
-    /* ========================================================
-       ТОЛЬКО РЕЕСТР ДЛЯ АУДИТА ДОНОРОВ
-
-       Это отдельный быстрый режим. Layout здесь вообще
-       не вызывается, поэтому аудит доноров больше не зависит
-       от старой admin-characters function и не тащит лишнюю
-       тяжёлую проверку разметки.
-       ======================================================== */
-
+    /*
+      Старый mode=registry оставлен для совместимости
+      с диагностическим экраном, но теперь использует registry-lite
+      и не читает «Маги», портреты или полный layout.
+    */
     if (
-      mode === 'registry'
+      mode ===
+      'registry'
     ) {
-      const listResult =
+      const result =
         await fetchServiceJson(
           serviceUrl,
           {
             action:
-              'list',
+              'registry-lite',
           }
         );
 
-      if (!listResult.ok) {
-        return json(
-          {
-            ok: false,
-            mode:
-              'registry',
-            error:
-              `Не удалось прочитать реестр: ${listResult.error}`,
-            writesPerformed: 0,
-          },
-          502
-        );
-      }
-
-      const sourceCharacters =
-        Array.isArray(
-          listResult.data?.characters
-        )
-          ? listResult.data.characters
-          : [];
-
       const characters =
-        sourceCharacters
-          .map(
-            compactCharacter
-          )
-          .filter(
-            character =>
-              character.characterId
-          );
+        Array.isArray(
+          result.data
+            ?.characters
+        )
+          ? result.data.characters
+          : [];
 
       return json({
         ok: true,
         mode:
-          'registry',
+          'registry-lite',
         serviceConfigured:
           true,
         checkedAt:
           new Date()
             .toISOString(),
 
+        service: {
+          ok: true,
+          responseMs:
+            result.responseMs,
+          version:
+            cleanText(
+              result.data?.version
+            ),
+          runtimeUsesLiveDonor:
+            result.data
+              ?.runtimeUsesLiveDonor ===
+              true,
+        },
+
         registry: {
           ok: true,
           count:
             characters.length,
           responseMs:
-            listResult.responseMs,
+            result.responseMs,
           elapsedMs:
-            listResult.responseMs,
+            result.responseMs,
           sample:
             characters.slice(
               0,
@@ -433,135 +402,61 @@ export default async function (
           characters,
         },
 
-        writesPerformed: 0,
+        writesPerformed:
+          0,
       });
     }
 
-
-    /* ========================================================
-       ОБЫЧНАЯ ПРОВЕРКА СВЯЗИ
-       ======================================================== */
-
-    const [
-      listResult,
-      layoutResult,
-    ] =
-      await Promise.all([
-        fetchServiceJson(
-          serviceUrl,
-          {
-            action:
-              'list',
-          }
-        ),
-
-        fetchServiceJson(
-          serviceUrl,
-          {
-            action:
-              'layout',
-          }
-        ),
-      ]);
-
-
-    if (!listResult.ok) {
-      return json(
+    /*
+      Обычная «Проверка связи» — настоящий лёгкий ping.
+      Никаких таблиц Google здесь не читается вообще,
+      поэтому функция не должна упираться в 30-секундный
+      лимит локальной Netlify Lambda.
+    */
+    const result =
+      await fetchServiceJson(
+        serviceUrl,
         {
-          ok: false,
-          error:
-            `Не удалось прочитать реестр: ${listResult.error}`,
-          writesPerformed: 0,
-        },
-        502
+          action:
+            'ping',
+        }
       );
-    }
-
-
-    const sourceCharacters =
-      Array.isArray(
-        listResult.data?.characters
-      )
-        ? listResult.data.characters
-        : [];
-
-
-    const characters =
-      sourceCharacters
-        .map(
-          compactCharacter
-        )
-        .filter(
-          character =>
-            character.characterId
-        );
-
-
-    const layout =
-      layoutResult.ok
-        ? {
-            ...layoutResult.data,
-            responseMs:
-              layoutResult.responseMs,
-            elapsedMs:
-              layoutResult.responseMs,
-          }
-        : {
-            ok: false,
-            mode:
-              'read-only',
-            responseMs:
-              layoutResult.responseMs,
-            elapsedMs:
-              layoutResult.responseMs,
-            error:
-              layoutResult.error,
-            writesPerformed: 0,
-          };
-
 
     return json({
       ok: true,
       mode:
-        'read-only',
+        'ping',
       serviceConfigured:
         true,
       checkedAt:
         new Date()
           .toISOString(),
 
-      registry: {
+      service: {
         ok: true,
-        count:
-          characters.length,
         responseMs:
-          listResult.responseMs,
-        elapsedMs:
-          listResult.responseMs,
-        sample:
-          characters.slice(
-            0,
-            5
+          result.responseMs,
+        version:
+          cleanText(
+            result.data?.version
           ),
+        runtimeUsesLiveDonor:
+          result.data
+            ?.runtimeUsesLiveDonor ===
+            true,
+        donorCharacterIdRequired:
+          result.data
+            ?.donorCharacterIdRequired ===
+            true,
       },
 
-      detailProbe: {
-        ok: true,
-        skipped: true,
-        characterId: '',
-        name:
-          'Проверяется отдельно в аудите доноров',
-        responseMs: 0,
-        fields: [],
-        error: '',
-      },
-
-      layout,
-
-      writesPerformed: 0,
+      writesPerformed:
+        0,
     });
 
-  } catch (error) {
+  } catch (
+    error
+  ) {
     console.error(
       'admin-google-read-check error:',
       error
@@ -573,10 +468,11 @@ export default async function (
         error:
           error instanceof Error
             ? error.message
-            : 'Не удалось проверить связь с Google-сервисом',
-        writesPerformed: 0,
+            : String(error),
+        writesPerformed:
+          0,
       },
-      500
+      502
     );
   }
 }

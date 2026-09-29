@@ -25,6 +25,13 @@ type GoogleReadCheckResult = {
   serviceConfigured?: boolean;
   checkedAt?: string;
   writesPerformed?: number;
+  service?: {
+    ok?: boolean;
+    responseMs?: number;
+    version?: string;
+    runtimeUsesLiveDonor?: boolean;
+    donorCharacterIdRequired?: boolean;
+  };
   registry?: {
     ok?: boolean;
     count?: number;
@@ -1611,7 +1618,6 @@ export default function QuestionnaireGooglePreview({
 
   async function prepareGoogleCreation(
     transferPayload: QuestionnaireTransferPayload,
-    donor?: DonorCheckItem | null,
   ) {
     setPrepareBusy(true);
     setPrepareError('');
@@ -1633,9 +1639,6 @@ export default function QuestionnaireGooglePreview({
             questionnaireId,
             questionnaireKey,
             payload: transferPayload,
-            ...(donor?.characterId
-              ? { donorCharacterId: donor.characterId }
-              : {}),
           }),
         },
       );
@@ -2206,9 +2209,45 @@ export default function QuestionnaireGooglePreview({
     );
   }, [selectedDonors, selectedDonorId]);
 
+  /*
+    v43.3.3:
+    кнопка prepare больше не зависит от тяжёлого полного layout.
+    Реальные свободные строки возвращает быстрый create-preflight,
+    а полный getSystemLayout() выполняется Apps Script уже под ScriptLock
+    непосредственно перед записью.
+  */
+  const preparedTargetLayout = prepareResult?.targets
+    ? {
+        ok: true,
+        mode: 'fast-create-preflight',
+        safeForWritePreparation: prepareResult.prepared === true,
+        warning: prepareResult.prepared === true
+          ? ''
+          : (prepareResult.blockers?.join('; ') || prepareResult.error || 'Быстрый Google-preflight пока не разрешает запись.'),
+        main: {
+          nextBlock: {
+            ...prepareResult.targets.main,
+            empty: prepareResult.prepared === true,
+          },
+        },
+        system: {
+          nextBlock: {
+            ...prepareResult.targets.system,
+            empty: prepareResult.prepared === true,
+          },
+        },
+        registry: {
+          nextRow: {
+            ...prepareResult.targets.registry,
+            empty: prepareResult.prepared === true,
+          },
+        },
+      }
+    : null;
+
   const liveLayout = connectionResult?.layout?.ok === true
     ? connectionResult.layout
-    : null;
+    : preparedTargetLayout;
 
   const dryRunSteps = useMemo(
     () => buildDryRunSteps(payload, selectedDryRunDonor, liveLayout),
@@ -2227,8 +2266,7 @@ export default function QuestionnaireGooglePreview({
   );
 
   const automaticCreationReady = Boolean(
-    selectedClassMatch &&
-    liveLayout?.safeForWritePreparation === true,
+    selectedClassMatch,
   );
 
   const creationParametersReady = true;
@@ -2392,7 +2430,7 @@ export default function QuestionnaireGooglePreview({
                   🔗 Проверка живой Google-системы
                 </strong>
                 <span style={{ color: 'var(--admin-muted-2)', fontSize: 10, lineHeight: 1.55, maxWidth: 720 }}>
-                  Выполняет только чтение через уже подключённый CHARACTER_SERVICE_URL: сначала реестр персонажей, затем одно личное дело. Никакие Google-таблицы не изменяются.
+                  Выполняет лёгкий ping текущего Apps Script Web App через CHARACTER_SERVICE_URL. Google-таблицы не читаются и не изменяются; тяжёлая проверка разметки здесь больше не запускается.
                 </span>
               </div>
 
@@ -2422,182 +2460,35 @@ export default function QuestionnaireGooglePreview({
             )}
 
             {connectionResult?.ok === true && (
-              <div style={{ display: 'grid', gap: 10 }}>
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, minmax(120px, 1fr))', gap: 8 }}>
-                  <div style={{ padding: 10, borderRadius: 10, background: 'rgba(60,190,120,.06)', border: '1px solid rgba(80,205,135,.16)' }}>
-                    <small style={{ display: 'block', color: 'var(--admin-muted-2)', fontSize: 8, marginBottom: 3 }}>РЕЕСТР</small>
-                    <strong style={{ color: '#77dda7', fontSize: 12 }}>{connectionResult.registry?.count ?? 0} персонажей</strong>
-                  </div>
-                  <div style={{ padding: 10, borderRadius: 10, background: 'rgba(60,150,220,.06)', border: '1px solid rgba(85,170,235,.16)' }}>
-                    <small style={{ display: 'block', color: 'var(--admin-muted-2)', fontSize: 8, marginBottom: 3 }}>ЧТЕНИЕ РЕЕСТРА</small>
-                    <strong style={{ color: '#8bc9ff', fontSize: 12 }}>{connectionResult.registry?.responseMs ?? connectionResult.registry?.elapsedMs ?? '—'} мс</strong>
-                  </div>
-                  <div style={{
-                    padding: 10,
+              <div style={{ display: 'grid', gap: 9 }}>
+                <div
+                  style={{
+                    padding: '10px 11px',
                     borderRadius: 10,
-                    background: connectionResult.detailProbe?.skipped
-                      ? 'rgba(60,150,220,.06)'
-                      : connectionResult.detailProbe?.ok
-                        ? 'rgba(60,190,120,.06)'
-                        : 'rgba(210,145,55,.07)',
-                    border: connectionResult.detailProbe?.skipped
-                      ? '1px solid rgba(85,170,235,.16)'
-                      : connectionResult.detailProbe?.ok
-                        ? '1px solid rgba(80,205,135,.16)'
-                        : '1px solid rgba(220,160,65,.18)'
-                  }}>
-                    <small style={{ display: 'block', color: 'var(--admin-muted-2)', fontSize: 8, marginBottom: 3 }}>ЛИЧНОЕ ДЕЛО</small>
-                    <strong style={{
-                      color: connectionResult.detailProbe?.skipped
-                        ? '#8bc9ff'
-                        : connectionResult.detailProbe?.ok
-                          ? '#77dda7'
-                          : '#efc06c',
-                      fontSize: 12
-                    }}>
-                      {connectionResult.detailProbe?.skipped
-                        ? 'Проверяется отдельно'
-                        : connectionResult.detailProbe?.ok
-                          ? 'Читается'
-                          : 'Есть проблема'}
-                    </strong>
-                  </div>
+                    color: '#78dca8',
+                    background: 'rgba(55,175,115,.07)',
+                    border: '1px solid rgba(80,195,135,.18)',
+                    fontSize: 9,
+                    lineHeight: 1.55,
+                  }}
+                >
+                  <b>✓ Apps Script Web App отвечает.</b>{' '}
+                  Версия: {connectionResult.service?.version || '—'} · ответ: {connectionResult.service?.responseMs ?? '—'} мс.
                 </div>
 
-                {connectionResult.registry?.sample && connectionResult.registry.sample.length > 0 && (
-                  <div style={{ display: 'grid', gap: 6 }}>
-                    <small style={{ color: 'var(--admin-muted-2)', fontSize: 9, fontWeight: 800 }}>Пример записей из живого реестра</small>
-                    {connectionResult.registry.sample.map((character) => (
-                      <div key={character.characterId || character.name} style={{ display: 'grid', gridTemplateColumns: 'minmax(120px, .8fr) minmax(150px, 1.2fr) minmax(100px, .8fr) minmax(100px, .8fr)', gap: 8, padding: '7px 9px', borderRadius: 9, background: 'rgba(255,255,255,.025)', border: '1px solid var(--admin-line-soft)', color: '#c7cad2', fontSize: 9 }}>
-                        <code>{character.characterId || '—'}</code>
-                        <span>{character.name || '—'}</span>
-                        <span>{character.className || '—'}</span>
-                        <span>{character.squad || '—'}</span>
-                      </div>
-                    ))}
-                  </div>
-                )}
-
-                {connectionResult.detailProbe && (
-                  <div style={{ padding: '9px 11px', borderRadius: 10, background: 'rgba(255,255,255,.022)', border: '1px solid var(--admin-line-soft)', color: '#bfc3cc', fontSize: 9, lineHeight: 1.55 }}>
-                    <b style={{
-                      color: connectionResult.detailProbe.skipped
-                        ? '#8bc9ff'
-                        : connectionResult.detailProbe.ok
-                          ? '#77dda7'
-                          : '#efc06c'
-                    }}>
-                      {connectionResult.detailProbe.skipped ? 'Личное дело:' : 'Пробное чтение:'}
-                    </b>{' '}
-                    {connectionResult.detailProbe.name || '—'}
-                    {!connectionResult.detailProbe.skipped && (
-                      <> · {connectionResult.detailProbe.responseMs ?? '—'} мс</>
-                    )}
-                    {connectionResult.detailProbe.fields && connectionResult.detailProbe.fields.length > 0 && (
-                      <>
-                        <br />
-                        <b style={{ color: '#8bc9ff' }}>Поля ответа:</b>{' '}
-                        {connectionResult.detailProbe.fields.join(', ')}
-                      </>
-                    )}
-                    {connectionResult.detailProbe.error && (
-                      <>
-                        <br />
-                        <b style={{ color: '#ef9b9b' }}>Ошибка:</b>{' '}
-                        {connectionResult.detailProbe.error}
-                      </>
-                    )}
-                  </div>
-                )}
-
-                {connectionResult.layout?.ok === true && (
-                  <div style={{ display: 'grid', gap: 9, padding: 12, borderRadius: 12, background: 'rgba(60,185,145,.045)', border: '1px solid rgba(80,205,160,.18)' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, flexWrap: 'wrap' }}>
-                      <b style={{ color: '#7be0b4', fontSize: 10 }}>📐 Реальная разметка живых таблиц</b>
-                      <span style={{ color: '#8fa1ad', fontSize: 8 }}>прочитано за {connectionResult.layout?.responseMs ?? connectionResult.layout?.elapsedMs ?? '—'} мс</span>
-                    </div>
-
-                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, minmax(150px, 1fr))', gap: 8 }}>
-                      <div style={{ padding: 10, borderRadius: 10, border: '1px solid var(--admin-line-soft)', background: 'rgba(255,255,255,.022)', display: 'grid', gap: 3 }}>
-                        <small style={{ color: 'var(--admin-muted-2)', fontSize: 8 }}>ОСНОВНАЯ · МАГИ</small>
-                        <b style={{ color: '#d9dde6', fontSize: 10 }}>{connectionResult.layout?.main?.detectedCharacters ?? '—'} блоков</b>
-                        <span style={{ color: '#8bc9ff', fontSize: 9 }}>следующий: {connectionResult.layout?.main?.nextBlock?.a1 || '—'}</span>
-                        <span style={{ color: '#a9b1bd', fontSize: 8 }}>имя: {connectionResult.layout?.main?.nextBlock?.cells?.name || '—'}</span>
-                        <span style={{ color: connectionResult.layout?.main?.nextBlock?.empty ? '#78dca8' : '#ef9b9b', fontSize: 8, fontWeight: 800 }}>
-                          {connectionResult.layout?.main?.nextBlock?.empty ? '✓ диапазон свободен' : '✕ диапазон уже содержит данные'}
-                        </span>
-                      </div>
-
-                      <div style={{ padding: 10, borderRadius: 10, border: '1px solid var(--admin-line-soft)', background: 'rgba(255,255,255,.022)', display: 'grid', gap: 3 }}>
-                        <small style={{ color: 'var(--admin-muted-2)', fontSize: 8 }}>СИСТЕМА · МАГИ</small>
-                        <b style={{ color: '#d9dde6', fontSize: 10 }}>{connectionResult.layout?.system?.detectedCharacters ?? '—'} блоков</b>
-                        <span style={{ color: '#cba4ff', fontSize: 9 }}>следующий: {connectionResult.layout?.system?.nextBlock?.a1 || '—'}</span>
-                        <span style={{ color: '#a9b1bd', fontSize: 8 }}>ссылка: {connectionResult.layout?.system?.nextBlock?.cells?.personalSpreadsheetLink || '—'}</span>
-                        <span style={{ color: connectionResult.layout?.system?.nextBlock?.empty ? '#78dca8' : '#ef9b9b', fontSize: 8, fontWeight: 800 }}>
-                          {connectionResult.layout?.system?.nextBlock?.empty ? '✓ диапазон свободен' : '✕ диапазон уже содержит данные'}
-                        </span>
-                      </div>
-
-                      <div style={{ padding: 10, borderRadius: 10, border: '1px solid var(--admin-line-soft)', background: 'rgba(255,255,255,.022)', display: 'grid', gap: 3 }}>
-                        <small style={{ color: 'var(--admin-muted-2)', fontSize: 8 }}>ОСНОВНАЯ · САЙТ</small>
-                        <b style={{ color: '#d9dde6', fontSize: 10 }}>{connectionResult.layout?.registry?.detectedCharacters ?? '—'} записей</b>
-                        <span style={{ color: '#f0c374', fontSize: 9 }}>следующая строка: {connectionResult.layout?.registry?.nextRow?.row ?? '—'}</span>
-                        <span style={{ color: '#a9b1bd', fontSize: 8 }}>{connectionResult.layout?.registry?.nextRow?.a1 || '—'}</span>
-                        <span style={{ color: connectionResult.layout?.registry?.nextRow?.empty ? '#78dca8' : '#ef9b9b', fontSize: 8, fontWeight: 800 }}>
-                          {connectionResult.layout?.registry?.nextRow?.empty ? '✓ строка свободна' : '✕ строка уже содержит данные'}
-                        </span>
-                      </div>
-                    </div>
-
-                    <div style={{ padding: '9px 10px', borderRadius: 10, background: connectionResult.layout?.safeForWritePreparation ? 'rgba(65,190,125,.06)' : 'rgba(215,145,60,.07)', border: connectionResult.layout?.safeForWritePreparation ? '1px solid rgba(80,205,140,.18)' : '1px solid rgba(225,165,75,.20)', color: connectionResult.layout?.safeForWritePreparation ? '#78dca8' : '#efc06c', fontSize: 9, lineHeight: 1.55 }}>
-                      <b>{connectionResult.layout?.safeForWritePreparation ? '✓ Три структуры согласованы.' : '⚠ Структуры пока расходятся.'}</b>{' '}
-                      Основная: {connectionResult.layout?.consistency?.mainCount ?? '—'} · Система: {connectionResult.layout?.consistency?.systemCount ?? '—'} · САЙТ: {connectionResult.layout?.consistency?.registryCount ?? '—'}.
-                      {connectionResult.layout?.warning ? ` ${connectionResult.layout.warning}` : ''}
-                    </div>
-
-                    {Array.isArray(connectionResult.layout?.system?.malformedBlocks) && connectionResult.layout.system.malformedBlocks.length > 0 && (
-                      <div style={{ color: '#ef9b9b', fontSize: 9, lineHeight: 1.5 }}>
-                        <b>Неполные блоки в СИСТЕМЕ:</b>{' '}
-                        {connectionResult.layout.system.malformedBlocks.map((item: any) => `${item?.startRow || '?'}–${item?.endRow || '?'}`).join(', ')}.
-                        В этих пятистрочных диапазонах уже есть данные, но не найден обязательный spreadsheetId в колонке AB.
-                      </div>
-                    )}
-
-                    {Array.isArray(connectionResult.layout?.main?.malformedBlocks) && connectionResult.layout.main.malformedBlocks.length > 0 && (
-                      <div style={{ color: '#ef9b9b', fontSize: 9, lineHeight: 1.5 }}>
-                        <b>Неполные блоки в основной таблице:</b>{' '}
-                        {connectionResult.layout.main.malformedBlocks.map((item: any) => `${item?.startRow || '?'}–${item?.endRow || '?'}`).join(', ')}.
-                      </div>
-                    )}
-
-                    {Array.isArray(connectionResult.layout?.consistency?.mainOnly) && connectionResult.layout.consistency.mainOnly.length > 0 && (
-                      <div style={{ color: '#efb06f', fontSize: 9, lineHeight: 1.5 }}>
-                        <b>Есть в основной, но отсутствуют минимум в одной другой структуре:</b>{' '}
-                        {connectionResult.layout.consistency.mainOnly.map((item: any) => item?.name || '—').join(', ')}
-                      </div>
-                    )}
-
-                    {Array.isArray(connectionResult.layout?.consistency?.systemOnly) && connectionResult.layout.consistency.systemOnly.length > 0 && (
-                      <div style={{ color: '#ef9b9b', fontSize: 9, lineHeight: 1.5 }}>
-                        <b>Есть в СИСТЕМЕ, но отсутствуют минимум в одной другой структуре:</b>{' '}
-                        {connectionResult.layout.consistency.systemOnly.map((item: any) => item?.name || '—').join(', ')}
-                      </div>
-                    )}
-
-                    {Array.isArray(connectionResult.layout?.consistency?.registryOnly) && connectionResult.layout.consistency.registryOnly.length > 0 && (
-                      <div style={{ color: '#ef9b9b', fontSize: 9, lineHeight: 1.5 }}>
-                        <b>Есть в САЙТ, но отсутствуют минимум в одной другой структуре:</b>{' '}
-                        {connectionResult.layout.consistency.registryOnly.map((item: any) => item?.name || '—').join(', ')}
-                      </div>
-                    )}
-                  </div>
-                )}
-
-                {connectionResult.layout && connectionResult.layout?.ok !== true && (
-                  <div style={{ padding: '9px 11px', borderRadius: 10, color: '#ef9b9b', background: 'rgba(185,65,70,.08)', border: '1px solid rgba(220,90,95,.18)', fontSize: 9, lineHeight: 1.5 }}>
-                    Не удалось прочитать разметку таблиц: {String(connectionResult.layout?.error || 'неизвестная ошибка')}
-                  </div>
-                )}
+                <div
+                  style={{
+                    padding: '9px 11px',
+                    borderRadius: 10,
+                    color: '#9fc8ea',
+                    background: 'rgba(60,150,220,.055)',
+                    border: '1px solid rgba(85,170,235,.16)',
+                    fontSize: 9,
+                    lineHeight: 1.55,
+                  }}
+                >
+                  Проверка связи теперь специально быстрая. READY_TEMPLATE, нейтральные блоки и следующий свободный слот проверяются отдельно кнопкой «Проверить готовность». Полная разметка всех Google-блоков повторно проверяется непосредственно перед записью.
+                </div>
 
                 <div style={{ color: '#78dca8', fontSize: 9, fontWeight: 800 }}>
                   ✓ Режим: только чтение · записей выполнено: {connectionResult.writesPerformed ?? 0}
@@ -2631,7 +2522,7 @@ export default function QuestionnaireGooglePreview({
                   <span style={{ color: 'var(--admin-muted-2)', fontSize: 9, lineHeight: 1.55, maxWidth: 780 }}>
                     {candidateMissing
                       ? `Запись ${lifecycle?.missingCharacterId || ''} отсутствует в живом САЙТ. Система создаст личную таблицу и все Google-блоки заново из сохранённой анкеты.`
-                      : 'Система сама выбирает рабочий технический шаблон. Совпадение класса больше не обязательно: класс анкеты и его формулы назначаются отдельно из центрального каталога «Классы».'}
+                      : 'Система использует READY_TEMPLATE выбранного класса из каталога «Шаблоны классов». Основная и СИСТЕМА создаются из нейтральных технических блоков; живой персонаж-донор не используется.'}
                   </span>
                 </div>
 
@@ -2653,16 +2544,16 @@ export default function QuestionnaireGooglePreview({
                   }}
                 >
                   {prepareBusy
-                    ? 'Проверяю и выбираю шаблон…'
+                    ? 'Проверяю READY_TEMPLATE…'
                     : prepareResult
                       ? 'Проверить заново'
                       : 'Проверить готовность'}
                 </button>
               </div>
 
-              {!liveLayout && (
+              {!selectedClassMatch && (
                 <div style={{ color: '#efc06c', fontSize: 9, lineHeight: 1.5 }}>
-                  Сначала нажмите «Проверить связь», чтобы определить свободные строки Google.
+                  Не удалось определить канонический класс анкеты. Сначала исправьте поле класса.
                 </div>
               )}
 
@@ -2682,7 +2573,7 @@ export default function QuestionnaireGooglePreview({
                 <div style={{ display: 'grid', gap: 9 }}>
                   <div style={{ padding: '9px 10px', borderRadius: 9, color: prepareResult.prepared ? '#78dca8' : '#efc06c', background: prepareResult.prepared ? 'rgba(55,175,115,.07)' : 'rgba(205,145,55,.07)', border: prepareResult.prepared ? '1px solid rgba(80,195,135,.18)' : '1px solid rgba(225,165,75,.20)', fontSize: 9, lineHeight: 1.5 }}>
                     <b>{prepareResult.prepared ? '✓ Всё готово к записи.' : '⚠ Создание пока заблокировано.'}</b>
-                    {' '}Тех. шаблон: {prepareResult.donor?.name || 'не найден'} · класс анкеты: {payload.combat.className || payload.combat.classKey || '—'}{prepareResult.donor?.sameClass === false ? ' · универсальный режим' : ''}.
+                    {' '}Шаблон класса: {payload.combat.className || payload.combat.classKey || '—'} · источник: READY_TEMPLATE · быстрый Google-preflight пройден · живой персонаж-донор не используется.
                   </div>
 
                   {(prepareResult.blockers || []).length > 0 && (
@@ -3595,7 +3486,7 @@ export default function QuestionnaireGooglePreview({
                     <button
                       type="button"
                       disabled={!dryRunReady || prepareBusy}
-                      onClick={() => prepareGoogleCreation(payload, selectedDryRunDonor)}
+                      onClick={() => prepareGoogleCreation(payload)}
                       style={{
                         border: '1px solid rgba(105,175,235,.28)',
                         background: !dryRunReady || prepareBusy

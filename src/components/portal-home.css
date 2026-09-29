@@ -1,4 +1,4 @@
-.portal-home-shell {
+﻿.portal-home-shell {
   --home-panel: rgba(18, 21, 29, 0.78);
   --home-panel-strong: rgba(24, 28, 38, 0.96);
   --home-border: rgba(255, 255, 255, 0.09);
@@ -373,6 +373,18 @@ html[data-theme="light"] .portal-home-grid {
   background: var(--home-panel-strong);
 }
 
+.portal-home-card-bank,
+.portal-home-card-bank:disabled {
+  cursor: default;
+  opacity: .72;
+}
+
+.portal-home-card-bank:hover,
+.portal-home-card-bank:disabled:hover {
+  transform: none;
+  border-color: var(--home-border);
+  background: var(--home-panel);
+}
 .portal-home-card-featured {
   grid-column: span 6;
   border-color: var(--home-border-strong);
@@ -600,3 +612,105 @@ html[data-theme="light"] .portal-home-grid {
     flex: 1 1 0;
   }
 }
+/* SIRA DESKTOP HOME LAYOUT v1 */
+
+/*
+  Desktop:
+  brand | world calendar | account controls
+*/
+@media (min-width: 961px) {
+  .portal-home-header {
+    display: grid;
+    grid-template-columns: minmax(250px, auto) minmax(210px, 300px) minmax(0, 1fr);
+    align-items: center;
+    gap: 18px;
+  }
+
+  .portal-home-header-calendar {
+    min-width: 0;
+    justify-self: center;
+    width: 100%;
+    max-width: 300px;
+  }
+
+  .portal-home-header-calendar .world-calendar-badge {
+    width: 100%;
+    min-height: 44px;
+    justify-content: center;
+    padding: 7px 12px;
+    border-color: var(--home-border);
+    background: rgba(255,255,255,.035);
+    box-shadow: none;
+  }
+
+  .portal-home-nav {
+    min-width: 0;
+  }
+
+  /*
+    Logged-in desktop users should reach "Ваше пространство"
+    almost immediately instead of scrolling through a 390px hero.
+  */
+  .portal-home-shell.is-authenticated .portal-home-hero {
+    display: block;
+    min-height: 0;
+    padding: 28px 0 18px;
+  }
+
+  .portal-home-shell.is-authenticated .portal-home-hero-copy {
+    max-width: 900px;
+  }
+
+  .portal-home-shell.is-authenticated .portal-home-hero h1 {
+    max-width: none;
+    font-size: clamp(34px, 3.6vw, 50px);
+    line-height: 1.02;
+  }
+
+  .portal-home-shell.is-authenticated .portal-home-hero-copy > p {
+    max-width: 760px;
+    margin-top: 10px;
+    font-size: 14px;
+  }
+
+  .portal-home-shell.is-authenticated .portal-home-dashboard {
+    padding-top: 0;
+  }
+
+  .portal-home-shell.is-authenticated .portal-home-section-head {
+    margin-bottom: 14px;
+  }
+}
+
+/*
+  Tablet/mobile:
+  keep the calendar in the top header, but allow it to wrap beneath
+  brand/account controls instead of squeezing them.
+*/
+@media (max-width: 960px) {
+  .portal-home-header {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr);
+    gap: 12px;
+  }
+
+  .portal-home-brand {
+    justify-self: start;
+  }
+
+  .portal-home-nav {
+    justify-self: end;
+  }
+
+  .portal-home-header-calendar {
+    grid-column: 1 / -1;
+    grid-row: 2;
+    width: 100%;
+  }
+
+  .portal-home-header-calendar .world-calendar-badge {
+    width: 100%;
+  }
+}
+
+
