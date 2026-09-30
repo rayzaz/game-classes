@@ -6,6 +6,7 @@ import React, {
 import { createPortal } from 'react-dom';
 
 import './npc.css';
+import { npcGetJson } from '../features/npc/api';
 
 export type NpcRelation = {
   id: string;
@@ -126,14 +127,10 @@ export default function NpcDirectory({ onBack }: Props) {
       setLoading(true);
       setError('');
       try {
-        const response = await fetch(
+        const result = await npcGetJson<ApiResponse>(
           `/.netlify/functions/npcs?t=${Date.now()}`,
-          { cache: 'no-store' }
+          'Не удалось загрузить каталог НПС'
         );
-        const result: ApiResponse = await response.json();
-        if (!response.ok || !result?.ok) {
-          throw new Error(result?.error || 'Не удалось загрузить каталог НПС');
-        }
         if (!cancelled) {
           setNpcs(Array.isArray(result.npcs) ? result.npcs : []);
         }

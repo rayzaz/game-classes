@@ -5,6 +5,7 @@ import type { NpcRecord, NpcRelation } from '../NpcDirectory';
 import '../npc.css';
 import './admin-npcs.css';
 import NpcKinshipAutomation from './NpcKinshipAutomation';
+import { npcGetJson, npcPostJson } from '../../features/npc/api';
 
 type MissingField = { key: string; label: string };
 type InferredNpcRelation = NpcRelation & { derived?: boolean; reason?: string };
@@ -1097,9 +1098,10 @@ export default function AdminNpcs() {
     setLoading(true);
     setError('');
     try {
-      const response = await fetch(`/.netlify/functions/admin-npcs?t=${Date.now()}`, { cache: 'no-store' });
-      const result: AdminResponse = await response.json();
-      if (!response.ok || !result?.ok) throw new Error(result?.error || 'Не удалось загрузить НПС');
+      const result = await npcGetJson<AdminResponse>(
+        `/.netlify/functions/admin-npcs?t=${Date.now()}`,
+        'Не удалось загрузить НПС'
+      );
       setNpcs(Array.isArray(result.npcs) ? result.npcs : []);
       setRaceOptions(Array.isArray(result.raceOptions) ? result.raceOptions : []);
       setRelationTypes(Array.isArray(result.relationTypes) ? result.relationTypes : []);
@@ -1438,7 +1440,6 @@ function NpcLegacyImport({
         const rawChunk = importState.work.slice(index, index + chunkSize);
         const chunk = await Promise.all(rawChunk.map(item => attachLegacyImage(item)));
 
-        let response: Response | null = null;
         let result: AdminResponse | null = null;
         let lastError = '';
 
@@ -1446,18 +1447,15 @@ function NpcLegacyImport({
         // при второй попытке будет исправлена в той же строке, а не продублирована.
         for (let attempt = 1; attempt <= 2; attempt += 1) {
           try {
-            response = await fetch('/.netlify/functions/admin-npcs', {
-              method: 'POST',
-              headers: { 'content-type': 'application/json' },
-              body: JSON.stringify({
+            result = await npcPostJson<AdminResponse>(
+              '/.netlify/functions/admin-npcs',
+              {
                 action: 'bulk-import',
                 records: chunk,
-              }),
-            });
-
-            result = await response.json();
-            if (response.ok && result?.ok) break;
-            lastError = result?.error || `Сервис импорта вернул ${response.status}.`;
+              },
+              'Сервис импорта НПС не ответил корректно'
+            );
+            break;
           } catch (err) {
             lastError = readMessage(err);
           }
@@ -1468,7 +1466,7 @@ function NpcLegacyImport({
           }
         }
 
-        if (!response || !result || !response.ok || !result.ok) {
+        if (!result || !result.ok) {
           throw new Error(lastError || 'Импорт остановлен из-за ошибки.');
         }
 
@@ -1761,10 +1759,9 @@ function NpcCreateEditor({
     setSaving(true);
     setMessage('');
     try {
-      const response = await fetch('/.netlify/functions/admin-npcs', {
-        method: 'POST',
-        headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({
+      const result = await npcPostJson<AdminResponse>(
+        '/.netlify/functions/admin-npcs',
+        {
           action: 'create',
           npc: {
             ...form,
@@ -1779,10 +1776,9 @@ function NpcCreateEditor({
             note,
             public: isPublic,
           })),
-        }),
-      });
-      const result: AdminResponse = await response.json();
-      if (!response.ok || !result?.ok) throw new Error(result?.error || 'Не удалось создать НПС');
+        },
+        'Не удалось создать НПС'
+      );
       if (!result.npc) throw new Error('НПС создан, но сервер не вернул карточку для локального обновления. Нажмите «Обновить» один раз.');
       const createdNpc = withLocalNpcQuality({
         ...result.npc,
@@ -2048,14 +2044,11 @@ function NpcEditor({
   }, [onClose]);
 
   async function post(body: object) {
-    const response = await fetch('/.netlify/functions/admin-npcs', {
-      method: 'POST',
-      headers: { 'content-type': 'application/json' },
-      body: JSON.stringify(body),
-    });
-    const result: AdminResponse = await response.json();
-    if (!response.ok || !result?.ok) throw new Error(result?.error || 'Операция не выполнена');
-    return result;
+    return npcPostJson<AdminResponse>(
+      '/.netlify/functions/admin-npcs',
+      body,
+      'Операция с НПС не выполнена'
+    );
   }
 
   async function saveNpc() {
