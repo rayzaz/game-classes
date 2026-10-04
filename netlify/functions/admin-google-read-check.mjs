@@ -3,6 +3,15 @@ import {
   readSession,
 } from './_shared/_auth.mjs';
 
+import {
+  getCharacterDbStore,
+  REGISTRY_KEY,
+} from './_character-db/store.mjs';
+
+import {
+  withRegistryPortraitProxy,
+} from './_character-db/portrait.mjs';
+
 
 const REQUEST_TIMEOUT_MS =
   10_000;
@@ -345,66 +354,168 @@ export default async function (
       mode ===
       'registry'
     ) {
-      const result =
-        await fetchServiceJson(
-          serviceUrl,
-          {
-            action:
-              'registry-lite',
-          }
+      const startedAt =
+        Date.now();
+
+      try {
+        const store =
+          getCharacterDbStore();
+
+        const registryDocument =
+          await store.get(
+            REGISTRY_KEY,
+            {
+              type: 'json',
+              consistency: 'strong',
+            }
+          );
+
+        if (
+          !registryDocument ||
+          registryDocument.ok !== true ||
+          !Array.isArray(
+            registryDocument.characters
+          )
+        ) {
+          throw new Error(
+            'Character DB registry unavailable'
+          );
+        }
+
+        const characters =
+          registryDocument.characters
+            .map(
+              item =>
+                withRegistryPortraitProxy(
+                  item,
+                  registryDocument.updatedAt ||
+                  registryDocument.mainSourceVersion ||
+                  ''
+                )
+            );
+
+        const responseMs =
+          Date.now() -
+          startedAt;
+
+        console.log(
+          'admin-google-read-check registry DB HIT:',
+          'count=',
+          characters.length,
+          'ms=',
+          responseMs
         );
 
-      const characters =
-        Array.isArray(
-          result.data
-            ?.characters
-        )
-          ? result.data.characters
-          : [];
-
-      return json({
-        ok: true,
-        mode:
-          'registry-lite',
-        serviceConfigured:
-          true,
-        checkedAt:
-          new Date()
-            .toISOString(),
-
-        service: {
+        return json({
           ok: true,
-          responseMs:
-            result.responseMs,
-          version:
-            cleanText(
-              result.data?.version
-            ),
-          runtimeUsesLiveDonor:
-            result.data
-              ?.runtimeUsesLiveDonor ===
+          mode:
+            'character-db-registry',
+          serviceConfigured:
+            true,
+          checkedAt:
+            new Date()
+              .toISOString(),
+
+          service: {
+            ok: true,
+            responseMs,
+            version:
+              'character-db-v1',
+            runtimeUsesLiveDonor:
               true,
-        },
+          },
 
-        registry: {
+          registry: {
+            ok: true,
+            count:
+              characters.length,
+            responseMs,
+            elapsedMs:
+              responseMs,
+            sample:
+              characters.slice(
+                0,
+                5
+              ),
+            characters,
+          },
+
+          writesPerformed:
+            0,
+        });
+
+      } catch (dbError) {
+        console.error(
+          'admin-google-read-check registry DB error -> Google fallback:',
+          dbError
+        );
+
+        /*
+          Безопасный fallback оставляем: если Character DB временно
+          недоступна, диагностический экран продолжит работать через
+          прежний registry-lite Apps Script.
+        */
+        const result =
+          await fetchServiceJson(
+            serviceUrl,
+            {
+              action:
+                'registry-lite',
+            }
+          );
+
+        const characters =
+          Array.isArray(
+            result.data
+              ?.characters
+          )
+            ? result.data.characters
+            : [];
+
+        return json({
           ok: true,
-          count:
-            characters.length,
-          responseMs:
-            result.responseMs,
-          elapsedMs:
-            result.responseMs,
-          sample:
-            characters.slice(
-              0,
-              5
-            ),
-          characters,
-        },
+          mode:
+            'registry-lite-google-fallback',
+          serviceConfigured:
+            true,
+          checkedAt:
+            new Date()
+              .toISOString(),
 
-        writesPerformed:
-          0,
-      });
+          service: {
+            ok: true,
+            responseMs:
+              result.responseMs,
+            version:
+              cleanText(
+                result.data?.version
+              ),
+            runtimeUsesLiveDonor:
+              result.data
+                ?.runtimeUsesLiveDonor ===
+                true,
+          },
+
+          registry: {
+            ok: true,
+            count:
+              characters.length,
+            responseMs:
+              result.responseMs,
+            elapsedMs:
+              result.responseMs,
+            sample:
+              characters.slice(
+                0,
+                5
+              ),
+            characters,
+          },
+
+          writesPerformed:
+            0,
+        });
+      }
     }
 
     /*

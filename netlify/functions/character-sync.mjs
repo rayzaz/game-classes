@@ -46,6 +46,14 @@ function cleanRegistry(registry) {
       className: String(item?.className || "").trim(),
       rank: String(item?.rank || "").trim(),
       squad: String(item?.squad || "").trim(),
+      player: String(item?.player || "").trim(),
+      magicType: String(item?.magicType || "").trim(),
+      cabinetReady: item?.cabinetReady !== false,
+      gender: ["male", "female"].includes(
+        String(item?.gender || "").trim().toLowerCase()
+      )
+        ? String(item.gender).trim().toLowerCase()
+        : "",
     }))
     .filter((item) => item.characterId);
 }

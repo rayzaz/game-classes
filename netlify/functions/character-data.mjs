@@ -8,6 +8,10 @@ import {
   characterKey,
 } from './_character-db/store.mjs';
 
+import {
+  withCharacterPortraitProxy,
+} from './_character-db/portrait.mjs';
+
 
 /* ============================================================
    PLAYER CHARACTER DATA — CHARACTER DB FIRST V1
@@ -508,7 +512,14 @@ export default async (
       }
 
       return json(
-        stored.data
+        withCharacterPortraitProxy(
+          stored.data,
+          characterId,
+          stored.syncedAt ||
+          stored.sourceVersion ||
+          stored.data?.updatedAt ||
+          ''
+        )
       );
     }
 
@@ -530,12 +541,15 @@ export default async (
         characterId
       );
 
+    let fallbackStored = null;
+
     try {
-      await writeCharacterToDb(
-        characterId,
-        data,
-        null
-      );
+      fallbackStored =
+        await writeCharacterToDb(
+          characterId,
+          data,
+          null
+        );
     } catch (error) {
       /*
         Даже если кэш не удалось обновить, живые данные Google
@@ -549,7 +563,16 @@ export default async (
     }
 
     return json(
-      data
+      fallbackStored
+        ? withCharacterPortraitProxy(
+            fallbackStored.data,
+            characterId,
+            fallbackStored.syncedAt ||
+            fallbackStored.sourceVersion ||
+            fallbackStored.data?.updatedAt ||
+            ''
+          )
+        : data
     );
 
   } catch (error) {

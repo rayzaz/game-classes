@@ -3,17 +3,31 @@ import {
   readSession,
 } from './_shared/_auth.mjs';
 
+import {
+  getCharacterDbStore,
+  characterKey,
+} from './_character-db/store.mjs';
 
-/* ============================================================
-   ЦЕНТРАЛЬНЫЙ СЕРВИС ПЕРСОНАЖЕЙ
-   ============================================================ */
+import {
+  withCharacterPortraitProxy,
+} from './_character-db/portrait.mjs';
+
+
+function cleanText(value) {
+  return String(value ?? '').trim();
+}
+
+
+function normalizeCharacterId(value) {
+  return cleanText(value).toLowerCase();
+}
+
 
 function loadCharacterServiceUrl() {
   const raw =
-    String(
-      process.env.CHARACTER_SERVICE_URL ||
-      ''
-    ).trim();
+    cleanText(
+      process.env.CHARACTER_SERVICE_URL
+    );
 
   if (!raw) {
     throw new Error(
@@ -25,9 +39,159 @@ function loadCharacterServiceUrl() {
 }
 
 
-/* ============================================================
-   ФУНКЦИЯ NETLIFY
-   ============================================================ */
+function isUsableCharacterDocument(
+  document,
+  characterId
+) {
+  if (
+    !document ||
+    document.ok !== true ||
+    document.data?.ok !== true
+  ) {
+    return false;
+  }
+
+  const storedId =
+    normalizeCharacterId(
+      document.characterId ||
+      document.data?.registry?.characterId
+    );
+
+  return (
+    storedId ===
+    normalizeCharacterId(characterId)
+  );
+}
+
+
+async function readCharacterFromDb(
+  characterId
+) {
+  const store =
+    getCharacterDbStore();
+
+  const document =
+    await store.get(
+      characterKey(characterId),
+      {
+        type: 'json',
+        consistency: 'strong',
+      }
+    );
+
+  return isUsableCharacterDocument(
+    document,
+    characterId
+  )
+    ? document
+    : null;
+}
+
+
+async function fetchCharacterFromGoogle(
+  characterId
+) {
+  const serviceUrl =
+    new URL(
+      loadCharacterServiceUrl()
+    );
+
+  serviceUrl.searchParams.set(
+    'characterId',
+    characterId
+  );
+
+  serviceUrl.searchParams.set(
+    '_',
+    String(Date.now())
+  );
+
+  const response =
+    await fetch(
+      serviceUrl,
+      {
+        method: 'GET',
+        headers: {
+          accept: 'application/json',
+        },
+        cache: 'no-store',
+        redirect: 'follow',
+      }
+    );
+
+  if (!response.ok) {
+    console.error(
+      'admin character service HTTP error:',
+      characterId,
+      response.status
+    );
+
+    return {
+      ok: false,
+      status: 502,
+      error:
+        'Центральный сервис персонажей недоступен',
+    };
+  }
+
+  let data;
+
+  try {
+    data =
+      await response.json();
+  } catch (error) {
+    console.error(
+      'admin character service JSON error:',
+      characterId,
+      error
+    );
+
+    return {
+      ok: false,
+      status: 502,
+      error:
+        'Центральный сервис вернул некорректные данные',
+    };
+  }
+
+  if (
+    !data ||
+    data.ok !== true
+  ) {
+    const sourceError =
+      cleanText(
+        data?.error ||
+        'Не удалось загрузить персонажа'
+      );
+
+    const normalizedError =
+      sourceError.toLowerCase();
+
+    const isNotFound =
+      normalizedError.includes(
+        'не найден'
+      ) ||
+      normalizedError.includes(
+        'отключён'
+      );
+
+    return {
+      ok: false,
+      status:
+        isNotFound
+          ? 404
+          : 502,
+      error:
+        sourceError,
+    };
+  }
+
+  return {
+    ok: true,
+    data,
+  };
+}
+
 
 export default async (
   request
@@ -47,11 +211,6 @@ export default async (
   }
 
   try {
-
-    /* ========================================================
-       ПРОВЕРЯЕМ СЕССИЮ
-       ======================================================== */
-
     const session =
       readSession(
         request
@@ -68,11 +227,6 @@ export default async (
       );
     }
 
-
-    /* ========================================================
-       ТОЛЬКО АДМИНИСТРАТОР
-       ======================================================== */
-
     if (
       session.role !==
       'admin'
@@ -87,27 +241,19 @@ export default async (
       );
     }
 
-
-    /* ========================================================
-       CHARACTER ID
-       ======================================================== */
-
     const requestUrl =
       new URL(
         request.url
       );
 
     const characterId =
-      String(
+      normalizeCharacterId(
         requestUrl
           .searchParams
           .get(
             'characterId'
-          ) ||
-        ''
-      )
-        .trim()
-        .toLowerCase();
+          )
+      );
 
     if (!characterId) {
       return json(
@@ -120,170 +266,64 @@ export default async (
       );
     }
 
+    try {
+      const stored =
+        await readCharacterFromDb(
+          characterId
+        );
 
-    /* ========================================================
-       СОБИРАЕМ URL ЦЕНТРАЛЬНОГО APPS SCRIPT
-       ======================================================== */
+      if (stored) {
+        console.log(
+          'admin-character-data DB HIT:',
+          characterId
+        );
 
-    const serviceUrl =
-      new URL(
-        loadCharacterServiceUrl()
-      );
+        return json(
+          withCharacterPortraitProxy(
+            stored.data,
+            characterId,
+            stored.syncedAt ||
+            stored.sourceVersion ||
+            stored.data?.updatedAt ||
+            ''
+          )
+        );
+      }
 
-    serviceUrl
-      .searchParams
-      .set(
-        'characterId',
+      console.warn(
+        'admin-character-data DB MISS -> Google fallback:',
         characterId
       );
 
-    /*
-      Не даём браузеру/прокси
-      вернуть старый JSON.
-    */
-
-    serviceUrl
-      .searchParams
-      .set(
-        '_',
-        String(
-          Date.now()
-        )
-      );
-
-
-    /* ========================================================
-       ЗАПРАШИВАЕМ ПЕРСОНАЖА
-       ======================================================== */
-
-    const response =
-      await fetch(
-        serviceUrl,
-        {
-          method:
-            'GET',
-
-          headers: {
-            accept:
-              'application/json',
-          },
-
-          cache:
-            'no-store',
-
-          redirect:
-            'follow',
-        }
-      );
-
-    if (
-      !response.ok
-    ) {
+    } catch (error) {
       console.error(
-        'character service HTTP error:',
-        characterId,
-        response.status
-      );
-
-      return json(
-        {
-          ok: false,
-          error:
-            'Центральный сервис персонажей недоступен',
-        },
-        502
-      );
-    }
-
-
-    /* ========================================================
-       ЧИТАЕМ JSON
-       ======================================================== */
-
-    let data;
-
-    try {
-      data =
-        await response.json();
-    } catch (
-      error
-    ) {
-      console.error(
-        'character service JSON error:',
+        'admin-character-data DB read error -> Google fallback:',
         characterId,
         error
       );
+    }
 
+    const fallback =
+      await fetchCharacterFromGoogle(
+        characterId
+      );
+
+    if (!fallback.ok) {
       return json(
         {
           ok: false,
           error:
-            'Центральный сервис вернул некорректные данные',
+            fallback.error,
         },
-        502
+        fallback.status
       );
     }
-
-
-    /* ========================================================
-       ОШИБКА ИЗ APPS SCRIPT
-       ======================================================== */
-
-    if (
-      !data ||
-      data.ok !==
-      true
-    ) {
-      const sourceError =
-        String(
-          data?.error ||
-          'Не удалось загрузить персонажа'
-        );
-
-      console.error(
-        'character service error:',
-        characterId,
-        sourceError
-      );
-
-      const normalizedError =
-        sourceError
-          .toLowerCase();
-
-      const isNotFound =
-        normalizedError
-          .includes(
-            'не найден'
-          ) ||
-        normalizedError
-          .includes(
-            'отключён'
-          );
-
-      return json(
-        {
-          ok: false,
-          error:
-            sourceError,
-        },
-        isNotFound
-          ? 404
-          : 502
-      );
-    }
-
-
-    /* ========================================================
-       ВСЁ ХОРОШО
-       ======================================================== */
 
     return json(
-      data
+      fallback.data
     );
 
-  } catch (
-    error
-  ) {
+  } catch (error) {
     console.error(
       'admin-character-data function error:',
       error
