@@ -12,6 +12,10 @@ import {
   withCharacterPortraitProxy,
 } from './_character-db/portrait.mjs';
 
+import {
+  publishCharacterSnapshot,
+} from './_character-db/guarded-write.mjs';
+
 
 /* ============================================================
    PLAYER CHARACTER DATA — CHARACTER DB FIRST V1
@@ -192,45 +196,23 @@ async function writeCharacterToDb(
   data,
   existingDocument = null
 ) {
-  const safeData =
-    stablePortraitForRefresh(
-      data,
-      existingDocument,
-      characterId
-    );
-
-  const now =
-    new Date().toISOString();
-
-  const document = {
-    ok: true,
-    schemaVersion: 1,
-    source: 'google-sheets',
-    characterId:
-      normalizeCharacterId(
-        characterId
-      ),
-    sourceVersion:
-      cleanText(
-        safeData?.updatedAt || now
-      ),
-    syncedAt:
-      now,
-    data:
-      safeData,
-  };
-
-  const store =
-    getCharacterDbStore();
-
-  await store.setJSON(
-    characterKey(characterId),
-    document
-  );
-
-  return document;
+  // existingDocument is accepted for compatibility, but the guarded helper
+  // always re-reads the latest Blob version before merging the portrait.
+  void existingDocument;
+  const store = getCharacterDbStore();
+  const outcome = await publishCharacterSnapshot({
+    store,
+    key: characterKey(characterId),
+    characterId: normalizeCharacterId(characterId),
+    data,
+    sourceVersion: cleanText(data?.updatedAt || new Date().toISOString()),
+    transformData: (freshData, current) =>
+      stablePortraitForRefresh(freshData, current, characterId),
+  });
+  console.log('character-data guarded:', characterId, outcome.status,
+    'attempts=', outcome.attempts);
+  return outcome.document;
 }
-
 
 async function fetchCharacterFromGoogle(
   characterId

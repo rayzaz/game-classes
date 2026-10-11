@@ -1,4 +1,5 @@
 import { getCharacterDbStore, characterKey, REGISTRY_KEY } from "./_character-db/store.mjs";
+import { publishCharacterSnapshot } from "./_character-db/guarded-write.mjs";
 
 const MAX_PAYLOAD_BYTES = 4_500_000;
 
@@ -115,6 +116,8 @@ export default async (request) => {
 
   const written = [];
   const skipped = [];
+  const superseded = [];
+  const applied = [];
 
   for (const item of characters) {
     const characterId = String(
@@ -126,18 +129,11 @@ export default async (request) => {
       continue;
     }
 
-    const document = {
-      ok: true,
-      schemaVersion: 1,
-      source: "google-sheets",
-      characterId,
-      sourceVersion: String(item?.sourceVersion || ""),
-      syncedAt: String(item?.syncedAt || new Date().toISOString()),
-      data: item?.data || null,
-    };
-
-    const serialized = JSON.stringify(document);
-
+    const data = item?.data;
+    if (!data || data.ok !== true) {
+      return json({ ok: false, error: "Invalid character data", characterId }, 422);
+    }
+    const serialized = JSON.stringify(data);
     if (byteLength(serialized) > MAX_PAYLOAD_BYTES) {
       return json(
         {
@@ -149,8 +145,29 @@ export default async (request) => {
       );
     }
 
-    await store.setJSON(characterKey(characterId), document);
+    let outcome;
+    try {
+      outcome = await publishCharacterSnapshot({
+        store,
+        key: characterKey(characterId),
+        characterId,
+        data,
+        sourceVersion: String(item?.sourceVersion || data.updatedAt || item?.syncedAt || ""),
+      });
+    } catch (error) {
+      console.error("character-sync guarded write failed:", characterId, error);
+      return json({ ok: false, error: "Character DB guarded write failed", characterId }, 503);
+    }
+
+    // Backward compatibility: installed Apps Script expects every valid ID
+    // in 'written', including snapshots superseded by newer DB data.
     written.push(characterId);
+    if (outcome.status === 'applied') {
+      applied.push(characterId);
+    } else {
+      superseded.push(characterId);
+    }
+    console.log('character-sync guarded:', characterId, outcome.status, 'attempts=', outcome.attempts);
   }
 
   return json({
@@ -158,6 +175,8 @@ export default async (request) => {
     schemaVersion: 1,
     registryCount: registry.length,
     written,
+    applied,
+    superseded,
     skipped,
     updatedAt: new Date().toISOString(),
   });
