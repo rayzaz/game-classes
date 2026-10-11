@@ -8,6 +8,7 @@ import './player/player-character-themes.css';
 
 const PLAYER_CABINET_API = '/.netlify/functions/character-data';
 const ADMIN_CABINET_API = '/.netlify/functions/admin-character-data';
+const PLAYER_LIVE_HP_MP_API = '/.netlify/functions/character-live-state';
 
 type Props = {
     onBack: () => void;
@@ -88,6 +89,13 @@ type InventoryData = {
         securities: string[];
         miscellaneous: string[];
     };
+};
+
+type LiveHpMp = {
+    characterId: string;
+    observedAt: string;
+    health: { current: number; max: number };
+    mana: { current: number; max: number };
 };
 
 type CharacterData = {
@@ -1284,6 +1292,49 @@ export default function PlayerCabinet({
             null
         );
 
+    const [liveHpMp, setLiveHpMp] = useState<LiveHpMp | null>(null);
+
+    // The lightweight live state never triggers a heavy Google character read.
+    // It only overrides HP/MP when a fresh, server-validated snapshot exists.
+    useEffect(() => {
+        let active = true;
+        const loadLiveHpMp = async () => {
+            if (typeof document !== 'undefined' && document.hidden) return;
+            const query = adminView ? `?characterId=${encodeURIComponent(characterId)}` : '';
+            try {
+                const response = await fetch(`${PLAYER_LIVE_HP_MP_API}${query}`, {
+                    cache: 'no-store',
+                    credentials: 'same-origin',
+                });
+                if (!active || !response.ok) return;
+                const result = await response.json();
+                if (!active) return;
+                if (result.ok === true && result.available === true &&
+                    result.characterId === characterId &&
+                    Number.isFinite(result.health?.current) && Number.isFinite(result.health?.max) &&
+                    Number.isFinite(result.mana?.current) && Number.isFinite(result.mana?.max)) {
+                    setLiveHpMp(prev => prev && prev.characterId === result.characterId &&
+                        prev.observedAt === result.observedAt ? prev : result as LiveHpMp);
+                } else if (result.ok === true && result.available === false) {
+                    setLiveHpMp(null); // fallback to normal Character DB during initial rollout/outage
+                }
+            } catch (_) {
+                // Network failures do not break the player cabinet.
+            }
+        };
+        setLiveHpMp(null);
+        void loadLiveHpMp();
+        const timer = window.setInterval(() => { void loadLiveHpMp(); }, 20_000);
+        window.addEventListener('focus', loadLiveHpMp);
+        document.addEventListener('visibilitychange', loadLiveHpMp);
+        return () => {
+            active = false;
+            window.clearInterval(timer);
+            window.removeEventListener('focus', loadLiveHpMp);
+            document.removeEventListener('visibilitychange', loadLiveHpMp);
+        };
+    }, [characterId, adminView]);
+
     const [
         error,
         setError,
@@ -1630,11 +1681,15 @@ export default function PlayerCabinet({
       после следующего чтения данных персонажа.
     */
 
+    const cabinetLive = liveHpMp?.characterId === characterId ? liveHpMp : null;
+    const cabinetHealthStat = cabinetLive?.health ?? data.health;
+    const cabinetManaStat = cabinetLive?.mana ?? data.mana;
+
     const cabinetHealth =
         Math.max(
             0,
             Number(
-                data.health.current
+                cabinetHealthStat.current
             ) || 0
         );
 
@@ -1642,12 +1697,12 @@ export default function PlayerCabinet({
         Math.max(
             0,
             Number(
-                data.mana.current
+                cabinetManaStat.current
             ) || 0
         );
 
     const hpPercent =
-        data.health.max >
+        cabinetHealthStat.max >
             0
             ? Math.max(
                 0,
@@ -1655,14 +1710,14 @@ export default function PlayerCabinet({
                     100,
                     (
                         cabinetHealth /
-                        data.health.max
+                        cabinetHealthStat.max
                     ) * 100
                 )
             )
             : 0;
 
     const manaPercent =
-        data.mana.max >
+        cabinetManaStat.max >
             0
             ? Math.max(
                 0,
@@ -1670,7 +1725,7 @@ export default function PlayerCabinet({
                     100,
                     (
                         cabinetMana /
-                        data.mana.max
+                        cabinetManaStat.max
                     ) * 100
                 )
             )
@@ -2087,7 +2142,7 @@ export default function PlayerCabinet({
                             /{' '}
                             {
                                 formatNumber(
-                                    data.health.max,
+                                    cabinetHealthStat.max,
                                     0
                                 )
                             }
@@ -2140,7 +2195,7 @@ export default function PlayerCabinet({
                             /{' '}
                             {
                                 formatNumber(
-                                    data.mana.max,
+                                    cabinetManaStat.max,
                                     0
                                 )
                             }
