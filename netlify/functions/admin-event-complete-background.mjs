@@ -18,6 +18,8 @@ import {
   trySendGameNotification,
 } from './_shared/_game-notifications.mjs';
 
+import { scheduleEventCharacterRefresh } from './_character-db/event-refresh.mjs';
+
 
 const EVENTS_STORE =
   'gosmag-events';
@@ -349,7 +351,8 @@ async function saveJob(
 
 
 export default async function (
-  request
+  request,
+  context
 ) {
   let jobId =
     '';
@@ -599,6 +602,14 @@ export default async function (
             })
           )
         );
+
+      // Google has confirmed the award. Do not wait for event-store writes
+      // before scheduling a best-effort Character DB update.
+      await scheduleEventCharacterRefresh(
+        context,
+        completedReports.map(item => item.characterId),
+        'event-repair'
+      );
 
       const repairedAt =
         new Date()
@@ -902,6 +913,13 @@ export default async function (
           })
         )
       );
+
+    // Google has confirmed rewards; sync does not participate in reward success.
+    await scheduleEventCharacterRefresh(
+      context,
+      participantReports.map(item => item.characterId),
+      'event-complete'
+    );
 
     const completedAt =
       new Date()

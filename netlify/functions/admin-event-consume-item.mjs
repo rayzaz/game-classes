@@ -14,6 +14,8 @@ import {
   tryWriteAdminLog,
 } from './_shared/_admin-log.mjs';
 
+import { scheduleEventCharacterRefresh } from './_character-db/event-refresh.mjs';
+
 
 const EVENTS_STORE =
   'gosmag-events';
@@ -343,7 +345,8 @@ async function callCharacterService({
 
 
 export default async function (
-  request
+  request,
+  context
 ) {
   if (
     request.method !==
@@ -579,6 +582,11 @@ export default async function (
         item:
           found.item,
       });
+
+    // Sync after Google confirms consumption, even if later event-state writes fail.
+    await scheduleEventCharacterRefresh(
+      context, [characterId], 'event-consume-item'
+    );
 
     const consumedAt =
       cleanText(
