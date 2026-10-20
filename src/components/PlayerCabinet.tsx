@@ -9,6 +9,7 @@ import './player/player-character-themes.css';
 const PLAYER_CABINET_API = '/.netlify/functions/character-data';
 const ADMIN_CABINET_API = '/.netlify/functions/admin-character-data';
 const PLAYER_LIVE_HP_MP_API = '/.netlify/functions/character-live-state';
+const PLAYER_FAST_CORE_API = '/.netlify/functions/character-fast-state';
 
 type Props = {
     onBack: () => void;
@@ -89,6 +90,13 @@ type InventoryData = {
         securities: string[];
         miscellaneous: string[];
     };
+};
+
+type FastCore = {
+    characterId: string;
+    observedAt: string;
+    name: string;
+    level: { current: number; experience: number; progress: number };
 };
 
 type LiveHpMp = {
@@ -1293,6 +1301,53 @@ export default function PlayerCabinet({
         );
 
     const [liveHpMp, setLiveHpMp] = useState<LiveHpMp | null>(null);
+    const [fastCore, setFastCore] = useState<FastCore | null>(null);
+
+    // Lightweight Google-derived level/XP/name: no personal-sheet reads per viewer.
+    useEffect(() => {
+        let active = true;
+        let busy = false;
+        const loadFastCore = async () => {
+            if (busy || document.hidden) return;
+            busy = true;
+            const query = adminView ? `?characterId=${encodeURIComponent(characterId)}` : '';
+            try {
+                const response = await fetch(`${PLAYER_FAST_CORE_API}${query}`, {
+                    cache: 'no-store', credentials: 'same-origin',
+                });
+                if (!active || !response.ok) return;
+                const result = await response.json();
+                if (!active) return;
+                if (result.ok === true && result.available === true &&
+                    result.characterId === characterId && typeof result.name === 'string' &&
+                    Number.isInteger(result.level?.current) &&
+                    Number.isFinite(result.level?.experience) &&
+                    Number.isFinite(result.level?.progress)) {
+                    setFastCore(previous => previous !== null &&
+                        previous.observedAt === result.observedAt &&
+                        previous.characterId === result.characterId ? previous : result as FastCore);
+                } else if (result.ok === true && result.available === false) {
+                    setFastCore(null);
+                }
+            } catch (_) {
+                // Failure does not block the normal Character DB cabinet.
+            } finally {
+                busy = false;
+            }
+        };
+        setFastCore(null);
+        void loadFastCore();
+        const timer = window.setInterval(() => { void loadFastCore(); }, 20_000);
+        window.addEventListener('focus', loadFastCore);
+        document.addEventListener('visibilitychange', loadFastCore);
+        return () => {
+            active = false;
+            window.clearInterval(timer);
+            window.removeEventListener('focus', loadFastCore);
+            document.removeEventListener('visibilitychange', loadFastCore);
+        };
+    }, [characterId, adminView]);
+
 
     // The lightweight live state never triggers a heavy Google character read.
     // It only overrides HP/MP when a fresh, server-validated snapshot exists.
@@ -1681,6 +1736,9 @@ export default function PlayerCabinet({
       после следующего чтения данных персонажа.
     */
 
+    const cabinetFast = fastCore?.characterId === characterId ? fastCore : null;
+    const cabinetName = cabinetFast?.name ?? data.character.name;
+    const cabinetLevel = cabinetFast?.level ?? data.level;
     const cabinetLive = liveHpMp?.characterId === characterId ? liveHpMp : null;
     const cabinetHealthStat = cabinetLive?.health ?? data.health;
     const cabinetManaStat = cabinetLive?.mana ?? data.mana;
@@ -1849,7 +1907,7 @@ export default function PlayerCabinet({
                     }
 
                     name={
-                        data.character.name
+                        cabinetName
                     }
 
                     portrait={
@@ -1866,7 +1924,7 @@ export default function PlayerCabinet({
 
                     <h1>
                         {
-                            data.character.name
+                            cabinetName
                         }
                     </h1>
 
@@ -1985,13 +2043,13 @@ export default function PlayerCabinet({
 
                     <strong>
                         {
-                            data.level.current
+                            cabinetLevel.current
                         }
                     </strong>
 
                     <small>
                         {
-                            data.level.progress.toFixed(
+                            cabinetLevel.progress.toFixed(
                                 2
                             )
                         }
@@ -2006,7 +2064,7 @@ export default function PlayerCabinet({
             {!adminView ? (
                 <ExamRegistrationCard
                     level={
-                        data.level.current
+                        cabinetLevel.current
                     }
                     rank={
                         data.character.rank
@@ -2241,7 +2299,7 @@ export default function PlayerCabinet({
                         <strong>
                             {
                                 formatNumber(
-                                    data.level.experience,
+                                    cabinetLevel.experience,
                                     0
                                 )
                             }
@@ -2257,7 +2315,7 @@ export default function PlayerCabinet({
 
                             style={{
                                 width:
-                                    `${data.level.progress}%`,
+                                    `${cabinetLevel.progress}%`,
                             }}
                         />
 
@@ -2266,7 +2324,7 @@ export default function PlayerCabinet({
 
                     <small>
                         {
-                            data.level.progress.toFixed(
+                            cabinetLevel.progress.toFixed(
                                 2
                             )
                         }
