@@ -1,0 +1,12 @@
+.star-bank-b3-form{display:grid;grid-template-columns:repeat(auto-fit,minmax(205px,1fr));gap:15px;margin-top:18px;align-items:end}
+.star-bank-b3-form label{display:flex;flex-direction:column;gap:6px;color:#524936;font-size:14px;font-weight:600}
+.star-bank-b3-form input,.star-bank-b3-form select{width:100%;min-width:0;box-sizing:border-box;min-height:44px;padding:10px 12px;border:1px solid #d7ceb9;background:white;border-radius:10px;color:#25211a;font:inherit}
+.star-bank-b3-form .star-bank-b3-wide{grid-column:1/-1}
+.star-bank-b3-form button{min-height:44px}
+.star-bank-b3-result{margin:16px 0 0;font-weight:600;color:#524416;overflow-wrap:anywhere}
+.star-bank-b3-roles{display:flex;flex-direction:column;gap:8px;margin-top:18px}
+.star-bank-b3-user{display:flex;align-items:center;justify-content:space-between;gap:12px;border-bottom:1px solid #e6dfd1;padding:12px 0}
+.star-bank-b3-user>span{display:flex;flex-direction:column;gap:4px}
+.star-bank-b3-user small{opacity:.7}
+.star-bank-b3-user button{white-space:normal}
+@media(max-width:600px){.star-bank-b3-user{align-items:flex-start;flex-direction:column}.star-bank-b3-user button{width:100%}}

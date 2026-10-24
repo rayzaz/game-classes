@@ -1,6 +1,7 @@
-import React, {useCallback, useEffect, useMemo, useState} from 'react';
+import React, {useCallback, useEffect, useMemo, useState, useRef} from 'react';
 import type {LoginUser} from './Portal';
 import './bank.css';
+import './bank-b3.css';
 
 type StarAccount = {
   characterId: string;
@@ -43,7 +44,16 @@ const formatDate = (value: string) => {
     {dateStyle:'short',timeStyle:'short'});
 };
 
-export default function BankPage({onBack}: Props) {
+type BankerUser = {login:string;displayName:string;banker:boolean;locked:boolean};
+const TRANSACTION_API = '/.netlify/functions/bank-stars-operation-v3';
+const ROLE_API = '/.netlify/functions/admin-banker-access';
+function sourceUrl(reason:string) {
+  const match = reason.match(/(?:^|\s)Пост:\s*(https:\/\/\S+)/);
+  if(!match) return '';
+  try {const url=new URL(match[1]);return url.protocol==='https:' ? url.toString() : '';} catch{return '';}
+}
+
+export default function BankPage({user,onBack}: Props) {
   const [accounts, setAccounts] = useState<StarAccount[]>([]);
   const [mine, setMine] = useState<StarAccount | null>(null);
   const [canManage, setCanManage] = useState(false);
@@ -55,6 +65,64 @@ export default function BankPage({onBack}: Props) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [query, setQuery] = useState('');
+  const [selectedId,setSelectedId]=useState('');
+  const [opKind,setOpKind]=useState<'credit'|'debit'>('credit');
+  const [amount,setAmount]=useState('');
+  const [postUrl,setPostUrl]=useState('');
+  const [reason,setReason]=useState('');
+  const [actionBusy,setActionBusy]=useState(false);
+  const [actionMessage,setActionMessage]=useState('');
+  // Reuse the same id for retries after an uncertain network result.
+  const pendingId=useRef('');
+  const [bankerUsers,setBankerUsers]=useState<BankerUser[]>([]);
+  const [rolesLoading,setRolesLoading]=useState(false);
+  const [rolesError,setRolesError]=useState('');
+  const [rolesBusy,setRolesBusy]=useState('');
+  const isAdmin = user.role==='admin';
+  const invalidateRequest=()=>{pendingId.current='';setActionMessage('');};
+  const submitOperation=async (event:React.FormEvent)=>{
+    event.preventDefault();
+    if(!canManage || actionBusy || !selectedId) return;
+    const qty=Number(amount);
+    if(!Number.isSafeInteger(qty)||qty<1||qty>1000000){setActionMessage('Укажи целое количество от 1 до 1 000 000.');return;}
+    if(!reason.trim()&&!postUrl.trim()){setActionMessage('Нужна ссылка на пост или причина операции.');return;}
+    if(!pendingId.current) pendingId.current=crypto.randomUUID();
+    setActionBusy(true);setActionMessage('');
+    try {
+      const response=await fetch(TRANSACTION_API,{method:'POST',credentials:'same-origin',
+        headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({characterId:selectedId,action:opKind,amount:qty,
+          postUrl:postUrl.trim(),reason:reason.trim(),requestId:pendingId.current})});
+      const result=await response.json();
+      if(!response.ok || result.ok!==true) throw new Error(result.error||`Ошибка HTTP ${response.status}`);
+      setActionMessage(`${result.status==='duplicate'?'Повтор подтверждён':'Операция выполнена'}: ${
+        result.balanceAfter.toLocaleString('ru-RU')} ⭐. Обновление общей таблицы на сайте займёт до 1–2 минут.`);
+      pendingId.current='';setAmount('');setPostUrl('');setReason('');
+      // Snapshot read may be older until the next minute worker run.
+    } catch(err) {setActionMessage((err instanceof Error?err.message:String(err))+
+      ' Если повторяешь запрос, не меняй поля: сохранён прежний ключ операции.');}
+    finally {setActionBusy(false);}
+  };
+  const loadRoles=useCallback(async()=>{
+    if(!isAdmin)return;
+    setRolesLoading(true);setRolesError('');
+    try {const res=await fetch(`${ROLE_API}?t=${Date.now()}`,{credentials:'same-origin',cache:'no-store'});
+      const obj=await res.json();if(!res.ok||obj.ok!==true)throw new Error(obj.error||'Не удалось получить роли');
+      setBankerUsers(Array.isArray(obj.users)?obj.users:[]);
+    }catch(err){setRolesError(err instanceof Error?err.message:String(err));}
+    finally{setRolesLoading(false);}
+  },[isAdmin]);
+  useEffect(()=>{void loadRoles();},[loadRoles]);
+  const setRole=async (login:string,enabled:boolean)=>{
+    setRolesBusy(login);setRolesError('');
+    try {const res=await fetch(ROLE_API,{method:'POST',credentials:'same-origin',
+      headers:{'Content-Type':'application/json'},body:JSON.stringify({login,enabled})});
+      const obj=await res.json();if(!res.ok||obj.ok!==true)throw new Error(obj.error||'Не удалось изменить роль');
+      await loadRoles();
+    }catch(err){setRolesError(err instanceof Error?err.message:String(err));}
+    finally{setRolesBusy('');}
+  };
+
 
   const load = useCallback(async (quiet = false) => {
     if (!quiet) setLoading(true);
@@ -160,10 +228,65 @@ export default function BankPage({onBack}: Props) {
 
         {canManage ? (
           <section className="star-bank-directory">
+            <h2>Операция со звёздами</h2>
+            <p>Основание: ссылка на вечерний пост или текст причины. Повторные отправки одной операции защищены ключом запроса.</p>
+            <form className="star-bank-b3-form" onSubmit={submitOperation}>
+              <label>Персонаж
+                <select required value={selectedId} onChange={e=>{setSelectedId(e.target.value);invalidateRequest();}}>
+                  <option value="">Выбери персонажа</option>
+                  {accounts.map(account=><option key={account.characterId} value={account.characterId}>{account.name} — {account.stars} ⭐</option>)}
+                </select>
+              </label>
+              <label>Действие
+                <select value={opKind} onChange={e=>{setOpKind(e.target.value as 'credit'|'debit');invalidateRequest();}}>
+                  <option value="credit">Начислить ⭐</option><option value="debit">Списать ⭐</option>
+                </select>
+              </label>
+              <label>Количество звёзд
+                <input type="number" min="1" max="1000000" step="1" required value={amount}
+                  onChange={e=>{setAmount(e.target.value);invalidateRequest();}}/>
+              </label>
+              <label className="star-bank-b3-wide">Ссылка на вечерний пост (необязательно при наличии причины)
+                <input type="url" placeholder="https://vk.com/wall..." value={postUrl}
+                  onChange={e=>{setPostUrl(e.target.value);invalidateRequest();}}/>
+              </label>
+              <label className="star-bank-b3-wide">Причина (необязательно при наличии ссылки)
+                <input type="text" maxLength={180} placeholder="Награда за интерактив" value={reason}
+                  onChange={e=>{setReason(e.target.value);invalidateRequest();}}/>
+              </label>
+              <button type="submit" disabled={actionBusy || !selectedId} className="star-bank-secondary-button">
+                {actionBusy?'Отправка…':opKind==='credit'?'Начислить звёзды':'Списать звёзды'}
+              </button>
+            </form>
+            {actionMessage ? <p className="star-bank-b3-result" role="status">{actionMessage}</p> : null}
+          </section>
+        ) : null}
+
+        {isAdmin ? (
+          <section className="star-bank-directory">
+            <div className="star-bank-directory-head"><h2>Назначение банкиров</h2>
+              <button type="button" className="star-bank-secondary-button" onClick={()=>void loadRoles()}>Обновить список</button></div>
+            {rolesError ? <p role="alert">{rolesError}</p> : null}
+            {rolesLoading ? <p>Загрузка пользователей…</p> : null}
+            <div className="star-bank-b3-roles">
+              {bankerUsers.map(record=>(<div className="star-bank-b3-user" key={record.login}>
+                <span><strong>{record.displayName}</strong><small>{record.login}</small></span>
+                <button type="button" disabled={record.locked || rolesBusy===record.login}
+                  className="star-bank-secondary-button"
+                  onClick={()=>void setRole(record.login,!record.banker)}>
+                  {record.locked?'Администратор':record.banker?'Отозвать роль':'Назначить банкиром'}
+                </button>
+              </div>))}
+            </div>
+          </section>
+        ) : null}
+
+        {canManage ? (
+          <section className="star-bank-directory">
             <div className="star-bank-directory-head">
               <div>
                 <h2>Все счета звёзд</h2>
-                <p>Режим просмотра. Начисление и списание пока отключены.</p>
+                <p>Начисляйте или списывайте звёзды за вечерние посты. Каждая операция записывается в Google.</p>
               </div>
               <div className="star-bank-directory-tools">
                 <input type="search" aria-label="Поиск персонажа" value={query}
@@ -183,6 +306,9 @@ export default function BankPage({onBack}: Props) {
                     <span>{account.characterId}</span>
                   </div>
                   <div className="star-bank-balance">{formatStars(account.stars)}</div>
+                  <button type="button" className="star-bank-secondary-button"
+                    onClick={()=>{setSelectedId(account.characterId);invalidateRequest();}}
+                    aria-label={`Операция для ${account.name}`}>Выбрать</button>
                 </article>
               ))}
             </div> : null}
@@ -211,6 +337,8 @@ export default function BankPage({onBack}: Props) {
                     <strong>{item.kind} · {formatStars(item.amount)}</strong>
                     <span>{formatDate(item.occurredAt)}{canManage ? ` · ${accounts.find(x=>x.characterId===item.characterId)?.name || item.characterId}` : ''}</span>
                     {item.reason ? <span>{item.reason}</span> : null}
+                    {sourceUrl(item.reason) ? <a href={sourceUrl(item.reason)} target="_blank"
+                      rel="noopener noreferrer">Открыть вечерний пост ↗</a> : null}
                     {canManage && item.bankerLogin ? <span>Банкир: {item.bankerLogin}</span> : null}
                   </div>
                   <div className="star-bank-balance">{formatStars(item.balanceAfter)}</div>
