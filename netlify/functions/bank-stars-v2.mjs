@@ -14,11 +14,11 @@ function hasSyncSecret(request) {
 export default async function handler(request) {
   if (request.method === 'POST') {
     if (!hasSyncSecret(request)) return json({ok:false,error:'Unauthorized'},401);
-    if (Number(request.headers.get('content-length') || '0') > 40_000) return json({ok:false,error:'Payload too large'},413);
+    if (Number(request.headers.get('content-length') || '0') > 240_000) return json({ok:false,error:'Payload too large'},413);
     let snapshot;
     try {
       const raw = await request.text();
-      if (Buffer.byteLength(raw,'utf8') > 40_000) return json({ok:false,error:'Payload too large'},413);
+      if (Buffer.byteLength(raw,'utf8') > 240_000) return json({ok:false,error:'Payload too large'},413);
       snapshot = validateStarsSnapshot(JSON.parse(raw));
     } catch {return json({ok:false,error:'Invalid stars snapshot'},422);}
     try {

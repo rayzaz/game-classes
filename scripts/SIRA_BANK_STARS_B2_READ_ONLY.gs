@@ -1,11 +1,51 @@
 /**
- * SIRA Bank Stars B2. ONLY reads вкладка "Звёзды" of the B1 bank.
- * NEVER reads/writes "Юли" or "История юли"; no edits to any sheet.
+ * SIRA Bank Stars B2.1: only reads star balances and star history.
+ * Reads ONLY "Звёзды" and "История звёзд". Never reads/writes Юли tabs.
  * Runs in same project as B1 and existing character-sync.
  */
 const SIRA_STARS_B2_WORKER_NAME = 'siraStarsB2Worker';
 const SIRA_STARS_B2_STATE_KEY = 'SIRA_STARS_B2_STATUS';
 const SIRA_STARS_B2_LAST_PUBLISHED = 'SIRA_STARS_B2_LAST_PUBLISHED';
+
+/** Read the latest 300 records; the complete authoritative log stays in Google. */
+function siraStarsB21ReadHistory_(book, knownIds) {
+  const sheet = book.getSheetByName('История звёзд');
+  if (!sheet) throw new Error('STARS B2.1: missing Stars history tab');
+  const expected = ['transactionId','Время UTC','characterId','Имя при операции',
+    'Операция','Сумма','Баланс до','Баланс после','Логин банкира','Причина','Ключ запроса'];
+  const headers = sheet.getRange(1,1,1,11).getDisplayValues()[0];
+  if (headers.join('|') !== expected.join('|')) {
+    throw new Error('STARS B2.1: history columns do not match B1');
+  }
+  const total = Math.max(0,sheet.getLastRow()-1);
+  const count = Math.min(total,300);
+  const rows = count ? sheet.getRange(total-count+2,1,count,11).getValues() : [];
+  const seen = new Set();
+  const entries = rows.map(row=>{
+    const transactionId = String(row[0] || '').trim();
+    const date = row[1];
+    const occurredAt = date instanceof Date && !isNaN(date.getTime())
+      ? date.toISOString() : String(date || '').trim();
+    const characterId = String(row[2] || '').trim();
+    const kind = String(row[4] || '').trim();
+    const amount = row[5],balanceBefore = row[6],balanceAfter = row[7];
+    const bankerLogin = String(row[8] || '').trim();
+    const reason = String(row[9] || '');
+    if (!/^[a-zA-Z0-9_-]{1,128}$/.test(transactionId) || seen.has(transactionId) ||
+        !knownIds.has(characterId) || !kind || kind.length>80 ||
+        typeof amount !== 'number' || !Number.isSafeInteger(amount) || amount<0 ||
+        typeof balanceBefore !== 'number' || !Number.isSafeInteger(balanceBefore) || balanceBefore<0 ||
+        typeof balanceAfter !== 'number' || !Number.isSafeInteger(balanceAfter) || balanceAfter<0 ||
+        bankerLogin.length>120 || reason.length>500 ||
+        !/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{1,3})?Z$/.test(occurredAt)) {
+      throw new Error('STARS B2.1: invalid history row');
+    }
+    seen.add(transactionId);
+    return {transactionId,occurredAt,characterId,kind,amount,balanceBefore,balanceAfter,
+      bankerLogin,reason};
+  });
+  return {entries,total};
+}
 
 function siraStarsB2Read_() {
   const key = 'SIRA_BANK_V2_GOOGLE_SPREADSHEET_ID';
@@ -14,7 +54,8 @@ function siraStarsB2Read_() {
   if (typeof siraBankB1Roster_ !== 'function') throw new Error('STARS B2: B1 registry missing');
   const roster = siraBankB1Roster_();
   if (roster.length !== 34) throw new Error('STARS B2: expected 34 characters, got ' + roster.length);
-  const sheet = SpreadsheetApp.openById(id).getSheetByName('Звёзды');
+  const book = SpreadsheetApp.openById(id);
+  const sheet = book.getSheetByName('Звёзды');
   if (!sheet || sheet.getLastRow() !== roster.length + 1) throw new Error('STARS B2: wrong row count');
   const headers = sheet.getRange(1,1,1,6).getDisplayValues()[0];
   if (headers.join('|') !== ['characterId','Имя персонажа','Баланс','Обновлено UTC','Кем изменено','Версия'].join('|')) {
@@ -37,13 +78,25 @@ function siraStarsB2Read_() {
     accounts.push({characterId:id,name:known.get(id),stars:stars,version:version});
   });
   if (seen.size !== roster.length) throw new Error('STARS B2: missing bank account');
-  return {schemaVersion:2,currency:'stars',complete:true,observedAt:new Date().toISOString(),accounts:accounts};
+  const historySnapshot = siraStarsB21ReadHistory_(book, new Set(known.keys()));
+  let historyEntries = historySnapshot.entries;
+  // Keep the complete authoritative log in Google, but bound the published
+  // read-only window by bytes (Russian reasons can be 3 bytes per character).
+  while (historyEntries.length > 0 &&
+         Utilities.newBlob(JSON.stringify(historyEntries), 'application/json').getBytes().length > 175000) {
+    historyEntries = historyEntries.slice(Math.min(20, historyEntries.length));
+  }
+  return {schemaVersion:2,currency:'stars',complete:true,observedAt:new Date().toISOString(),
+    accounts:accounts,historyComplete:true,history:historyEntries,
+    historyTotal:historySnapshot.total};
 }
 
 function siraStarsB2Audit() {
   const snap = siraStarsB2Read_();
   const result = {ok:true,count:snap.accounts.length,zeroBalances:snap.accounts.filter(x=>x.stars===0).length,
-    source:'SIRA Bank B1 / Звёзды only',juliSheetsRead:0,googleWrites:0,triggersAdded:false};
+    source:'SIRA Bank B1 / Звёзды + История звёзд',
+    historyCount:snap.historyTotal,historySynced:snap.historyComplete,
+    juliSheetsRead:0,googleWrites:0,triggersAdded:false};
   console.log('=== SIRA STARS B2 AUDIT === ' + JSON.stringify(result));
   return result;
 }
@@ -69,7 +122,7 @@ function siraStarsB2Publish_() {
   if (data?.ok !== true || data.count !== snapshot.accounts.length || !['applied','superseded'].includes(data.status)) {
     throw new Error('STARS B2: publication unconfirmed');
   }
-  return {count:data.count,status:data.status};
+  return {count:data.count,status:data.status,historyCount:snapshot.historyTotal};
 }
 
 function siraStarsB2State_(patch) {
