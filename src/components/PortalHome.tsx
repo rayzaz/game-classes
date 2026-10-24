@@ -1,4 +1,4 @@
-﻿import React from 'react';
+import React from 'react';
 
 import type { LoginUser } from './Portal';
 import WorldCalendarBadge from './WorldCalendarBadge';
@@ -21,6 +21,7 @@ type Props = {
   onOpenEvents: () => void;
   onOpenRankings: () => void;
   onOpenNpcs: () => void;
+  onOpenBank?: () => void;
   onOpenAdmin: () => void;
   onOpenEventer: () => void;
 };
@@ -54,6 +55,7 @@ export default function PortalHome({
   onOpenEvents,
   onOpenRankings,
   onOpenNpcs,
+  onOpenBank,
   onOpenAdmin,
   onOpenEventer,
 }: Props) {
@@ -74,7 +76,7 @@ export default function PortalHome({
     );
 
   return (
-        <main
+    <main
       className={
         `portal-home-shell${sessionChecked && user ? ' is-authenticated' : ''}`
       }
@@ -99,6 +101,7 @@ export default function PortalHome({
         <div className="portal-home-header-calendar">
           <WorldCalendarBadge />
         </div>
+
         <nav className="portal-home-nav" aria-label="Управление порталом">
           <button
             type="button"
@@ -190,7 +193,6 @@ export default function PortalHome({
             </>
           )}
         </div>
-
 
       </section>
 
@@ -293,16 +295,20 @@ export default function PortalHome({
             <button
               type="button"
               className="portal-home-card portal-home-card-bank"
-              disabled
-              aria-disabled="true"
-              title="Раздел пока недоступен"
+              onClick={onOpenBank}
             >
-              <HomeIcon>¤</HomeIcon>
+              <HomeIcon>★</HomeIcon>
 
               <span className="portal-home-card-copy">
-                <strong>Тут будет твой банк</strong>
+                <strong>Банк звёзд</strong>
+                <span>
+                  Сбережения, покупки и операции банкира.
+                </span>
               </span>
+
+              <span className="portal-home-card-arrow" aria-hidden>↗</span>
             </button>
+
             {user.permissions?.canManageEvents ? (
               <button
                 type="button"
@@ -348,5 +354,3 @@ export default function PortalHome({
     </main>
   );
 }
-
-

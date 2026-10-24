@@ -12,6 +12,7 @@ import WorldCalendarBadge from './components/WorldCalendarBadge';
 import PortalHome from './components/PortalHome';
 import CharacterRankings from './components/CharacterRankings';
 import NpcDirectory from './components/NpcDirectory';
+import BankPage from './components/BankPage';
 import './components/class-catalog.css';
 
 import Portal, {
@@ -317,6 +318,7 @@ type AppPage =
   | 'catalog'
   | 'rankings'
   | 'npcs'
+  | 'bank'
   | 'cabinet'
   | 'admin'
   | 'eventer';
@@ -378,6 +380,14 @@ function readPortalNavigation(): PortalNavigationSnapshot {
         cabinetInitialView: 'cabinet',
       };
     }
+
+    if (deepLink === 'bank') {
+      return {
+        page: 'bank',
+        adminCharacterId: null,
+        cabinetInitialView: 'cabinet',
+      };
+    }
   } catch {
     // Некритично: просто используем сохранённую навигацию.
   }
@@ -400,6 +410,7 @@ function readPortalNavigation(): PortalNavigationSnapshot {
       'catalog',
       'rankings',
       'npcs',
+      'bank',
       'cabinet',
       'admin',
       'eventer',
@@ -1574,6 +1585,28 @@ export default function App() {
 
 
   /* =========================
+     БАНК ЗВЁЗД
+     ========================= */
+
+  if (
+    page ===
+      'bank' &&
+    activeUser
+  ) {
+    return (
+      <BankPage
+        user={
+          activeUser
+        }
+        onBack={
+          goHome
+        }
+      />
+    );
+  }
+
+
+  /* =========================
      ЛИЧНЫЙ КАБИНЕТ ИГРОКА
      ========================= */
 
@@ -1729,6 +1762,16 @@ export default function App() {
 
             setPage(
               'npcs'
+            );
+          }}
+
+          onOpenBank={() => {
+            if (!activeUser) {
+              return;
+            }
+
+            setPage(
+              'bank'
             );
           }}
 
