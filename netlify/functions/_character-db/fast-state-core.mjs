@@ -17,6 +17,9 @@ function validLevel(value) {
     Number.isFinite(value.experience) && value.experience >= 0 && value.experience <= 1e12 &&
     Number.isFinite(value.progress) && value.progress >= 0 && value.progress <= 100.00001;
 }
+function validPoints(value) {
+  return Number.isSafeInteger(value) && value >= 0 && value <= 1_000_000_000;
+}
 export function cleanFastPayload(body, now = Date.now()) {
   if (body?.schemaVersion !== 1 || body.complete !== true || !Array.isArray(body.characters) ||
     body.characters.length < 10 || body.characters.length > 300) {
@@ -31,12 +34,14 @@ export function cleanFastPayload(body, now = Date.now()) {
     const id = typeof item?.characterId === 'string' ? item.characterId : '';
     const name = typeof item?.name === 'string' ? item.name.trim() : '';
     if (!VALID_ID.test(id) || Object.hasOwn(characters, id) || !name || name.length > 200 ||
-      /[<>]/.test(name) || !validLevel(item.level)) {
+      /[<>]/.test(name) || (!validLevel(item.level) ||
+       (item.upgradePoints !== undefined && !validPoints(item.upgradePoints)))) {
       throw new Error('Invalid/duplicate central core character');
     }
     characters[id] = {
       name,
       level: { current: item.level.current, experience: item.level.experience, progress: item.level.progress },
+      ...(item.upgradePoints !== undefined ? { upgradePoints: item.upgradePoints } : {}),
     };
   }
   return { ok: true, schemaVersion: 1, source: 'google-system-imported-levels',
@@ -62,6 +67,7 @@ export function fastForCharacter(snapshot, characterId, now = Date.now()) {
   if (!VALID_ID.test(characterId || '') || time === null || time > now + 120_000 ||
       now - time > FAST_CORE_MAX_AGE_MS) return null;
   const record = snapshot?.characters?.[characterId];
-  if (!record || typeof record.name !== 'string' || !record.name.trim() || !validLevel(record.level)) return null;
+  if (!record || typeof record.name !== 'string' || !record.name.trim() || (!validLevel(record.level) ||
+      (record.upgradePoints !== undefined && !validPoints(record.upgradePoints)))) return null;
   return { ...record, observedAt: snapshot.observedAt };
 }

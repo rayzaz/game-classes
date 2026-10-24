@@ -97,6 +97,7 @@ type FastCore = {
     observedAt: string;
     name: string;
     level: { current: number; experience: number; progress: number };
+    upgradePoints?: number;
 };
 
 type LiveHpMp = {
@@ -1322,7 +1323,9 @@ export default function PlayerCabinet({
                     result.characterId === characterId && typeof result.name === 'string' &&
                     Number.isInteger(result.level?.current) &&
                     Number.isFinite(result.level?.experience) &&
-                    Number.isFinite(result.level?.progress)) {
+                    Number.isFinite(result.level?.progress) &&
+                    (result.upgradePoints === undefined ||
+                        (Number.isSafeInteger(result.upgradePoints) && result.upgradePoints >= 0))) {
                     setFastCore(previous => previous !== null &&
                         previous.observedAt === result.observedAt &&
                         previous.characterId === result.characterId ? previous : result as FastCore);
@@ -2345,7 +2348,7 @@ export default function PlayerCabinet({
                         <strong>
                             {
                                 formatNumber(
-                                    data.upgradePoints,
+                                    cabinetFast?.upgradePoints ?? data.upgradePoints,
                                     0
                                 )
                             }
@@ -2752,7 +2755,7 @@ export default function PlayerCabinet({
                         characterId={characterId}
                         className={data.character.className}
                         spells={spells}
-                        initialUpgradePoints={data.upgradePoints}
+                        initialUpgradePoints={cabinetFast?.upgradePoints ?? data.upgradePoints}
                         onRefreshCabinet={() =>
                             setRefreshVersion(
                                 current => current + 1
