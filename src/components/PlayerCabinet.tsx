@@ -1520,6 +1520,72 @@ export default function PlayerCabinet({
     );
 
 
+    // SIRA_E3_AUTOREFRESH: refresh non-financial Character DB fields in an open cabinet.
+    useEffect(() => {
+        let active = true;
+        let busy = false;
+        const refreshDetails = async () => {
+            if (!active || busy || document.hidden || view !== 'cabinet') return;
+            busy = true;
+            try {
+                const url = adminView
+                    ? `${ADMIN_CABINET_API}?characterId=${encodeURIComponent(characterId)}&e3=1&t=${Date.now()}`
+                    : `${PLAYER_CABINET_API}?e3=1&t=${Date.now()}`;
+                const response = await fetch(url, {
+                    cache: 'no-store', credentials: 'same-origin',
+                });
+                if (!active || !response.ok) return;
+                const result = await response.json() as CharacterData;
+                if (!active || result.ok !== true || !result.character ||
+                    !result.pchk || !result.battle || !Array.isArray(result.battleRadar) ||
+                    !Array.isArray(result.classSkills) || !Array.isArray(result.specialSkills) ||
+                    !Array.isArray(result.spells) || !result.inventory) return;
+
+                setData(previous => {
+                    if (!previous) return previous; // Initial load owns loading/error state.
+                    const before = Date.parse(previous.updatedAt || '');
+                    const after = Date.parse(result.updatedAt || '');
+                    if (Number.isFinite(before) && Number.isFinite(after) && after < before) {
+                        return previous; // Never regress to an older Character DB snapshot.
+                    }
+                    const oldFields = [previous.character, previous.profile, previous.pchk,
+                        previous.battle, previous.battleRadar, previous.classSkills,
+                        previous.specialSkills, previous.spells, previous.inventory];
+                    const newFields = [result.character, result.profile, result.pchk,
+                        result.battle, result.battleRadar, result.classSkills,
+                        result.specialSkills, result.spells, result.inventory];
+                    if (JSON.stringify(oldFields) === JSON.stringify(newFields)) return previous;
+                    return {
+                        ...previous,
+                        character: result.character,
+                        profile: result.profile,
+                        pchk: result.pchk,
+                        battle: result.battle,
+                        battleRadar: result.battleRadar,
+                        classSkills: result.classSkills,
+                        specialSkills: result.specialSkills,
+                        spells: result.spells,
+                        inventory: result.inventory,
+                        updatedAt: result.updatedAt || previous.updatedAt,
+                    }; // Deliberately preserve money, health, mana, level, XP, upgrade points.
+                });
+            } catch (_) {
+                // Transient error: keep the last known good character details.
+            } finally {
+                busy = false;
+            }
+        };
+        const timer = window.setInterval(() => { void refreshDetails(); }, 90_000);
+        window.addEventListener('focus', refreshDetails);
+        document.addEventListener('visibilitychange', refreshDetails);
+        return () => {
+            active = false;
+            window.clearInterval(timer);
+            window.removeEventListener('focus', refreshDetails);
+            document.removeEventListener('visibilitychange', refreshDetails);
+        };
+    }, [characterId, adminView, view]);
+
     /* =========================
        ИВЕНТЫ
        ========================= */

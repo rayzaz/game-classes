@@ -13,6 +13,8 @@ import {
 } from './_character-db/portrait.mjs';
 
 
+import { refreshCharacterDb } from './character-data.mjs';
+
 function cleanText(value) {
   return String(value ?? '').trim();
 }
@@ -194,7 +196,8 @@ async function fetchCharacterFromGoogle(
 
 
 export default async (
-  request
+  request,
+  context
 ) => {
   if (
     request.method !==
@@ -273,6 +276,16 @@ export default async (
         );
 
       if (stored) {
+              // SIRA_E3_AUTOREFRESH: admin views must also age-refresh Character DB.
+      const stamp = Date.parse(String(stored.syncedAt || stored.data?.updatedAt || ''));
+      if (context && typeof context.waitUntil === 'function' &&
+          (!Number.isFinite(stamp) || Date.now() - stamp >= 180_000)) {
+        context.waitUntil(
+          refreshCharacterDb(characterId).catch(error => {
+            console.error('E3 admin character DB background refresh error:', characterId, error);
+          })
+        );
+      }
         console.log(
           'admin-character-data DB HIT:',
           characterId

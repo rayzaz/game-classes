@@ -331,7 +331,7 @@ async function fetchCharacterFromGoogle(
 }
 
 
-async function refreshCharacterDb(
+export async function refreshCharacterDb(
   characterId,
   existingDocument = null
 ) {
@@ -484,7 +484,8 @@ export default async (
       */
       if (
         ageMs >=
-        REFRESH_AFTER_MS
+          (new URL(request.url).searchParams.get('e3') === '1'
+            ? 180_000 : REFRESH_AFTER_MS)
       ) {
         scheduleBackgroundRefresh(
           context,
