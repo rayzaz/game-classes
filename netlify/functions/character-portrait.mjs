@@ -3,6 +3,7 @@ import {
   characterKey,
   REGISTRY_KEY,
 } from './_character-db/store.mjs';
+import { readPortraitOverride, preferredPortraitUrl } from './_character-db/portrait-source.mjs';
 
 
 const FETCH_TIMEOUT_MS = 12_000;
@@ -314,10 +315,17 @@ export default async function (
   const startedAt =
     Date.now();
 
-  const source =
-    await portraitSourceFromDb(
-      characterId
-    );
+  // Personal AS1 override is read separately from the full Character DB.
+  // Stale AUTO snapshots cannot overwrite these portrait sources.
+  let overrideSource = '';
+  try {
+    overrideSource = await readPortraitOverride(getCharacterDbStore(), characterId);
+  } catch (error) {
+    console.error('character-portrait override lookup failed:', characterId, error);
+  }
+  const source = overrideSource
+    ? preferredPortraitUrl(overrideSource)
+    : await portraitSourceFromDb(characterId);
 
   if (!source) {
     console.warn(

@@ -3,6 +3,8 @@ import {
   readSession,
 } from './_shared/_auth.mjs';
 
+import { characterPortraitProxyUrl } from './_character-db/portrait.mjs';
+
 
 /* ============================================================
    ЦЕНТРАЛЬНЫЙ СЕРВИС ПЕРСОНАЖЕЙ
@@ -386,11 +388,9 @@ export default async (
                   'default'
                 ),
 
-              portrait:
-                String(
-                  character?.portrait ||
-                  `/cards/characters/${characterId}.jpg`
-                ),
+              // Use the same portrait proxy as the player cabinet.
+              // Never expose volatile Google image URLs to the browser.
+              portrait: characterPortraitProxyUrl(characterId, 'portrait-fix-v4'),
 
               active:
                 character?.active !==
