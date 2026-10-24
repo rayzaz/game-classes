@@ -1,0 +1,523 @@
+.star-bank-root {
+  --bank-bg: #0f1014;
+  --bank-panel: rgba(23, 25, 32, .92);
+  --bank-panel-soft: rgba(255, 255, 255, .045);
+  --bank-border: rgba(255, 255, 255, .11);
+  --bank-text: #f7f5ee;
+  --bank-muted: #aaa9a2;
+  --bank-star: #f1c75b;
+  --bank-star-soft: rgba(241, 199, 91, .14);
+  --bank-danger: #ef7f7f;
+  --bank-success: #7ed49b;
+
+  min-height: 100vh;
+  padding: 28px;
+  color: var(--bank-text);
+  background:
+    radial-gradient(circle at 10% 0%, rgba(241, 199, 91, .11), transparent 32rem),
+    radial-gradient(circle at 90% 15%, rgba(132, 111, 245, .09), transparent 30rem),
+    var(--bank-bg);
+}
+
+html[data-theme="light"] .star-bank-root {
+  --bank-bg: #f5f2e9;
+  --bank-panel: rgba(255, 255, 255, .92);
+  --bank-panel-soft: rgba(43, 38, 24, .045);
+  --bank-border: rgba(43, 38, 24, .13);
+  --bank-text: #272317;
+  --bank-muted: #716c5e;
+  --bank-star: #a87800;
+  --bank-star-soft: rgba(190, 139, 17, .11);
+  --bank-danger: #a74040;
+  --bank-success: #277c49;
+}
+
+.star-bank-shell {
+  width: min(1180px, 100%);
+  margin: 0 auto;
+}
+
+.star-bank-topbar {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 24px;
+  padding: 22px 24px;
+  border: 1px solid var(--bank-border);
+  border-radius: 24px;
+  background: var(--bank-panel);
+  box-shadow: 0 20px 70px rgba(0, 0, 0, .14);
+}
+
+.star-bank-kicker,
+.star-bank-directory-head > div > span,
+.star-bank-manager-head > div > span {
+  display: block;
+  margin-bottom: 7px;
+  color: var(--bank-star);
+  font-size: 11px;
+  font-weight: 900;
+  letter-spacing: .14em;
+}
+
+.star-bank-topbar h1 {
+  margin: 0;
+  font-size: clamp(32px, 4vw, 50px);
+  line-height: 1;
+}
+
+.star-bank-topbar p {
+  max-width: 720px;
+  margin: 12px 0 0;
+  color: var(--bank-muted);
+  line-height: 1.55;
+}
+
+.star-bank-topbar-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.star-bank-role-badge {
+  padding: 10px 13px;
+  border: 1px solid rgba(241, 199, 91, .28);
+  border-radius: 999px;
+  background: var(--bank-star-soft);
+  color: var(--bank-star);
+  font-size: 13px;
+  font-weight: 900;
+}
+
+.star-bank-secondary-button,
+.star-bank-manage-button,
+.star-bank-manager-close,
+.star-bank-action {
+  border: 0;
+  font: inherit;
+}
+
+.star-bank-secondary-button {
+  min-height: 40px;
+  padding: 0 14px;
+  border: 1px solid var(--bank-border);
+  border-radius: 12px;
+  background: var(--bank-panel-soft);
+  color: var(--bank-text);
+  cursor: pointer;
+  font-weight: 800;
+}
+
+.star-bank-secondary-button:disabled {
+  cursor: wait;
+  opacity: .6;
+}
+
+.star-bank-summary-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 14px;
+  margin-top: 16px;
+}
+
+.star-bank-summary-card {
+  min-height: 138px;
+  padding: 20px;
+  border: 1px solid var(--bank-border);
+  border-radius: 20px;
+  background: var(--bank-panel);
+}
+
+.star-bank-summary-card > span {
+  display: block;
+  color: var(--bank-muted);
+  font-size: 12px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: .08em;
+}
+
+.star-bank-summary-card > strong {
+  display: block;
+  margin-top: 14px;
+  color: var(--bank-star);
+  font-size: clamp(26px, 3vw, 38px);
+}
+
+.star-bank-summary-card > small {
+  display: block;
+  margin-top: 8px;
+  color: var(--bank-muted);
+  line-height: 1.45;
+}
+
+.star-bank-summary-primary {
+  border-color: rgba(241, 199, 91, .28);
+  background:
+    linear-gradient(135deg, var(--bank-star-soft), transparent 65%),
+    var(--bank-panel);
+}
+
+.star-bank-summary-date {
+  font-size: clamp(23px, 2.4vw, 31px) !important;
+}
+
+.star-bank-message {
+  margin-top: 14px;
+  padding: 13px 15px;
+  border-radius: 14px;
+  border: 1px solid var(--bank-border);
+  background: var(--bank-panel);
+  line-height: 1.4;
+}
+
+.star-bank-message-error {
+  border-color: color-mix(in srgb, var(--bank-danger) 45%, transparent);
+  color: var(--bank-danger);
+}
+
+.star-bank-message-success {
+  border-color: color-mix(in srgb, var(--bank-success) 45%, transparent);
+  color: var(--bank-success);
+}
+
+.star-bank-manager-panel,
+.star-bank-directory {
+  margin-top: 16px;
+  padding: 22px;
+  border: 1px solid var(--bank-border);
+  border-radius: 22px;
+  background: var(--bank-panel);
+}
+
+.star-bank-manager-panel {
+  border-color: rgba(241, 199, 91, .30);
+}
+
+.star-bank-manager-head,
+.star-bank-directory-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 18px;
+}
+
+.star-bank-manager-head h2,
+.star-bank-directory-head h2 {
+  margin: 0;
+  font-size: 25px;
+}
+
+.star-bank-manager-head p {
+  margin: 7px 0 0;
+  color: var(--bank-muted);
+}
+
+.star-bank-manager-close {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: var(--bank-panel-soft);
+  color: var(--bank-text);
+  cursor: pointer;
+  font-size: 26px;
+  line-height: 1;
+}
+
+.star-bank-manager-form {
+  display: grid;
+  grid-template-columns: minmax(180px, 240px) minmax(0, 1fr);
+  gap: 12px;
+  margin-top: 18px;
+}
+
+.star-bank-manager-form label {
+  display: grid;
+  gap: 7px;
+}
+
+.star-bank-manager-form label > span {
+  color: var(--bank-muted);
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.star-bank-manager-form input,
+.star-bank-directory-tools input {
+  width: 100%;
+  min-height: 43px;
+  box-sizing: border-box;
+  padding: 0 13px;
+  border: 1px solid var(--bank-border);
+  border-radius: 12px;
+  outline: none;
+  background: var(--bank-panel-soft);
+  color: var(--bank-text);
+  font: inherit;
+}
+
+.star-bank-manager-form input:focus,
+.star-bank-directory-tools input:focus {
+  border-color: rgba(241, 199, 91, .55);
+  box-shadow: 0 0 0 3px rgba(241, 199, 91, .09);
+}
+
+.star-bank-manager-actions {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-top: 13px;
+}
+
+.star-bank-action {
+  min-height: 42px;
+  padding: 0 15px;
+  border-radius: 12px;
+  cursor: pointer;
+  font-weight: 900;
+}
+
+.star-bank-action:disabled {
+  cursor: wait;
+  opacity: .55;
+}
+
+.star-bank-action-credit {
+  background: rgba(74, 171, 107, .16);
+  color: var(--bank-success);
+}
+
+.star-bank-action-debit {
+  background: rgba(222, 89, 89, .14);
+  color: var(--bank-danger);
+}
+
+.star-bank-action-set {
+  background: var(--bank-star-soft);
+  color: var(--bank-star);
+}
+
+.star-bank-history {
+  margin-top: 22px;
+  padding-top: 18px;
+  border-top: 1px solid var(--bank-border);
+}
+
+.star-bank-history h3 {
+  margin: 0 0 12px;
+}
+
+.star-bank-history-list {
+  display: grid;
+  gap: 8px;
+}
+
+.star-bank-history-list article {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 12px 13px;
+  border-radius: 13px;
+  background: var(--bank-panel-soft);
+}
+
+.star-bank-history-list article > div:first-child {
+  display: grid;
+  gap: 4px;
+}
+
+.star-bank-history-list article span,
+.star-bank-history-list article small {
+  color: var(--bank-muted);
+  font-size: 12px;
+}
+
+.star-bank-history-values {
+  display: grid;
+  justify-items: end;
+  gap: 4px;
+  white-space: nowrap;
+}
+
+.star-bank-directory-tools {
+  display: flex;
+  gap: 9px;
+  width: min(430px, 100%);
+}
+
+.star-bank-directory-tools input {
+  flex: 1;
+}
+
+.star-bank-group {
+  margin-top: 22px;
+}
+
+.star-bank-group-title {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  margin-bottom: 9px;
+}
+
+.star-bank-group-title h3 {
+  margin: 0;
+  font-size: 18px;
+}
+
+.star-bank-group-title span {
+  min-width: 26px;
+  padding: 3px 7px;
+  border-radius: 999px;
+  background: var(--bank-star-soft);
+  color: var(--bank-star);
+  text-align: center;
+  font-size: 11px;
+  font-weight: 900;
+}
+
+.star-bank-list {
+  display: grid;
+  gap: 7px;
+}
+
+.star-bank-row {
+  display: grid;
+  grid-template-columns: 46px minmax(0, 1fr) minmax(130px, auto) auto;
+  align-items: center;
+  gap: 12px;
+  min-height: 62px;
+  padding: 9px 11px;
+  border: 1px solid transparent;
+  border-radius: 14px;
+  background: var(--bank-panel-soft);
+}
+
+.star-bank-row.is-own {
+  border-color: rgba(241, 199, 91, .32);
+  background:
+    linear-gradient(90deg, var(--bank-star-soft), transparent 70%),
+    var(--bank-panel-soft);
+}
+
+.star-bank-row.is-selected {
+  border-color: rgba(241, 199, 91, .55);
+}
+
+.star-bank-number {
+  color: var(--bank-muted);
+  font-size: 12px;
+  font-weight: 800;
+  text-align: center;
+}
+
+.star-bank-account-copy {
+  display: grid;
+  gap: 4px;
+}
+
+.star-bank-account-copy > strong {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.star-bank-account-copy > span {
+  color: var(--bank-muted);
+  font-size: 12px;
+}
+
+.star-bank-balance {
+  color: var(--bank-star);
+  font-weight: 950;
+  white-space: nowrap;
+  text-align: right;
+}
+
+.star-bank-balance-unknown {
+  color: var(--bank-muted);
+  font-weight: 800;
+}
+
+.star-bank-manage-button {
+  min-height: 37px;
+  padding: 0 12px;
+  border-radius: 10px;
+  background: var(--bank-star-soft);
+  color: var(--bank-star);
+  cursor: pointer;
+  font-weight: 900;
+}
+
+.star-bank-empty {
+  padding: 18px;
+  border: 1px dashed var(--bank-border);
+  border-radius: 14px;
+  color: var(--bank-muted);
+  text-align: center;
+}
+
+@media (max-width: 820px) {
+  .star-bank-root {
+    padding: 14px;
+  }
+
+  .star-bank-topbar,
+  .star-bank-manager-head,
+  .star-bank-directory-head {
+    display: grid;
+  }
+
+  .star-bank-topbar-actions {
+    justify-content: flex-start;
+  }
+
+  .star-bank-summary-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .star-bank-manager-form {
+    grid-template-columns: 1fr;
+  }
+
+  .star-bank-directory-tools {
+    width: 100%;
+  }
+
+  .star-bank-row {
+    grid-template-columns: 38px minmax(0, 1fr) auto;
+  }
+
+  .star-bank-manage-button {
+    grid-column: 2 / -1;
+    justify-self: start;
+  }
+}
+
+@media (max-width: 520px) {
+  .star-bank-row {
+    grid-template-columns: 34px minmax(0, 1fr);
+  }
+
+  .star-bank-balance {
+    grid-column: 2;
+    text-align: left;
+  }
+
+  .star-bank-manage-button {
+    grid-column: 2;
+  }
+
+  .star-bank-directory-tools {
+    display: grid;
+  }
+
+  .star-bank-history-list article {
+    display: grid;
+  }
+
+  .star-bank-history-values {
+    justify-items: start;
+  }
+}
