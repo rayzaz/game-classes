@@ -1,0 +1,4 @@
+/* Role assignment stays inside the admin panel, never in the star bank. */
+.admin-role-tabs { display:flex; align-items:center; gap:12px; flex-wrap:wrap; margin:20px 0 24px; }
+.admin-role-tabs [role="tab"][aria-selected="true"] { font-weight:700; }
+.admin-role-warning { margin: 12px 0; padding: 12px 14px; border: 1px solid currentColor; border-radius: 10px; overflow-wrap:anywhere; }

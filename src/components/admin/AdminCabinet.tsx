@@ -11,7 +11,7 @@ import AdminCharacters, {
 import AdminQuestionnaires from './AdminQuestionnaires';
 import AdminEvents from './AdminEvents';
 import AdminEventReports from './AdminEventReports';
-import AdminEventerAccess from './AdminEventerAccess';
+import AdminRoleManagement from './AdminRoleManagement';
 import AdminAuditLog from './AdminAuditLog';
 import AdminCalendar from './AdminCalendar';
 import AdminNpcs from './AdminNpcs';
@@ -40,7 +40,7 @@ type AdminSection =
   | 'questionnaires'
   | 'events'
   | 'reports'
-  | 'eventers'
+  | 'roles'
   | 'calendar'
   | 'push'
   | 'audit';
@@ -103,8 +103,8 @@ const NAV_ITEMS:
       icon: '≡',
     },
     {
-      id: 'eventers',
-      label: 'Права ивентеров',
+      id: 'roles',
+      label: 'Выдача ролей',
       icon: '◎',
     },
     {
@@ -524,26 +524,8 @@ export default function AdminCabinet({
             ) : null}
 
             {section ===
-            'eventers' ? (
-              <section className="admin-modern-section">
-                <div className="admin-section-head">
-                  <div>
-                    <div className="admin-kicker">
-                      ДОСТУП
-                    </div>
-
-                    <h2>
-                      Права ивентеров
-                    </h2>
-
-                    <p>
-                      Выдача и отзыв доступа к созданию и проведению ивентов.
-                    </p>
-                  </div>
-                </div>
-
-                <AdminEventerAccess />
-              </section>
+            'roles' ? (
+              <AdminRoleManagement />
             ) : null}
 
             {section ===

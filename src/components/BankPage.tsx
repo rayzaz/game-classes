@@ -44,16 +44,14 @@ const formatDate = (value: string) => {
     {dateStyle:'short',timeStyle:'short'});
 };
 
-type BankerUser = {login:string;displayName:string;banker:boolean;locked:boolean};
 const TRANSACTION_API = '/.netlify/functions/bank-stars-operation-v3';
-const ROLE_API = '/.netlify/functions/admin-banker-access';
 function sourceUrl(reason:string) {
   const match = reason.match(/(?:^|\s)Пост:\s*(https:\/\/\S+)/);
   if(!match) return '';
   try {const url=new URL(match[1]);return url.protocol==='https:' ? url.toString() : '';} catch{return '';}
 }
 
-export default function BankPage({user,onBack}: Props) {
+export default function BankPage({onBack}: Props) {
   const [accounts, setAccounts] = useState<StarAccount[]>([]);
   const [mine, setMine] = useState<StarAccount | null>(null);
   const [canManage, setCanManage] = useState(false);
@@ -74,11 +72,6 @@ export default function BankPage({user,onBack}: Props) {
   const [actionMessage,setActionMessage]=useState('');
   // Reuse the same id for retries after an uncertain network result.
   const pendingId=useRef('');
-  const [bankerUsers,setBankerUsers]=useState<BankerUser[]>([]);
-  const [rolesLoading,setRolesLoading]=useState(false);
-  const [rolesError,setRolesError]=useState('');
-  const [rolesBusy,setRolesBusy]=useState('');
-  const isAdmin = user.role==='admin';
   const invalidateRequest=()=>{pendingId.current='';setActionMessage('');};
   const submitOperation=async (event:React.FormEvent)=>{
     event.preventDefault();
@@ -103,27 +96,6 @@ export default function BankPage({user,onBack}: Props) {
       ' Если повторяешь запрос, не меняй поля: сохранён прежний ключ операции.');}
     finally {setActionBusy(false);}
   };
-  const loadRoles=useCallback(async()=>{
-    if(!isAdmin)return;
-    setRolesLoading(true);setRolesError('');
-    try {const res=await fetch(`${ROLE_API}?t=${Date.now()}`,{credentials:'same-origin',cache:'no-store'});
-      const obj=await res.json();if(!res.ok||obj.ok!==true)throw new Error(obj.error||'Не удалось получить роли');
-      setBankerUsers(Array.isArray(obj.users)?obj.users:[]);
-    }catch(err){setRolesError(err instanceof Error?err.message:String(err));}
-    finally{setRolesLoading(false);}
-  },[isAdmin]);
-  useEffect(()=>{void loadRoles();},[loadRoles]);
-  const setRole=async (login:string,enabled:boolean)=>{
-    setRolesBusy(login);setRolesError('');
-    try {const res=await fetch(ROLE_API,{method:'POST',credentials:'same-origin',
-      headers:{'Content-Type':'application/json'},body:JSON.stringify({login,enabled})});
-      const obj=await res.json();if(!res.ok||obj.ok!==true)throw new Error(obj.error||'Не удалось изменить роль');
-      await loadRoles();
-    }catch(err){setRolesError(err instanceof Error?err.message:String(err));}
-    finally{setRolesBusy('');}
-  };
-
-
   const load = useCallback(async (quiet = false) => {
     if (!quiet) setLoading(true);
     try {
@@ -259,25 +231,6 @@ export default function BankPage({user,onBack}: Props) {
               </button>
             </form>
             {actionMessage ? <p className="star-bank-b3-result" role="status">{actionMessage}</p> : null}
-          </section>
-        ) : null}
-
-        {isAdmin ? (
-          <section className="star-bank-directory">
-            <div className="star-bank-directory-head"><h2>Назначение банкиров</h2>
-              <button type="button" className="star-bank-secondary-button" onClick={()=>void loadRoles()}>Обновить список</button></div>
-            {rolesError ? <p role="alert">{rolesError}</p> : null}
-            {rolesLoading ? <p>Загрузка пользователей…</p> : null}
-            <div className="star-bank-b3-roles">
-              {bankerUsers.map(record=>(<div className="star-bank-b3-user" key={record.login}>
-                <span><strong>{record.displayName}</strong><small>{record.login}</small></span>
-                <button type="button" disabled={record.locked || rolesBusy===record.login}
-                  className="star-bank-secondary-button"
-                  onClick={()=>void setRole(record.login,!record.banker)}>
-                  {record.locked?'Администратор':record.banker?'Отозвать роль':'Назначить банкиром'}
-                </button>
-              </div>))}
-            </div>
           </section>
         ) : null}
 
