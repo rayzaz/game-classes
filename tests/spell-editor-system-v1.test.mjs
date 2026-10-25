@@ -83,7 +83,7 @@ test('all three creation/editing screens contain summoned creature editor and ch
   for (const path of [
     'src/components/questionnaire/QuestionnaireWizard.tsx',
     'src/components/player/PlayerSpellDevelopment.tsx',
-    'src/components/admin/AdminSpells.tsx',
+    'src/components/admin/AdminSpellEditor.tsx',
   ]) {
     const source = loadSource(path);
     assert.match(source, /<SummonedCreaturesEditor\b/);

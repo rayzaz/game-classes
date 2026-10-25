@@ -11,6 +11,7 @@ import {
   type CanonicalSpell,
 } from '../../lib/spellSchema';
 
+import SpellEditor, { type EditorSpell } from './AdminSpellEditor';
 import './admin-spell-requests.css';
 
 
@@ -36,6 +37,11 @@ type SpellRequest = {
   sourceSpell?: CanonicalSpell | null;
   proposedSpell?: CanonicalSpell | null;
   approvedSpell?: CanonicalSpell | null;
+  reviewedSpell?: CanonicalSpell | null;
+  reviewCost?: number | null;
+  reviewRevision?: number;
+  reviewedAt?: string;
+  reviewedBy?: string;
   pointsAtSubmission: number;
   pointsBefore: number | null;
   pointsAfter: number | null;
@@ -162,6 +168,23 @@ function SpellPreview({
 }
 
 
+function reviewPrice(request: SpellRequest) {
+  return request.reviewCost ?? request.cost;
+}
+
+function validPrice(value: string) {
+  const number = Number(value);
+  return value.trim() !== '' && Number.isSafeInteger(number) && number >= 0 && number <= 9999;
+}
+
+function spellForReview(request: SpellRequest): CanonicalSpell | null {
+  return request.reviewedSpell || request.proposedSpell || null;
+}
+
+function editorSpell(spell: CanonicalSpell): EditorSpell {
+  return { ...spell, slotIndex: 0, valid: true, issues: [] };
+}
+
 export default function AdminSpellRequests() {
   const [data, setData] =
     useState<ResponseData | null>(
@@ -189,6 +212,9 @@ export default function AdminSpellRequests() {
     useState<Record<string, HitRule>>(
       {}
     );
+
+  const [editingId, setEditingId] = useState('');
+  const [draftCosts, setDraftCosts] = useState<Record<string, string>>({});
 
 
   async function load(
@@ -290,14 +316,65 @@ export default function AdminSpellRequests() {
     );
 
 
+  async function saveReview(request: SpellRequest, spell: CanonicalSpell) {
+    const costRaw = draftCosts[request.id] ?? String(reviewPrice(request));
+    if (!validPrice(costRaw)) {
+      setError('Стоимость — целое число от 0 до 9999 баллов.');
+      return;
+    }
+    // The rolled base for a submitted spell cannot be changed through admin review.
+    const oldBase = request.proposedSpell?.basePower;
+    if (oldBase != null && spell.basePower !== oldBase) {
+      setError('Базовую силу d20, уже закреплённую в заявке, изменять нельзя.');
+      return;
+    }
+    setBusyId(request.id);
+    setError('');
+    try {
+      const response = await fetch(API, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json; charset=utf-8' },
+        body: JSON.stringify({
+          requestId: request.id,
+          decision: 'save-review',
+          expectedReviewRevision: request.reviewRevision ?? 0,
+          editedSpell: spell,
+          cost: Number(costRaw),
+        }),
+      });
+      const result = await readJson(response) as {ok?: boolean; error?: string};
+      if (!response.ok || !result.ok) throw new Error(result.error || 'Не удалось сохранить правки заявки');
+      setEditingId('');
+      setDraftCosts(current => { const next = { ...current }; delete next[request.id]; return next; });
+      if (spell.target !== 'На себя') {
+        setHitRules(current => ({ ...current, [request.id]: spell.requiresHit ? 'required' : 'none' }));
+      }
+      await load(true);
+    } catch (reviewError) {
+      setError(reviewError instanceof Error ? reviewError.message : String(reviewError));
+      // If request was changed remotely, refresh before any new action.
+      await load(true);
+    } finally {
+      setBusyId('');
+    }
+  }
+
   async function decide(
     request: SpellRequest,
     decision:
       | 'approve'
       | 'reject'
   ) {
-    const proposed =
-      request.proposedSpell;
+    const proposed = spellForReview(request);
+    const costRaw = draftCosts[request.id] ?? String(reviewPrice(request));
+    if (decision === 'approve' && !validPrice(costRaw)) {
+      setError('Стоимость — целое число от 0 до 9999 баллов.');
+      return;
+    }
+    if (decision === 'approve' && editingId === request.id) {
+      setError('Сначала сохраните изменения заклинания или закройте редактор.');
+      return;
+    }
 
     const hitRule =
       hitRules[request.id] ||
@@ -314,6 +391,10 @@ export default function AdminSpellRequests() {
       );
       return;
     }
+
+    if (decision === 'approve' && !window.confirm(
+      `Одобрить «${proposed?.name || 'заклинание'}» для «${request.characterName}» и списать ${Number(costRaw)} баллов прокачки?`
+    )) return;
 
     setBusyId(
       request.id
@@ -335,6 +416,8 @@ export default function AdminSpellRequests() {
                 request.id,
               decision,
               hitRule,
+              expectedReviewRevision: request.reviewRevision ?? 0,
+              cost: decision === 'approve' ? Number(costRaw) : undefined,
               adminNote:
                 notes[request.id] ||
                 '',
@@ -384,6 +467,7 @@ export default function AdminSpellRequests() {
         }
       );
 
+      setDraftCosts(current => { const next = { ...current }; delete next[request.id]; return next; });
       await load(true);
 
     } catch (decisionError) {
@@ -412,7 +496,7 @@ export default function AdminSpellRequests() {
             Покупка и улучшение заклинаний
           </h3>
           <p>
-            Новое заклинание стоит 3 балла, улучшение — 5. Баллы списывает Google только в момент успешного одобрения.
+            Игрок отправляет заявку по обычной цене (3 балла за новое, 5 за улучшение). Ты можешь исправить заклинание и установить цену от 0 до 9999 баллов. Google спишет указанную сумму только после одобрения.
           </p>
         </div>
 
@@ -466,8 +550,10 @@ export default function AdminSpellRequests() {
         <div className="admin-spell-request-list">
           {pending.map(
             request => {
-              const proposed =
-                request.proposedSpell;
+              const proposed = spellForReview(request);
+              const costRaw = draftCosts[request.id] ?? String(reviewPrice(request));
+              const isEditing = editingId === request.id;
+              const isBusy = busyId === request.id;
 
               return (
                 <article
@@ -496,7 +582,7 @@ export default function AdminSpellRequests() {
 
                     <div className="admin-spell-request-price">
                       <b>
-                        {request.cost}
+                        {reviewPrice(request)}
                       </b>
                       <span>
                         баллов
@@ -522,14 +608,50 @@ export default function AdminSpellRequests() {
                     </details>
                   ) : null}
 
+                  {request.reviewedSpell && request.proposedSpell ? (
+                    <details className="admin-spell-request-before">
+                      <summary>Показать первоначальный вариант игрока</summary>
+                      <SpellPreview spell={request.proposedSpell} />
+                    </details>
+                  ) : null}
+
                   <div className="admin-spell-request-proposed">
-                    <span>
-                      ПРЕДЛОЖЕННАЯ ВЕРСИЯ
-                    </span>
-                    <SpellPreview
-                      spell={proposed}
-                    />
+                    <span>{request.reviewedSpell ? 'ВЕРСИЯ ПОСЛЕ ПРАВОК АДМИНИСТРАТОРА' : 'ПРЕДЛОЖЕННАЯ ВЕРСИЯ'}</span>
+                    <SpellPreview spell={proposed} />
+                    {request.reviewedAt ? (
+                      <small>Изменено: {formatDate(request.reviewedAt)} · {request.reviewedBy || 'администратор'}</small>
+                    ) : null}
                   </div>
+
+                  <div className="admin-spell-request-review">
+                    <label className="admin-spell-request-cost-input">
+                      <span>Списать при одобрении · баллов прокачки (0 = бесплатно)</span>
+                      <input type="number" min="0" max="9999" step="1"
+                        value={costRaw} disabled={isBusy}
+                        onChange={event => setDraftCosts(current => ({...current, [request.id]: event.target.value}))}
+                      />
+                      <small>Цена заявки игрока: {request.cost}. Текущая цена одобрения: {reviewPrice(request)}.</small>
+                    </label>
+                    <div className="admin-spell-request-review-buttons">
+                      <button type="button" className="admin-button" disabled={isBusy || !proposed}
+                        onClick={() => setEditingId(current => current === request.id ? '' : request.id)}>
+                        {isEditing ? 'Закрыть редактор' : '✎ Исправить заклинание'}
+                      </button>
+                      <button type="button" className="admin-button" disabled={isBusy || isEditing || !validPrice(costRaw) || !proposed}
+                        onClick={() => { if (proposed) void saveReview(request, proposed); }}>
+                        Сохранить цену
+                      </button>
+                    </div>
+                  </div>
+
+                  {isEditing && proposed ? (
+                    <SpellEditor key={`${request.id}-${request.reviewRevision || 0}`}
+                      initial={editorSpell(proposed)} className="" saving={isBusy}
+                      heading="ИСПРАВЛЕНИЕ ЗАЯВКИ ИГРОКА" saveLabel="Сохранить исправленное заклинание и цену"
+                      onCancel={() => setEditingId('')}
+                      onSave={spell => void saveReview(request, spell)}
+                    />
+                  ) : null}
 
                   {proposed?.target !==
                   'На себя' ? (
@@ -617,8 +739,9 @@ export default function AdminSpellRequests() {
                       type="button"
                       className="admin-button primary"
                       disabled={
-                        busyId ===
-                          request.id ||
+                        busyId === request.id ||
+                        isEditing ||
+                        !validPrice(costRaw) ||
                         (
                           proposed?.target !==
                             'На себя' &&
@@ -641,7 +764,7 @@ export default function AdminSpellRequests() {
                       {busyId ===
                       request.id
                         ? 'Применяю…'
-                        : `Одобрить · списать ${request.cost}`}
+                        : `Одобрить · списать ${costRaw}`}
                     </button>
                   </div>
                 </article>

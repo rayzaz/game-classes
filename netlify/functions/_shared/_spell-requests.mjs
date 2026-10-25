@@ -250,6 +250,16 @@ export function publicSpellRequest(
       value.proposedSpell || null,
     approvedSpell:
       value.approvedSpell || null,
+    reviewedSpell:
+      value.reviewedSpell || null,
+    reviewCost:
+      value.reviewCost == null ? null : Number(value.reviewCost),
+    reviewRevision:
+      Number(value.reviewRevision || 0),
+    reviewedAt:
+      cleanSpellRequestText(value.reviewedAt, 100),
+    reviewedBy:
+      cleanSpellRequestText(value.reviewedBy, 250),
     pointsAtSubmission:
       Number(value.pointsAtSubmission || 0),
     pointsBefore:

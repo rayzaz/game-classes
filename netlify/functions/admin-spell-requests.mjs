@@ -16,6 +16,15 @@ import {
 } from './_shared/_notifications.mjs';
 
 import {
+  assertReviewRevision,
+  editableSpell,
+  effectiveSpell,
+  effectiveCost,
+  reviewCost,
+  reviewRevision,
+} from './_shared/_spell-review.mjs';
+
+import {
   asSpellRequestRecord,
   cleanSpellRequestText,
   getSpellRequest,
@@ -81,7 +90,8 @@ async function readJsonResponse(
 
 async function applySpellPurchase(
   record,
-  spell
+  spell,
+  approvedCost
 ) {
   const serviceUrl =
     loadRequiredEnv(
@@ -119,6 +129,7 @@ async function applySpellPurchase(
               record.spellIndex,
             sourceSpell:
               record.sourceSpell,
+            approvedCost,
             spell,
           },
         }),
@@ -146,7 +157,7 @@ function prepareApprovedSpell(
 ) {
   const spell = {
     ...asSpellRequestRecord(
-      record.proposedSpell
+      effectiveSpell(record)
     ),
   };
 
@@ -480,7 +491,8 @@ export default async function (
 
     if (
       decision !== 'approve' &&
-      decision !== 'reject'
+      decision !== 'reject' &&
+      decision !== 'save-review'
     ) {
       return json(
         {
@@ -521,6 +533,50 @@ export default async function (
         alreadyResolved:
           true,
       });
+    }
+
+    if (decision !== 'save-review') {
+      assertReviewRevision(record, body.expectedReviewRevision);
+    }
+
+    if (decision === 'save-review') {
+      if (record.status !== 'pending') {
+        throw new Error('Исправлять можно только ожидающую заявку');
+      }
+      assertReviewRevision(record, body.expectedReviewRevision);
+      const reviewedSpell = editableSpell(body.editedSpell);
+      if (record.proposedSpell?.basePower != null && reviewedSpell.basePower !== record.proposedSpell.basePower) {
+        throw new Error('Нельзя перебрасывать уже закреплённую силу d20');
+      }
+      const reviewedCost = reviewCost(body.cost);
+      const updated = {
+        ...record,
+        reviewedSpell,
+        reviewCost: reviewedCost,
+        reviewRevision: reviewRevision(record) + 1,
+        reviewedAt: new Date().toISOString(),
+        reviewedBy: cleanSpellRequestText(session.sub, 250),
+        updatedAt: new Date().toISOString(),
+      };
+      await saveSpellRequest(updated);
+      const live = await getSpellRequest(requestId);
+      if (live?.reviewRevision !== updated.reviewRevision || live?.status !== 'pending') {
+        throw new Error('Заявка изменилась во время сохранения. Обновите её.');
+      }
+      try {
+        await tryWriteAdminLog({
+          adminLogin: session.sub || '',
+          adminName: session.name || session.sub || '',
+          action: 'SPELL_REQUEST_REVIEW_EDIT',
+          targetType: 'character',
+          targetId: record.characterId,
+          targetName: record.characterName,
+          details: `Исправлена заявка ${requestId}. Стоимость: ${reviewedCost} балл. Заклинание: «${cleanSpellRequestText(reviewedSpell.name, 180)}».`,
+        });
+      } catch (logError) {
+        console.error('spell review audit log failed:', logError);
+      }
+      return json({ ok: true, request: publicSpellRequest(updated) });
     }
 
     const claimed =
@@ -583,11 +639,13 @@ export default async function (
           claimed,
           body.hitRule
         );
+      const approvedCost = reviewCost(body.cost, effectiveCost(claimed));
 
       const applied =
         await applySpellPurchase(
           claimed,
-          approvedSpell
+          approvedSpell,
+          approvedCost
         );
 
       const resolved = {
@@ -601,6 +659,9 @@ export default async function (
         approvedSpell:
           applied.spell ||
           approvedSpell,
+        cost: reviewCost(applied.cost),
+        reviewCost: approvedCost,
+        reviewedSpell: effectiveSpell(claimed),
         appliedSpellIndex:
           Number(
             applied.spellIndex ||
@@ -667,7 +728,7 @@ export default async function (
         : String(error);
 
     const status =
-      /уже обрабатывает|уже имеет статус/i
+      /уже обрабатывает|уже имеет статус|изменилась|ожидающую/i
         .test(message)
         ? 409
         : 500;
