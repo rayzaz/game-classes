@@ -4,7 +4,9 @@ import PlayerSpellDevelopment from './player/PlayerSpellDevelopment';
 import ExamRegistrationCard from './player/ExamRegistrationCard';
 import CharacterFamilyTree from './player/CharacterFamilyTree';
 import { SPELL_SCHEMA_VERSION, spellCalculationLabel, spellDurationLabel, spellSpatialLabels, type CanonicalSpell } from '../lib/spellSchema';
+import { effectsV4Text, type CharacterEffectsV4, type StatsV4 } from '../lib/characterEffectsV4';
 import './player/player-character-themes.css';
+import './player/player-character-effects-v4.css';
 
 const PLAYER_CABINET_API = '/.netlify/functions/character-data';
 const ADMIN_CABINET_API = '/.netlify/functions/admin-character-data';
@@ -155,6 +157,9 @@ type CharacterData = {
     classSkills: ClassSkill[];
 
     specialSkills: SpecialSkill[];
+
+    effectsV4?: CharacterEffectsV4;
+    effectiveStatsV4?: { stats: StatsV4; breakdown: Record<string, {base:number;flat:number;percent:number;total:number}> };
 
     spells: PersonalSpell[];
 
@@ -1734,6 +1739,15 @@ export default function PlayerCabinet({
         data.specialSkills ??
         [];
 
+    const v4Sources = data.effectsV4?.sources.filter((s) => !s.archived) ?? null;
+    const v4Stats = data.effectiveStatsV4?.stats;
+    const v4Battle = v4Stats ? { ...data.battle,
+        attack:v4Stats.attack, defense:v4Stats.defense, healing:v4Stats.healing,
+        buff:v4Stats.buff, debuff:v4Stats.debuff, potions:v4Stats.potions,
+        summon:v4Stats.summon, movement:v4Stats.movement,
+        speedModifier:v4Stats.speedModifier, physical:v4Stats.physical, other:v4Stats.other,
+    } : data.battle;
+
     const spells =
         data.spells ??
         [];
@@ -2465,6 +2479,7 @@ export default function PlayerCabinet({
 
                     title="Боевые показатели"
                 />
+                {v4Stats ? <p className="nero-v4-note">Значения с учётом постоянных бонусов расы и особенностей. Радар пока показывает базовые значения из Google.</p> : null}
 
 
                 <div className="nero-battle-layout">
@@ -2483,7 +2498,7 @@ export default function PlayerCabinet({
                             icon="💥"
                             label="Атака заклинанием"
                             value={
-                                data.battle.attack
+                                v4Battle.attack
                             }
                         />
 
@@ -2491,7 +2506,7 @@ export default function PlayerCabinet({
                             icon="🛡️"
                             label="Защита заклинанием"
                             value={
-                                data.battle.defense
+                                v4Battle.defense
                             }
                         />
 
@@ -2499,7 +2514,7 @@ export default function PlayerCabinet({
                             icon="💉"
                             label="Лечение"
                             value={
-                                data.battle.healing
+                                v4Battle.healing
                             }
                         />
 
@@ -2507,7 +2522,7 @@ export default function PlayerCabinet({
                             icon="✔️"
                             label="Баф"
                             value={
-                                data.battle.buff
+                                v4Battle.buff
                             }
                         />
 
@@ -2515,7 +2530,7 @@ export default function PlayerCabinet({
                             icon="❌"
                             label="Дебаф"
                             value={
-                                data.battle.debuff
+                                v4Battle.debuff
                             }
                         />
 
@@ -2523,7 +2538,7 @@ export default function PlayerCabinet({
                             icon="🧪"
                             label="Зелья"
                             value={
-                                data.battle.potions
+                                v4Battle.potions
                             }
                         />
 
@@ -2531,7 +2546,7 @@ export default function PlayerCabinet({
                             icon="🐲"
                             label="Призыв"
                             value={
-                                data.battle.summon
+                                v4Battle.summon
                             }
                         />
 
@@ -2539,7 +2554,7 @@ export default function PlayerCabinet({
                             icon="🏃"
                             label="Перемещение"
                             value={
-                                data.battle.movement
+                                v4Battle.movement
                             }
                         />
 
@@ -2547,7 +2562,7 @@ export default function PlayerCabinet({
                             icon="👣"
                             label="Модификатор скорости"
                             value={
-                                data.battle.speedModifier
+                                v4Battle.speedModifier
                             }
                         />
 
@@ -2555,7 +2570,7 @@ export default function PlayerCabinet({
                             icon="💪"
                             label="Физическое воздействие"
                             value={
-                                data.battle.physical
+                                v4Battle.physical
                             }
                         />
 
@@ -2563,7 +2578,7 @@ export default function PlayerCabinet({
                             icon="💫"
                             label="Прочее"
                             value={
-                                data.battle.other
+                                v4Battle.other
                             }
                         />
 
@@ -2704,10 +2719,42 @@ export default function PlayerCabinet({
             </section>
 
 
+            {data.effectsV4 ? (
+                <section className="nero-panel">
+                    <SectionTitle eyebrow="НАСЛЕДИЕ И ДАРЫ" title="Раса и особенности" meta={v4Sources?.length ?? 0} />
+                    <div className="nero-skill-grid">
+                        <article className="nero-skill-card">
+                            <div className="nero-skill-top"><span>Раса персонажа</span><span className="nero-status-good">V4</span></div>
+                            <h3>{data.effectsV4.race || 'Не указана'}</h3>
+                            <p>Индивидуальные расовые эффекты и ограничения</p>
+                        </article>
+                        {(v4Sources || []).map((source) => <article className="nero-skill-card" key={source.id}>
+                            <div className="nero-skill-top">
+                                <span>{source.kind === 'race' ? 'Раса' : source.origin === 'book' ? 'Особенность книги' : 'Особенность'}</span>
+                                <span className="nero-status-good">{source.enabled ? '✓ Действует' : '○ Отключено'}</span>
+                            </div>
+                            <h3>{source.name}</h3>
+                            {source.description ? <p>{source.description}</p> : null}
+                            {source.effects.length ? <ul className="nero-v4-effects-list">
+                                {source.effects.map((effect) => <li key={effect.id}>
+                                    {effectsV4Text(effect)}{effect.description ? ` — ${effect.description}` : ''}
+                                </li>)}
+                            </ul> : null}
+                        </article>)}
+                    </div>
+                    {v4Stats ? <div className="nero-v4-summary">
+                        <strong>Итоговые показатели с постоянными бонусами:</strong>{' '}
+                        HP {v4Stats.hp} · MP {v4Stats.mp} · Сила {v4Stats.strength} · Скорость {v4Stats.speed}
+                        <small>Текущие HP/MP и исходные формулы Google остаются неизменными. Эффекты «в бою» и «по условию» показываются отдельно и не учитываются в постоянных значениях.</small>
+                    </div> : null}
+                </section>
+            ) : null}
+
             {/* =========================
                 ОСОБЫЕ НАВЫКИ
                 ========================= */}
 
+            {!data.effectsV4 ? (
             <section className="nero-panel">
 
                 <SectionTitle
@@ -2788,6 +2835,7 @@ export default function PlayerCabinet({
                 }
 
             </section>
+            ) : null}
 
 
             {/* =========================

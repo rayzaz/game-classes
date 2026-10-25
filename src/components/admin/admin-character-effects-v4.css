@@ -1,0 +1,26 @@
+.admin-effects-v4{display:grid;gap:16px;color:inherit}
+.admin-effects-v4-header{display:flex;align-items:center;justify-content:space-between;gap:20px;flex-wrap:wrap}
+.admin-effects-v4-header h2{margin:0 0 7px;font-size:1.35rem}
+.admin-effects-v4-header p{margin:0;color:var(--text-secondary,#9ba4b9);font-size:.92rem}
+.admin-effects-v4-layout{display:grid;grid-template-columns:minmax(180px,240px) minmax(0,1fr);gap:15px}
+.admin-effects-v4-characters{display:flex;flex-direction:column;gap:5px;max-height:75vh;overflow-y:auto}
+.admin-effects-v4-characters button{text-align:left;display:flex;flex-direction:column;background:transparent;border:1px solid #ffffff20;padding:10px;border-radius:9px;color:inherit;cursor:pointer}
+.admin-effects-v4-characters button.selected{border-color:#d0a65d;background:#d0a65d22}
+.admin-effects-v4-characters button small,.admin-effects-v4-card small{opacity:.7}
+.admin-effects-v4-content{min-width:0;display:grid;gap:12px;align-content:start}
+.admin-effects-v4-card{border:1px solid #ffffff25;border-radius:13px;background:#ffffff08;padding:15px;display:grid;gap:12px}
+.admin-effects-v4-card h3{margin:0;font-size:1.06rem}
+.admin-effects-v4-card-head{display:flex;justify-content:space-between;align-items:center;gap:9px;flex-wrap:wrap}
+.admin-effects-v4-card label{display:grid;gap:5px;font-size:.9rem;min-width:0}
+.admin-effects-v4-card input,.admin-effects-v4-card select,.admin-effects-v4-card textarea,.admin-effects-v4-characters input{width:100%;min-width:0;padding:10px;color:inherit;background:#151a26;border:1px solid #ffffff35;border-radius:8px;font:inherit}
+.admin-effects-v4-card select option{background:#151a26;color:white}
+.admin-effects-v4-fields{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:10px}
+.admin-effects-v4-card .admin-effects-v4-check{display:flex;gap:9px;align-items:center}.admin-effects-v4-check input{width:auto}
+.admin-effects-v4-effect{padding:12px;background:#151923a8;border:1px solid #ffffff24;border-radius:9px;display:grid;gap:10px}
+.admin-effects-v4-actions{display:flex;flex-wrap:wrap;gap:9px}
+.admin-effects-v4-actions button,.admin-effects-v4-card-head button,.admin-effects-v4-add{padding:8px 12px;border-radius:8px;background:#ffffff12;color:inherit;border:1px solid #ffffff40;cursor:pointer}
+.admin-effects-v4-message{padding:10px;border:1px solid #e6c37299;border-radius:10px}
+.admin-effects-v4-preview{display:grid;grid-template-columns:repeat(auto-fill,minmax(175px,1fr));gap:8px}
+.admin-effects-v4-preview>div{display:grid;gap:4px;padding:9px;border:1px solid #ffffff22;border-radius:8px}
+.admin-effects-v4-preview>div span{font-size:.84rem}.admin-effects-v4-preview>div strong{font-size:1.1rem}
+@media(max-width:700px){.admin-effects-v4-layout{grid-template-columns:minmax(0,1fr)}.admin-effects-v4-characters{max-height:230px}}

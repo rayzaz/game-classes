@@ -16,6 +16,7 @@ import AdminAuditLog from './AdminAuditLog';
 import AdminCalendar from './AdminCalendar';
 import AdminNpcs from './AdminNpcs';
 import AdminSpells from './AdminSpells';
+import AdminCharacterEffectsV4 from './AdminCharacterEffectsV4';
 import AdminPushNotifications from './AdminPushNotifications';
 
 import './admin.css';
@@ -37,6 +38,7 @@ type AdminSection =
   | 'characters'
   | 'npcs'
   | 'spells'
+  | 'effects'
   | 'questionnaires'
   | 'events'
   | 'reports'
@@ -87,6 +89,7 @@ const NAV_ITEMS:
       label: 'Заклинания',
       icon: '✧',
     },
+    { id: 'effects', label: 'Расы и особенности', icon: '◇' },
     {
       id: 'questionnaires',
       label: 'Анкеты',
@@ -506,6 +509,10 @@ export default function AdminCabinet({
             {section ===
             'spells' ? (
               <AdminSpells characters={characters} />
+            ) : null}
+
+            {section === 'effects' ? (
+              <AdminCharacterEffectsV4 characters={characters} />
             ) : null}
 
             {section ===
