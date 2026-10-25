@@ -16,6 +16,7 @@ import {
   spellUsesSummonCount,
   spellUsesFixedPower,
   normalizeCanonicalSpell,
+  makeCanonicalSpell,
   spellAreaLabel,
   spellCalculationLabel,
   spellDurationLabel,
@@ -48,6 +49,8 @@ type CharacterSpellResult = {
   characterName: string;
   className?: string;
   spells: EditorSpell[];
+  slotCount?: number;
+  freeSlots?: number[];
   count: number;
   invalidCount: number;
   validCount: number;
@@ -108,12 +111,14 @@ async function readCharacterSpells(characterId: string) {
 
 function SpellEditor({
   initial,
+  creating = false,
   className,
   saving,
   onCancel,
   onSave,
 }: {
   initial: EditorSpell;
+  creating?: boolean;
   className: string;
   saving: boolean;
   onCancel: () => void;
@@ -146,7 +151,7 @@ function SpellEditor({
     <div className="admin-spell-editor">
       <div className="admin-spell-editor-head">
         <div>
-          <span>РЕДАКТОР ЗАКЛИНАНИЯ</span>
+          <span>{creating ? 'НОВОЕ ЗАКЛИНАНИЕ' : 'РЕДАКТОР ЗАКЛИНАНИЯ'}</span>
           <h3>{initial.name || `Заклинание #${initial.slotIndex}`}</h3>
         </div>
         <button type="button" className="admin-button" onClick={onCancel} disabled={saving}>Закрыть</button>
@@ -360,7 +365,7 @@ function SpellEditor({
           disabled={saving || issues.length > 0}
           onClick={() => onSave(draft)}
         >
-          {saving ? 'Сохраняю…' : 'Сохранить и пометить готовым'}
+          {saving ? 'Сохраняю…' : creating ? 'Создать заклинание' : 'Сохранить изменения'}
         </button>
       </div>
     </div>
@@ -373,6 +378,13 @@ export default function AdminSpells({ characters }: { characters: AdminCharacter
   const [filter, setFilter] = useState<FilterMode>('issues');
   const [search, setSearch] = useState('');
   const [editingSlot, setEditingSlot] = useState<number | null>(null);
+  const [creating, setCreating] = useState(false);
+  const [cloneSeed, setCloneSeed] = useState<EditorSpell | null>(null);
+  const [deletingSlot, setDeletingSlot] = useState<number | null>(null);
+  const [deleteConfirmation, setDeleteConfirmation] = useState('');
+  const [spellQuery, setSpellQuery] = useState('');
+  const [spellFilter, setSpellFilter] = useState<'all' | 'issues' | 'ready'>('all');
+  const [activeView, setActiveView] = useState<'requests' | 'grimoirs'>('requests');
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState('');
 
@@ -479,7 +491,7 @@ export default function AdminSpells({ characters }: { characters: AdminCharacter
     }
   }
 
-  async function saveSpell(spellIndex: number, spell: CanonicalSpell) {
+  async function manageSpell(operation: 'create' | 'update' | 'delete', spell?: CanonicalSpell, initial?: EditorSpell) {
     if (!selectedCharacter) return;
     setSaving(true);
     setSaveError('');
@@ -489,44 +501,42 @@ export default function AdminSpells({ characters }: { characters: AdminCharacter
         method: 'POST',
         headers: { 'content-type': 'application/json; charset=utf-8' },
         body: JSON.stringify({
+          operation,
           characterId: selectedCharacter.id,
-          spellIndex,
-          spell,
+          spellIndex: initial?.slotIndex ?? null,
+          spell: spell || {},
+          expected: initial ? { name: initial.name, rawDescription: initial.rawDescription ?? '' } : {},
+          confirmName: operation === 'delete' ? deleteConfirmation : undefined,
         }),
       });
-
-      const result = await response.json() as { ok?: boolean; spell?: EditorSpell; error?: string };
-      if (!response.ok || !result?.ok || !result.spell) {
-        throw new Error(result?.error || 'Не удалось сохранить заклинание');
-      }
-
-      setStates((prev) => {
-        const current = prev[selectedCharacter.id]?.data;
-        if (!current) return prev;
-        const spells = current.spells.map((item) => item.slotIndex === spellIndex ? result.spell! : item);
-        const invalidCount = spells.filter((item) => item.valid !== true).length;
-        return {
-          ...prev,
-          [selectedCharacter.id]: {
-            status: 'ready',
-            data: {
-              ...current,
-              spells,
-              invalidCount,
-              validCount: Math.max(0, spells.length - invalidCount),
-              ready: spells.length > 0 && invalidCount === 0,
-            },
-          },
-        };
-      });
-
+      const result = await response.json() as { ok?: boolean; spellIndex?: number; error?: string };
+      if (!response.ok || !result?.ok) throw new Error(result?.error || 'Не удалось изменить заклинание');
+      await reloadOne(selectedCharacter.id);
       setEditingSlot(null);
+      setCreating(false);
+      setCloneSeed(null);
+      setDeletingSlot(null);
+      setDeleteConfirmation('');
     } catch (error) {
       setSaveError(error instanceof Error ? error.message : String(error));
     } finally {
       setSaving(false);
     }
   }
+
+  const newSpell: EditorSpell = cloneSeed ? { ...cloneSeed, slotIndex: 0, valid: false, issues: [], legacy: false } : {
+    ...makeCanonicalSpell('Урон'),
+    slotIndex: 0,
+    valid: false,
+    issues: [],
+    legacy: false,
+  };
+  const shownSpells = (selectedData?.spells || []).filter((spell) => {
+    const query = spellQuery.trim().toLowerCase();
+    if (spellFilter === 'ready' && !spell.valid) return false;
+    if (spellFilter === 'issues' && spell.valid) return false;
+    return !query || `${spell.name} ${spell.powerType} ${spell.effect}`.toLowerCase().includes(query);
+  });
 
   return (
     <section className="admin-modern-section admin-spells-root">
@@ -539,7 +549,11 @@ export default function AdminSpells({ characters }: { characters: AdminCharacter
         <button type="button" className="admin-button" onClick={() => selectedCharacter && void reloadOne(selectedCharacter.id)} disabled={!selectedCharacter}>↻ Проверить выбранного</button>
       </div>
 
-      <AdminSpellRequests />
+      <div className="admin-spell-tabs" role="group" aria-label="Разделы заклинаний">
+        <button type="button" className={activeView === 'requests' ? 'active' : ''} onClick={() => setActiveView('requests')}>Заявки игроков</button>
+        <button type="button" className={activeView === 'grimoirs' ? 'active' : ''} onClick={() => setActiveView('grimoirs')}>Гримуары и редактор</button>
+      </div>
+      {activeView === 'requests' ? <AdminSpellRequests /> : <>
 
       <div className="admin-spell-stats">
         <div><span>Проверено</span><b>{stats.checked}/{stats.total}</b></div>
@@ -583,6 +597,9 @@ export default function AdminSpells({ characters }: { characters: AdminCharacter
                 onClick={() => {
                   setSelectedId(character.id);
                   setEditingSlot(null);
+                  setCreating(false);
+                  setDeletingSlot(null);
+                  setDeleteConfirmation('');
                   setSaveError('');
                 }}
               >
@@ -625,11 +642,46 @@ export default function AdminSpells({ characters }: { characters: AdminCharacter
                 </div>
               </div>
 
+              <div className="admin-spell-actions-toolbar">
+                <span>Слотов: {selectedData.count}/{selectedData.slotCount ?? '—'} · Свободно: {selectedData.freeSlots?.length ?? '—'} · Административное добавление без списания баллов</span>
+                <button
+                  type="button"
+                  className="admin-button primary"
+                  disabled={saving || !selectedData.freeSlots?.length}
+                  onClick={() => {
+                    setEditingSlot(null);
+                    setDeletingSlot(null);
+                    setCloneSeed(null);
+                    setCreating(true);
+                    setSaveError('');
+                  }}
+                >+ Создать заклинание</button>
+              </div>
+              {creating ? (
+                <SpellEditor
+                  key={`new-${selectedCharacter.id}-${cloneSeed?.slotIndex ?? 0}`}
+                  creating
+                  initial={newSpell}
+                  className={selectedData.className || selectedCharacter.className || ''}
+                  saving={saving}
+                  onCancel={() => { setCreating(false); setCloneSeed(null); }}
+                  onSave={(next) => void manageSpell('create', next)}
+                />
+              ) : null}
+              <div className="admin-spell-toolbar admin-spell-toolbar-internal">
+                <input value={spellQuery} onChange={(event) => setSpellQuery(event.target.value)} placeholder="Поиск заклинания по названию, типу или эффекту…" />
+                <div className="admin-spell-filter">
+                  <button type="button" className={spellFilter === 'all' ? 'active' : ''} onClick={() => setSpellFilter('all')}>Все</button>
+                  <button type="button" className={spellFilter === 'issues' ? 'active' : ''} onClick={() => setSpellFilter('issues')}>С ошибками</button>
+                  <button type="button" className={spellFilter === 'ready' ? 'active' : ''} onClick={() => setSpellFilter('ready')}>Готовые</button>
+                </div>
+              </div>
+
               {saveError ? <div className="admin-spell-error compact">{saveError}</div> : null}
 
               {selectedData.spells.length ? (
                 <div className="admin-spell-list">
-                  {selectedData.spells.map((spell) => (
+                  {shownSpells.map((spell) => (
                     editingSlot === spell.slotIndex ? (
                       <SpellEditor
                         key={spell.slotIndex}
@@ -637,7 +689,7 @@ export default function AdminSpells({ characters }: { characters: AdminCharacter
                         className={selectedData.className || selectedCharacter.className || ''}
                         saving={saving}
                         onCancel={() => setEditingSlot(null)}
-                        onSave={(next) => void saveSpell(spell.slotIndex, next)}
+                        onSave={(next) => void manageSpell('update', next, spell)}
                       />
                     ) : (
                       <article className={`admin-spell-card ${spell.valid ? 'ready' : 'warning'}`} key={spell.slotIndex}>
@@ -666,13 +718,44 @@ export default function AdminSpells({ characters }: { characters: AdminCharacter
 
                         <div className="admin-spell-card-actions">
                           <small>{spellCalculationLabel(spell)} · мана по классу</small>
-                          <button type="button" className="admin-button" onClick={() => setEditingSlot(spell.slotIndex)}>
+                          <button type="button" className="admin-button" onClick={() => {
+                            setEditingSlot(spell.slotIndex);
+                            setCreating(false);
+                            setDeletingSlot(null);
+                          }} disabled={saving}>
                             {spell.valid ? 'Изменить' : 'Исправить'}
                           </button>
+                          <button type="button" className="admin-button" disabled={saving || !selectedData.freeSlots?.length} onClick={() => {
+                            setCloneSeed(spell);
+                            setCreating(true);
+                            setEditingSlot(null);
+                            setDeletingSlot(null);
+                            setSaveError('');
+                          }}>Дублировать</button>
+                          <button type="button" className="admin-button danger" onClick={() => {
+                            setDeletingSlot(spell.slotIndex);
+                            setDeleteConfirmation('');
+                            setEditingSlot(null);
+                            setCreating(false);
+                          }} disabled={saving}>Удалить</button>
                         </div>
+                        {deletingSlot === spell.slotIndex ? (
+                          <div className="admin-spell-delete-confirm">
+                            <strong>Удалить «{spell.name}» из слота #{spell.slotIndex}?</strong>
+                            <p>Слот очистится, остальные заклинания не сдвинутся. Незавершённые заявки на улучшение удалённого заклинания могут стать неприменимыми.</p>
+                            <label>Введи точное название для подтверждения
+                              <input value={deleteConfirmation} onChange={(event) => setDeleteConfirmation(event.target.value)} />
+                            </label>
+                            <div>
+                              <button type="button" className="admin-button" onClick={() => setDeletingSlot(null)}>Отмена</button>
+                              <button type="button" className="admin-button danger" disabled={saving || deleteConfirmation !== spell.name} onClick={() => void manageSpell('delete', undefined, spell)}>Подтвердить удаление</button>
+                            </div>
+                          </div>
+                        ) : null}
                       </article>
                     )
                   ))}
+                  {shownSpells.length === 0 ? <div className="admin-spell-empty">Нет заклинаний по выбранным фильтрам.</div> : null}
                 </div>
               ) : (
                 <div className="admin-spell-empty">В личной таблице не найдено ни одного заклинания.</div>
@@ -683,6 +766,7 @@ export default function AdminSpells({ characters }: { characters: AdminCharacter
           )}
         </div>
       </div>
+      </>}
     </section>
   );
 }

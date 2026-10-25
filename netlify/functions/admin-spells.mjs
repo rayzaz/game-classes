@@ -62,7 +62,7 @@ async function loadCharacterSpells(characterId) {
   return readJsonResponse(response, 'Не удалось прочитать заклинания персонажа');
 }
 
-async function saveCharacterSpell(characterId, spellIndex, spell) {
+async function manageCharacterSpell(operation, characterId, spellIndex, spell, expected) {
   const serviceUrl = loadRequiredEnv('CHARACTER_SERVICE_URL');
   const writeSecret = loadRequiredEnv('CHARACTER_WRITE_SECRET');
 
@@ -73,18 +73,20 @@ async function saveCharacterSpell(characterId, spellIndex, spell) {
       'content-type': 'application/json; charset=utf-8',
     },
     body: JSON.stringify({
-      action: 'update-character-spell',
+      action: 'admin-manage-character-spell-v2',
+      operation,
       writeSecret,
       characterId,
       spellIndex,
       spell,
+      expected,
     }),
     cache: 'no-store',
     redirect: 'follow',
     signal: AbortSignal.timeout(55_000),
   });
 
-  return readJsonResponse(response, 'Не удалось сохранить заклинание');
+  return readJsonResponse(response, 'Не удалось изменить заклинание');
 }
 
 export default async function (request) {
@@ -122,25 +124,38 @@ export default async function (request) {
         return json({ ok: false, error: 'Некорректный JSON' }, 400);
       }
 
+      const operation = cleanText(body.operation || 'update', 20).toLowerCase();
       const characterId = normalizeCharacterId(body.characterId);
-      const spellIndex = Math.trunc(Number(body.spellIndex));
+      const spellIndex = operation === 'create' ? null : Number(body.spellIndex);
       const spell = asRecord(body.spell);
+      const expected = asRecord(body.expected);
 
-      if (!characterId || !Number.isInteger(spellIndex) || spellIndex < 1) {
-        return json({ ok: false, error: 'Не указан персонаж или номер заклинания' }, 400);
+      if (!['create', 'update', 'delete'].includes(operation)) {
+        return json({ ok: false, error: 'Неизвестная операция редактора' }, 400);
+      }
+      if (!characterId || (operation !== 'create' && (!Number.isSafeInteger(spellIndex) || spellIndex < 1))) {
+        return json({ ok: false, error: 'Не указан персонаж или номер слота' }, 400);
+      }
+      if (operation !== 'create' && (typeof expected.name !== 'string' || typeof expected.rawDescription !== 'string')) {
+        return json({ ok: false, error: 'Требуется исходный снимок заклинания' }, 400);
+      }
+      if (operation === 'delete' && cleanText(body.confirmName, 5000) !== cleanText(expected.name, 5000)) {
+        return json({ ok: false, error: 'Подтвердите точное название удаляемого заклинания' }, 400);
       }
 
-      const result = await saveCharacterSpell(characterId, spellIndex, spell);
+      const result = await manageCharacterSpell(operation, characterId, spellIndex, spell, expected);
+      const actionNames = { create: 'CREATE', update: 'UPDATE', delete: 'DELETE' };
+      const targetName = operation === 'delete' ? expected.name : spell.name;
 
       try {
         await tryWriteAdminLog({
           adminLogin: session.sub || '',
           adminName: session.name || session.sub || '',
-          action: 'CHARACTER_SPELL_UPDATE',
+          action: `CHARACTER_SPELL_${actionNames[operation]}`,
           targetType: 'character',
           targetId: characterId,
-          targetName: cleanText(spell.name, 180),
-          details: `Исправлено заклинание #${spellIndex}: ${cleanText(spell.name, 180)}.`,
+          targetName: cleanText(targetName, 180),
+          details: `${actionNames[operation]} spell #${result.spellIndex}: ${cleanText(targetName, 180)}.`,
         });
       } catch (error) {
         console.error('admin spell log error:', error);

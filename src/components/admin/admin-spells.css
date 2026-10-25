@@ -442,3 +442,17 @@
     grid-column: auto;
   }
 }
+
+/* Spell administration V2 */
+.admin-spell-tabs { display:flex; gap:8px; margin:16px 0; flex-wrap:wrap; }
+.admin-spell-tabs button { padding:11px 16px; border:1px solid var(--admin-line-soft); color:var(--admin-muted); background:rgba(255,255,255,.02); border-radius:12px; cursor:pointer; }
+.admin-spell-tabs button.active { border-color:rgba(174,142,228,.55); background:rgba(129,91,191,.16); color:var(--admin-text); }
+.admin-spell-actions-toolbar { display:flex; gap:12px; align-items:center; justify-content:space-between; margin:12px 0; flex-wrap:wrap; color:var(--admin-muted); font-size:12px; }
+.admin-spell-toolbar-internal { margin-top:12px; }
+.admin-spell-delete-confirm { border:1px solid rgba(224,125,125,.45); padding:14px; margin-top:12px; border-radius:12px; background:rgba(140,45,45,.08); }
+.admin-spell-delete-confirm strong { display:block; font-size:14px; }
+.admin-spell-delete-confirm p { font-size:12px; line-height:1.5; color:var(--admin-muted); }
+.admin-spell-delete-confirm label { display:grid; gap:6px; font-size:12px; margin:10px 0; }
+.admin-spell-delete-confirm input { min-height:38px; padding:8px; border:1px solid var(--admin-line-soft); background:rgba(0,0,0,.16); border-radius:8px; color:var(--admin-text); }
+.admin-spell-delete-confirm > div { display:flex; justify-content:flex-end; gap:8px; flex-wrap:wrap; }
+@media (max-width:700px) { .admin-spell-toolbar-internal { display:grid; } .admin-spell-tabs button { flex:1; } }
