@@ -27,7 +27,8 @@ import {
   type SpellDurationMode,
   type SpellTarget,
 } from '../../lib/spellSchema';
-import { getSpellTypes, type SpellPowerType } from '../questionnaire/questionnaireLogic';
+import { getSpellTypes, spellPowerTypeLabel, type SpellPowerType } from '../questionnaire/questionnaireLogic';
+import SummonedCreaturesEditor from '../spells/SummonedCreaturesEditor';
 import './admin-spells.css';
 
 const API = '/.netlify/functions/admin-spells';
@@ -119,9 +120,7 @@ function SpellEditor({
   onSave: (spell: CanonicalSpell) => void;
 }) {
   const classKey = classKeyFromName(className);
-  const allowedTypes = classKey
-    ? getSpellTypes(classKey)
-    : ['Урон', 'Лечение', 'Защита', 'Бафф', 'Дебафф', 'Контроль', 'Призыв', 'Ресурс', 'Без расчёта'] as SpellPowerType[];
+  const allowedTypes = getSpellTypes(classKey);
   const fallbackType = (allowedTypes[0] || 'Урон') as SpellPowerType;
   const [draft, setDraft] = useState<CanonicalSpell>(() =>
     normalizeCanonicalSpell(initial, initial.powerType || fallbackType),
@@ -174,7 +173,7 @@ function SpellEditor({
               normalizePatch({ powerType, requiresHit: defaultSpellRequiresHit(powerType), hitReviewed: draft.target === 'На себя' });
             }}
           >
-            {allowedTypes.map((type) => <option key={type} value={type}>{type}</option>)}
+            {allowedTypes.map((type) => <option key={type} value={type}>{spellPowerTypeLabel(type)}</option>)}
             {!allowedTypes.includes(draft.powerType as SpellPowerType) ? <option value={draft.powerType}>{draft.powerType}</option> : null}
           </select>
         </label>
@@ -260,6 +259,10 @@ function SpellEditor({
               onChange={(event) => patch({ summonCount: Math.max(1, Number(event.target.value || 1)) })}
             />
           </label>
+        ) : null}
+
+        {draft.form === 'Призыв' ? (
+          <SummonedCreaturesEditor creatures={draft.summonedCreatures} onChange={summonedCreatures => patch({ summonedCreatures })} />
         ) : null}
 
         <label>

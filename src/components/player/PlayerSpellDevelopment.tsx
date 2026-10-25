@@ -31,9 +31,11 @@ import {
 
 import {
   getSpellTypes,
+  spellPowerTypeLabel,
   type SpellPowerType,
 } from '../questionnaire/questionnaireLogic';
 
+import SummonedCreaturesEditor from '../spells/SummonedCreaturesEditor';
 import './player-spell-development.css';
 
 
@@ -291,21 +293,7 @@ export default function PlayerSpellDevelopment({
   const allowedTypes =
     useMemo(
       () =>
-        classKey
-          ? getSpellTypes(
-              classKey
-            )
-          : [
-              'Урон',
-              'Лечение',
-              'Защита',
-              'Бафф',
-              'Дебафф',
-              'Контроль',
-              'Призыв',
-              'Ресурс',
-              'Без расчёта',
-            ] as SpellPowerType[],
+        getSpellTypes(classKey),
       [classKey]
     );
 
@@ -882,7 +870,7 @@ export default function PlayerSpellDevelopment({
                       key={type}
                       value={type}
                     >
-                      {type}
+                      {spellPowerTypeLabel(type)}
                     </option>
                   )
                 )}
@@ -1105,6 +1093,10 @@ export default function PlayerSpellDevelopment({
                   }
                 />
               </label>
+            ) : null}
+
+            {draft.form === 'Призыв' ? (
+              <SummonedCreaturesEditor creatures={draft.summonedCreatures} onChange={summonedCreatures => patch({ summonedCreatures })} />
             ) : null}
 
             <label className="spell-dev-field">

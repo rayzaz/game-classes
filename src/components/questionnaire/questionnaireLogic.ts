@@ -32,6 +32,11 @@ export type SpellPowerType =
   | 'Контроль'
   | 'Призыв'
   | 'Ресурс'
+  | 'Зелья'
+  | 'Перемещение'
+  | 'Модификатор скорости'
+  | 'Физическое воздействие'
+  | 'Прочее'
   | 'Без расчёта';
 
 const ELEMENT_ORDER: ElementId[] = [
@@ -414,14 +419,30 @@ export const CLASS_SPELL_TYPES: Record<string, SpellPowerType[]> = {
   buffer_debuffer: ['Бафф', 'Дебафф'],
 };
 
-const FALLBACK_SPELL_TYPES: SpellPowerType[] = [
-  'Урон',
-  'Лечение',
-  'Защита',
-  'Бафф',
-  'Дебафф',
-  'Контроль',
+// СИСТЕМА -> Классы, строки C5:C15: значения выбираются для любого класса,
+// а эффективность/нулевые коэффициенты определяются исходной таблицей.
+export const SYSTEM_SPELL_TYPES: SpellPowerType[] = [
+  'Урон',                 // C5: Атака заклинанием (исторический ключ)
+  'Защита',               // C6: Защита заклинанием
+  'Лечение',              // C7
+  'Бафф',                 // C8: Баф
+  'Дебафф',              // C9: Дебаф
+  'Зелья',                // C10
+  'Призыв',               // C11
+  'Перемещение',          // C12
+  'Модификатор скорости', // C13
+  'Физическое воздействие', // C14
+  'Прочее',               // C15
 ];
+
+// Старые типы не удаляем: они уже встречаются в сохранённых заклинаниях.
+const LEGACY_SPELL_TYPES: SpellPowerType[] = ['Контроль', 'Ресурс', 'Без расчёта'];
+
+export function spellPowerTypeLabel(type: SpellPowerType): string {
+  if (type === 'Урон') return 'Атака заклинанием (урон)';
+  if (type === 'Защита') return 'Защита заклинанием';
+  return type;
+}
 
 function comboKey(elements: ElementId[]) {
   return [...new Set(elements)]
@@ -512,6 +533,10 @@ export function getClassScores(selected: ElementId[], magicInspiration: string) 
 }
 
 export function getSpellTypes(classKey: string | null): SpellPowerType[] {
-  const base = classKey ? (CLASS_SPELL_TYPES[classKey] ?? FALLBACK_SPELL_TYPES) : FALLBACK_SPELL_TYPES;
-  return base.includes('Без расчёта') ? [...base] : [...base, 'Без расчёта'];
+  // Привычные типы класса показываем первыми, но все показатели диаграммы
+  // доступны каждому классу. Нулевые коэффициенты в СИСТЕМЕ не скрываем.
+  const preferred = classKey ? (CLASS_SPELL_TYPES[classKey] ?? []) : [];
+  return [...new Set<SpellPowerType>([
+    ...preferred, ...SYSTEM_SPELL_TYPES, ...LEGACY_SPELL_TYPES,
+  ])];
 }

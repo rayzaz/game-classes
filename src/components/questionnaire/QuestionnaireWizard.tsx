@@ -4,6 +4,7 @@ import {
   getElementLabel,
   getMagicSuggestions,
   getSpellTypes,
+  spellPowerTypeLabel,
   MAGIC_ELEMENTS,
   type ElementId,
   type SpellPowerType,
@@ -39,6 +40,7 @@ import {
   type OwnQuestionnaire,
   type QuestionnaireClaim,
 } from '../../services/questionnaireSubmit';
+import SummonedCreaturesEditor from '../spells/SummonedCreaturesEditor';
 import './questionnaire.css';
 
 export type GameClass = {
@@ -1420,7 +1422,7 @@ export default function QuestionnaireWizard({
                             updateSpell(index, normalizeCanonicalSpell({ ...spell, powerType, requiresHit: defaultSpellRequiresHit(powerType), hitReviewed: spell.target === 'На себя' }, powerType) as Spell);
                           }}
                         >
-                          {spellTypes.map((type) => <option key={type} value={type}>{type}</option>)}
+                          {spellTypes.map((type) => <option key={type} value={type}>{spellPowerTypeLabel(type)}</option>)}
                         </select>
                       </label>
 
@@ -1515,6 +1517,10 @@ export default function QuestionnaireWizard({
                             onChange={(e) => updateSpell(index, { summonCount: Math.max(1, Number(e.target.value || 1)) })}
                           />
                         </label>
+                      ) : null}
+
+                      {spell.form === 'Призыв' ? (
+                        <SummonedCreaturesEditor creatures={spell.summonedCreatures} onChange={summonedCreatures => updateSpell(index, { summonedCreatures })} />
                       ) : null}
 
                       <label className="qf-field"><SpellFieldTitle onHelp={() => showSpellHelp(index, 'duration')}>Длительность</SpellFieldTitle>

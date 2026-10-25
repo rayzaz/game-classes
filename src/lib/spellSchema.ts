@@ -50,6 +50,20 @@ export type SpellTarget = (typeof SPELL_TARGETS)[number];
 export type SpellArea = (typeof SPELL_AREAS)[number];
 export type SpellDurationMode = (typeof SPELL_DURATION_MODES)[number];
 
+export type SummonedAbility = {
+  name: string;
+  effect: string;
+  manaCost: number | null;
+};
+
+export type SummonedCreature = {
+  name: string;
+  hp: number | null;
+  mp: number | null;
+  description: string;
+  abilities: SummonedAbility[];
+};
+
 export type CanonicalSpell = {
   schemaVersion: typeof SPELL_SCHEMA_VERSION;
   name: string;
@@ -62,6 +76,8 @@ export type CanonicalSpell = {
   areaMeters: number | null;
   movementMeters: number | null;
   summonCount: number | null;
+  // Дополнительные параметры существ; старые призывы без профилей остаются допустимы.
+  summonedCreatures: SummonedCreature[];
   durationMode: SpellDurationMode;
   durationRounds: number | null;
   effect: string;
@@ -104,6 +120,7 @@ export function defaultSpellRequiresHit(powerType: string) {
 export function defaultSpellForm(powerType: string): SpellForm {
   const type = String(powerType || '').trim();
   if (type === 'Призыв') return 'Призыв';
+  if (type === 'Перемещение') return 'Перемещение';
   if (type === 'Защита') return 'Создание / барьер';
   return 'Направленное';
 }
@@ -185,6 +202,7 @@ export function makeCanonicalSpell(powerType = 'Урон'): CanonicalSpell {
     areaMeters: null,
     movementMeters: null,
     summonCount: form === 'Призыв' ? 1 : null,
+    summonedCreatures: [],
     durationMode: powerType === 'Урон' || powerType === 'Лечение' ? 'Мгновенно' : 'Ходы',
     durationRounds: powerType === 'Урон' || powerType === 'Лечение' ? null : 1,
     effect: '',
@@ -209,6 +227,37 @@ export function normalizePercent(value: unknown, fallback = 100) {
   const parsed = Number(value);
   if (!Number.isFinite(parsed)) return fallback;
   return Math.max(1, Math.min(500, Math.round(parsed)));
+}
+
+function normalizeCreatureNumber(value: unknown, minimum: number): number | null {
+  if (value === '' || value === null || value === undefined) return null;
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed) || parsed < minimum || parsed > 1_000_000_000) return null;
+  return Math.trunc(parsed);
+}
+
+export function normalizeSummonedCreatures(raw: unknown): SummonedCreature[] {
+  if (!Array.isArray(raw)) return [];
+  return raw.slice(0, 10).map((item) => {
+    const value = item && typeof item === 'object' && !Array.isArray(item)
+      ? item as Record<string, unknown> : {};
+    return {
+      name: String(value.name || '').trim().slice(0, 150),
+      hp: normalizeCreatureNumber(value.hp, 1),
+      mp: normalizeCreatureNumber(value.mp, 0),
+      description: String(value.description || '').trim().slice(0, 2000),
+      abilities: (Array.isArray(value.abilities) ? value.abilities : [])
+        .slice(0, 12).map((rawAbility): SummonedAbility => {
+          const ability = rawAbility && typeof rawAbility === 'object' && !Array.isArray(rawAbility)
+            ? rawAbility as Record<string, unknown> : {};
+          return {
+            name: String(ability.name || '').trim().slice(0, 150),
+            effect: String(ability.effect || '').trim().slice(0, 1200),
+            manaCost: normalizeCreatureNumber(ability.manaCost, 0),
+          };
+        }),
+    };
+  });
 }
 
 export function normalizeCanonicalSpell(
@@ -286,6 +335,7 @@ export function normalizeCanonicalSpell(
     areaMeters,
     movementMeters,
     summonCount,
+    summonedCreatures: normalizeSummonedCreatures(raw.summonedCreatures),
     durationMode,
     durationRounds,
     effect: String(raw.effect || '').trim(),
@@ -333,6 +383,28 @@ export function validateCanonicalSpell(
     issues.push({ field: 'summonCount', message: 'Укажите количество призываемых существ.' });
   }
 
+  if (spell.form === 'Призыв') {
+    const creatures = Array.isArray(spell.summonedCreatures) ? spell.summonedCreatures : [];
+    if (creatures.length > 10) {
+      issues.push({ field: 'summonedCreatures', message: 'Не более 10 профилей существ на заклинание.' });
+    }
+    creatures.forEach((creature, i) => {
+      const prefix = `Существо ${i + 1}`;
+      if (!creature.name.trim()) issues.push({ field: 'summonedCreatures', message: `${prefix}: укажите имя.` });
+      if (creature.hp === null || creature.hp < 1) issues.push({ field: 'summonedCreatures', message: `${prefix}: укажите HP больше нуля.` });
+      if (creature.mp === null || creature.mp < 0) issues.push({ field: 'summonedCreatures', message: `${prefix}: укажите MP (можно 0).` });
+      if (creature.abilities.length > 12) issues.push({ field: 'summonedCreatures', message: `${prefix}: не более 12 способностей.` });
+      creature.abilities.forEach((ability, j) => {
+        if (!ability.name.trim() || !ability.effect.trim()) {
+          issues.push({ field: 'summonedCreatures', message: `${prefix}, способность ${j + 1}: нужны название и эффект.` });
+        }
+        if (ability.manaCost !== null && ability.manaCost < 0) {
+          issues.push({ field: 'summonedCreatures', message: `${prefix}, способность ${j + 1}: расход MP не может быть отрицательным.` });
+        }
+      });
+    });
+  }
+
   if (!SPELL_DURATION_MODES.includes(spell.durationMode)) issues.push({ field: 'durationMode', message: 'Нужно выбрать длительность.' });
   if (spell.durationMode === 'Ходы' && (!spell.durationRounds || spell.durationRounds < 1)) {
     issues.push({ field: 'durationRounds', message: 'Укажите количество ходов.' });
@@ -369,12 +441,18 @@ export function spellSpatialLabels(spell: CanonicalSpell) {
   if (area) labels.push(area);
   if (spellUsesMovement(spell) && spell.movementMeters != null) labels.push(`перемещение ${spell.movementMeters} м`);
   if (spellUsesSummonCount(spell) && spell.summonCount != null) labels.push(`призыв ×${spell.summonCount}`);
+  if (spell.form === 'Призыв' && spell.summonedCreatures?.length) labels.push(`профили существ: ${spell.summonedCreatures.length}`);
   return labels;
 }
 
 export function spellCalculationLabel(spell: Pick<CanonicalSpell, 'powerType' | 'powerScale' | 'form' | 'basePower'>) {
   const statByType: Record<string, string> = {
-    Урон: 'Атака',
+    Урон: 'Атака заклинанием',
+    Зелья: 'Зелья',
+    Перемещение: 'Перемещение',
+    'Модификатор скорости': 'Модификатор скорости',
+    'Физическое воздействие': 'Физическое воздействие',
+    Прочее: 'Прочее',
     Лечение: 'Лечение',
     Защита: 'Защита',
     Бафф: 'Бафф',
